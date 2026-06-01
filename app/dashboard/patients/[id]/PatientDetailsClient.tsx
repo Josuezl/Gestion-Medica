@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from 'react'
 import { updatePatient, uploadMedicalStudy } from '../actions'
+import { sendMedicalRecordByEmail, sendPrescriptionByEmail } from './email-actions'
 import { 
   User, 
   Phone, 
@@ -161,6 +162,46 @@ export default function PatientDetailsClient({
 
   const patientPhoneClean = patient.phone ? patient.phone.replace('+', '') : '';
 
+  // Estados para envío de correo
+  const [sendingFichaEmail, setSendingFichaEmail] = useState(false)
+  const [fichaEmailMsg, setFichaEmailMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [sendingPrescEmail, setSendingPrescEmail] = useState<string | null>(null)
+  const [prescEmailMsg, setPrescEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
+
+  const handleSendFichaEmail = async () => {
+    setSendingFichaEmail(true)
+    setFichaEmailMsg(null)
+    try {
+      const result = await sendMedicalRecordByEmail(patient.id)
+      if (result.error) {
+        setFichaEmailMsg({ type: 'error', text: result.error })
+      } else {
+        setFichaEmailMsg({ type: 'success', text: `✅ Ficha médica enviada a ${patient.email}` })
+        setTimeout(() => setFichaEmailMsg(null), 5000)
+      }
+    } catch {
+      setFichaEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.' })
+    }
+    setSendingFichaEmail(false)
+  }
+
+  const handleSendPrescriptionEmail = async (prescriptionId: string) => {
+    setSendingPrescEmail(prescriptionId)
+    setPrescEmailMsg(null)
+    try {
+      const result = await sendPrescriptionByEmail(patient.id, prescriptionId)
+      if (result.error) {
+        setPrescEmailMsg({ type: 'error', text: result.error, id: prescriptionId })
+      } else {
+        setPrescEmailMsg({ type: 'success', text: `✅ Receta enviada a ${patient.email}`, id: prescriptionId })
+        setTimeout(() => setPrescEmailMsg(null), 5000)
+      }
+    } catch {
+      setPrescEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.', id: prescriptionId })
+    }
+    setSendingPrescEmail(null)
+  }
+
   return (
     <div style={styles.container} className="animate-fade-in">
       {/* Patient Profile Header Card */}
@@ -224,14 +265,15 @@ export default function PatientDetailsClient({
               >
                 <MessageCircle size={16} />
               </a>
-              <a 
-                href={`mailto:${patient.email || ''}?subject=${encodeURIComponent(`Ficha Médica - ${patient.first_name} ${patient.last_name}`)}&body=${encodeURIComponent(generateFichaText())}`}
+              <button 
+                onClick={handleSendFichaEmail}
+                disabled={sendingFichaEmail}
                 className="btn btn-secondary" 
-                style={{ padding: '0.5rem', backgroundColor: '#e0e7ff', color: '#4338ca', border: 'none' }}
-                title="Enviar Ficha por Correo"
+                style={{ padding: '0.5rem', backgroundColor: sendingFichaEmail ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingFichaEmail ? 'wait' : 'pointer' }}
+                title="Enviar Ficha por Correo Electrónico"
               >
-                <Mail size={16} />
-              </a>
+                {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              </button>
             </div>
             <a 
               href={`/dashboard/consultations/new?patientId=${patient.id}`} 
@@ -250,6 +292,25 @@ export default function PatientDetailsClient({
           <span style={styles.allergiesLabel}>Alergias:</span>
           <span style={styles.allergiesValue}>{patient.allergies || 'Ninguna conocida'}</span>
         </div>
+
+        {/* Email Notification Toast */}
+        {fichaEmailMsg && (
+          <div style={{
+            padding: '0.75rem 1.25rem',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '600',
+            backgroundColor: fichaEmailMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
+            color: fichaEmailMsg.type === 'success' ? '#166534' : '#991b1b',
+            border: `1px solid ${fichaEmailMsg.type === 'success' ? '#86efac' : '#fecaca'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            animation: 'fadeIn 0.3s ease-out',
+          }}>
+            {fichaEmailMsg.text}
+          </div>
+        )}
       </div>
 
       {/* Edit Mode Panel */}
@@ -518,20 +579,38 @@ export default function PatientDetailsClient({
                               >
                                 <MessageCircle size={14} />
                               </a>
-                              <a 
-                                href={`mailto:${patient.email || ''}?subject=${encodeURIComponent('Tu Receta Médica')}&body=${encodeURIComponent(`Hola ${patient.first_name},\n\nTe comparto tu receta médica en el siguiente enlace seguro: ${presc.pdf_url}\n\nSaludos.`)}`}
+                              <button
+                                onClick={() => handleSendPrescriptionEmail(presc.id)}
+                                disabled={sendingPrescEmail === presc.id}
                                 className="btn btn-secondary" 
-                                style={{ padding: '0.4rem 0.6rem', backgroundColor: '#e0e7ff', color: '#4338ca', border: 'none' }}
-                                title="Enviar Receta por Correo"
+                                style={{ padding: '0.4rem 0.6rem', backgroundColor: sendingPrescEmail === presc.id ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingPrescEmail === presc.id ? 'wait' : 'pointer' }}
+                                title="Enviar Receta por Correo Electrónico"
                               >
-                                <Mail size={14} />
-                              </a>
+                                {sendingPrescEmail === presc.id ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                              </button>
                             </>
                           )}
                         </div>
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {/* Prescription Email Toast */}
+              {prescEmailMsg && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  backgroundColor: prescEmailMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
+                  color: prescEmailMsg.type === 'success' ? '#166534' : '#991b1b',
+                  border: `1px solid ${prescEmailMsg.type === 'success' ? '#86efac' : '#fecaca'}`,
+                  animation: 'fadeIn 0.3s ease-out',
+                }}>
+                  {prescEmailMsg.text}
                 </div>
               )}
             </div>
