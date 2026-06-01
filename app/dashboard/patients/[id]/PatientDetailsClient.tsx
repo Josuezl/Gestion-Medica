@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react'
 import { updatePatient, uploadMedicalStudy } from '../actions'
-import { sendMedicalRecordByEmail, sendPrescriptionByEmail } from './email-actions'
+import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { 
   User, 
   Phone, 
@@ -25,7 +25,10 @@ import {
   MessageCircle,
   Pill,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Save,
+  X,
+  Trash2
 } from 'lucide-react'
 
 // Utilidad para calcular edad
@@ -55,6 +58,11 @@ export default function PatientDetailsClient({
 }: PatientDetailsClientProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
+  const [editingPrescription, setEditingPrescription] = useState<string | null>(null)
+  const [editMedicines, setEditMedicines] = useState<{ name: string; dose: string; frequency: string; duration: string }[]>([])
+  const [editNotes, setEditNotes] = useState('')
+  const [savingPrescription, setSavingPrescription] = useState(false)
+  const [prescSaveMsg, setPrescSaveMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
@@ -650,63 +658,198 @@ export default function PatientDetailsClient({
                             padding: '1rem',
                             backgroundColor: 'rgba(13, 148, 136, 0.04)',
                             borderRadius: '8px',
-                            border: '1px solid rgba(13, 148, 136, 0.12)',
+                            border: `1px solid ${editingPrescription === presc.id ? 'var(--primary)' : 'rgba(13, 148, 136, 0.12)'}`,
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                              <Pill size={16} color="var(--primary)" />
-                              <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Pill size={16} color="var(--primary)" />
+                                <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
+                              </div>
+                              {editingPrescription !== presc.id ? (
+                                <button
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
+                                  onClick={() => {
+                                    setEditingPrescription(presc.id)
+                                    setEditMedicines((presc.medicines || []).map((m: any) => ({ name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', duration: m.duration || '' })))
+                                    setEditNotes(presc.notes || '')
+                                    setPrescSaveMsg(null)
+                                  }}
+                                >
+                                  <Edit size={12} />
+                                  Editar Receta
+                                </button>
+                              ) : (
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                  <button
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
+                                    disabled={savingPrescription}
+                                    onClick={async () => {
+                                      setSavingPrescription(true)
+                                      setPrescSaveMsg(null)
+                                      const result = await updatePrescription(presc.id, editMedicines, editNotes)
+                                      if (result.error) {
+                                        setPrescSaveMsg({ type: 'error', text: result.error })
+                                      } else {
+                                        setPrescSaveMsg({ type: 'success', text: '✅ Receta actualizada exitosamente' })
+                                        setEditingPrescription(null)
+                                        setTimeout(() => setPrescSaveMsg(null), 4000)
+                                      }
+                                      setSavingPrescription(false)
+                                    }}
+                                  >
+                                    {savingPrescription ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                    Guardar
+                                  </button>
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
+                                    onClick={() => {
+                                      setEditingPrescription(null)
+                                      setPrescSaveMsg(null)
+                                    }}
+                                  >
+                                    <X size={12} />
+                                    Cancelar
+                                  </button>
+                                </div>
+                              )}
                             </div>
 
                             {/* Medicine Table */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                              {/* Table Header */}
-                              <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                                gap: '0.5rem',
-                                padding: '0.4rem 0.6rem',
-                                fontSize: '0.7rem',
-                                fontWeight: '700',
-                                color: 'var(--text-muted)',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                              }}>
-                                <span>Medicamento</span>
-                                <span>Dosis</span>
-                                <span>Frecuencia</span>
-                                <span>Duración</span>
-                              </div>
-                              {/* Medicine Rows */}
-                              {(presc.medicines || []).map((med: any, idx: number) => (
-                                <div key={idx} style={{
+                            {editingPrescription === presc.id ? (
+                              /* EDIT MODE */
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                {/* Table Header */}
+                                <div style={{
                                   display: 'grid',
-                                  gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                  gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
                                   gap: '0.5rem',
-                                  padding: '0.5rem 0.6rem',
-                                  backgroundColor: 'var(--bg-card)',
-                                  borderRadius: '6px',
-                                  fontSize: '0.82rem',
-                                  border: '1px solid var(--border-color)',
+                                  padding: '0.4rem 0.6rem',
+                                  fontSize: '0.7rem',
+                                  fontWeight: '700',
+                                  color: 'var(--text-muted)',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
                                 }}>
-                                  <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{idx + 1}. {med.name}</span>
-                                  <span style={{ color: 'var(--text-muted)' }}>{med.dose || '—'}</span>
-                                  <span style={{ color: 'var(--text-muted)' }}>{med.frequency || '—'}</span>
-                                  <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
+                                  <span>Medicamento</span>
+                                  <span>Dosis</span>
+                                  <span>Frecuencia</span>
+                                  <span>Duración</span>
+                                  <span></span>
                                 </div>
-                              ))}
-                            </div>
+                                {editMedicines.map((med, idx) => (
+                                  <div key={idx} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
+                                    gap: '0.5rem',
+                                    padding: '0.35rem 0.5rem',
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    alignItems: 'center',
+                                  }}>
+                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.name} placeholder="Medicamento" onChange={(e) => { const n = [...editMedicines]; n[idx].name = e.target.value; setEditMedicines(n) }} />
+                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.dose} placeholder="Ej. 500mg" onChange={(e) => { const n = [...editMedicines]; n[idx].dose = e.target.value; setEditMedicines(n) }} />
+                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.frequency} placeholder="Ej. c/8h" onChange={(e) => { const n = [...editMedicines]; n[idx].frequency = e.target.value; setEditMedicines(n) }} />
+                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.duration} placeholder="Ej. 7 días" onChange={(e) => { const n = [...editMedicines]; n[idx].duration = e.target.value; setEditMedicines(n) }} />
+                                    <button onClick={() => { const n = editMedicines.filter((_, i) => i !== idx); setEditMedicines(n) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#ef4444' }} title="Eliminar medicamento">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                                <button
+                                  onClick={() => setEditMedicines([...editMedicines, { name: '', dose: '', frequency: '', duration: '' }])}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem', gap: '0.3rem', alignSelf: 'flex-start', marginTop: '0.25rem' }}
+                                >
+                                  <Plus size={13} />
+                                  Agregar Medicamento
+                                </button>
 
-                            {presc.notes && (
+                                {/* Editable Notes */}
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📝 Indicaciones</label>
+                                  <textarea
+                                    className="form-input"
+                                    value={editNotes}
+                                    onChange={(e) => setEditNotes(e.target.value)}
+                                    rows={2}
+                                    style={{ fontSize: '0.82rem', marginTop: '0.25rem' }}
+                                    placeholder="Indicaciones adicionales de la receta..."
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              /* VIEW MODE */
+                              <>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                  {/* Table Header */}
+                                  <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.6rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '700',
+                                    color: 'var(--text-muted)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                  }}>
+                                    <span>Medicamento</span>
+                                    <span>Dosis</span>
+                                    <span>Frecuencia</span>
+                                    <span>Duración</span>
+                                  </div>
+                                  {/* Medicine Rows */}
+                                  {(presc.medicines || []).map((med: any, idx: number) => (
+                                    <div key={idx} style={{
+                                      display: 'grid',
+                                      gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                      gap: '0.5rem',
+                                      padding: '0.5rem 0.6rem',
+                                      backgroundColor: 'var(--bg-card)',
+                                      borderRadius: '6px',
+                                      fontSize: '0.82rem',
+                                      border: '1px solid var(--border-color)',
+                                    }}>
+                                      <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{idx + 1}. {med.name}</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{med.dose || '—'}</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{med.frequency || '—'}</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {presc.notes && (
+                                  <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.6rem 0.8rem',
+                                    backgroundColor: '#fffbeb',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: '6px',
+                                    borderLeft: '3px solid #f59e0b',
+                                  }}>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#92400e', margin: '0 0 0.25rem', textTransform: 'uppercase' }}>📝 Indicaciones</p>
+                                    <p style={{ fontSize: '0.82rem', color: '#78350f', margin: 0, whiteSpace: 'pre-line' }}>{presc.notes}</p>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            {/* Save Message */}
+                            {prescSaveMsg && prescSaveMsg.text && (
                               <div style={{
                                 marginTop: '0.75rem',
-                                padding: '0.6rem 0.8rem',
-                                backgroundColor: '#fffbeb',
-                                border: '1px solid #fde68a',
+                                padding: '0.5rem 0.8rem',
                                 borderRadius: '6px',
-                                borderLeft: '3px solid #f59e0b',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                backgroundColor: prescSaveMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
+                                color: prescSaveMsg.type === 'success' ? '#166534' : '#991b1b',
                               }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#92400e', margin: '0 0 0.25rem', textTransform: 'uppercase' }}>📝 Indicaciones</p>
-                                <p style={{ fontSize: '0.82rem', color: '#78350f', margin: 0, whiteSpace: 'pre-line' }}>{presc.notes}</p>
+                                {prescSaveMsg.text}
                               </div>
                             )}
                           </div>

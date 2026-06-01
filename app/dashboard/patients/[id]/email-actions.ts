@@ -152,3 +152,61 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
 
   return { success: true }
 }
+
+/**
+ * Server Action: Actualizar medicamentos e indicaciones de una receta existente
+ */
+export async function updatePrescription(
+  prescriptionId: string,
+  medicines: { name: string; dose: string; frequency: string; duration: string }[],
+  notes: string
+) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  // Verificar que la receta existe y pertenece a la clínica del doctor
+  const { data: prescription } = await supabase
+    .from('prescriptions')
+    .select('*, patients(id, clinic_id)')
+    .eq('id', prescriptionId)
+    .single()
+
+  if (!prescription) return { error: 'Receta no encontrada' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.clinic_id || profile.clinic_id !== prescription.clinic_id) {
+    return { error: 'No tienes permiso para editar esta receta.' }
+  }
+
+  // Actualizar medicamentos e indicaciones
+  const { error } = await supabase
+    .from('prescriptions')
+    .update({ medicines, notes })
+    .eq('id', prescriptionId)
+
+  if (error) {
+    return { error: `Error al actualizar receta: ${error.message}` }
+  }
+
+  // Registrar en bitácora de auditoría
+  await supabase.from('audit_logs').insert([{
+    clinic_id: profile.clinic_id,
+    performed_by: user.id,
+    action: 'UPDATE_PRESCRIPTION',
+    record_id: prescriptionId,
+    table_name: 'prescriptions'
+  }])
+
+  // Revalidar la página del paciente
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath(`/dashboard/patients/${prescription.patient_id}`)
+
+  return { success: true }
+}
