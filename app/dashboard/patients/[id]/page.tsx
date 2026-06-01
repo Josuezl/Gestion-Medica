@@ -39,10 +39,10 @@ export default async function PatientPage({ params }: PageProps) {
       table_name: 'patients'
     }])
 
-  // 3. Cargar consultas de evolución
+  // 3. Cargar consultas de evolución (con recetas asociadas)
   const { data: consultations } = await supabase
     .from('consultations')
-    .select('*, user_profiles(first_name, last_name)')
+    .select('*, user_profiles(first_name, last_name), prescriptions(id, medicines, notes, verification_code, pdf_url)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 

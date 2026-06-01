@@ -22,7 +22,10 @@ import {
   Plus,
   Printer,
   Share2,
-  MessageCircle
+  MessageCircle,
+  Pill,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 
 // Utilidad para calcular edad
@@ -51,6 +54,7 @@ export default function PatientDetailsClient({
   prescriptions
 }: PatientDetailsClientProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies'>('consultations')
+  const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
@@ -502,6 +506,47 @@ export default function PatientDetailsClient({
                             <p style={styles.fieldLabel}>Plan de Tratamiento:</p>
                             <p style={styles.fieldText}>{consult.treatment_plan}</p>
                           </div>
+
+                          {/* Medicamentos recetados en esta consulta */}
+                          {consult.prescriptions && consult.prescriptions.length > 0 && (
+                            <div style={{
+                              marginTop: '0.75rem',
+                              padding: '1rem',
+                              backgroundColor: 'rgba(13, 148, 136, 0.06)',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(13, 148, 136, 0.15)',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                <Pill size={16} color="var(--primary)" />
+                                <p style={{ ...styles.fieldLabel, marginBottom: 0, color: 'var(--primary)' }}>Receta Médica ({consult.prescriptions[0].verification_code})</p>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                {(consult.prescriptions[0].medicines || []).map((med: any, idx: number) => (
+                                  <div key={idx} style={{
+                                    display: 'flex',
+                                    gap: '0.75rem',
+                                    padding: '0.4rem 0.6rem',
+                                    backgroundColor: 'var(--bg-card)',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    alignItems: 'center',
+                                    border: '1px solid var(--border-color)',
+                                  }}>
+                                    <span style={{ fontWeight: '700', color: 'var(--text-main)', minWidth: '20px' }}>{idx + 1}.</span>
+                                    <span style={{ fontWeight: '600', color: 'var(--text-main)', flex: 1 }}>{med.name}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.dose || ''}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.frequency || ''}</span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.duration || ''}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {consult.prescriptions[0].notes && (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                                  📝 {consult.prescriptions[0].notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
@@ -552,45 +597,120 @@ export default function PatientDetailsClient({
                   {prescriptions.map((presc) => {
                     const date = new Date(presc.created_at).toLocaleDateString('es-HN')
                     const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                    const isExpanded = expandedPrescription === presc.id
                     
                     return (
-                      <div key={presc.id} className="card" style={styles.studyRow}>
-                        <div style={styles.studyInfo}>
-                          <FileText size={22} color="var(--primary)" />
-                          <div>
-                            <p style={styles.studyNameText}>Receta Médica - Código: {presc.verification_code}</p>
-                            <p style={styles.studyMeta}>Emitida el {date} por {docName}</p>
+                      <div key={presc.id} className="card" style={{ ...styles.studyRow, flexDirection: 'column', alignItems: 'stretch' }}>
+                        {/* Header Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div 
+                            style={{ ...styles.studyInfo, cursor: 'pointer', flex: 1 }} 
+                            onClick={() => setExpandedPrescription(isExpanded ? null : presc.id)}
+                          >
+                            <FileText size={22} color="var(--primary)" />
+                            <div style={{ flex: 1 }}>
+                              <p style={styles.studyNameText}>Receta Médica - Código: {presc.verification_code}</p>
+                              <p style={styles.studyMeta}>Emitida el {date} por {docName}</p>
+                            </div>
+                            {isExpanded ? <ChevronUp size={18} color="var(--text-muted)" /> : <ChevronDown size={18} color="var(--text-muted)" />}
                           </div>
-                        </div>
-                        <div style={styles.studyActions}>
-                          {presc.pdf_url && (
-                            <>
+                          <div style={styles.studyActions}>
+                            {presc.pdf_url && (
                               <a href={presc.pdf_url} target="_blank" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}>
                                 <Printer size={14} />
-                                Imprimir / Ver
+                                Imprimir
                               </a>
-                              <a 
-                                href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(`Hola ${patient.first_name}, te comparto tu receta médica en el siguiente enlace seguro: ${presc.pdf_url}`)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn btn-secondary" 
-                                style={{ padding: '0.4rem 0.6rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
-                                title="Enviar Receta por WhatsApp"
-                              >
-                                <MessageCircle size={14} />
-                              </a>
-                              <button
-                                onClick={() => handleSendPrescriptionEmail(presc.id)}
-                                disabled={sendingPrescEmail === presc.id}
-                                className="btn btn-secondary" 
-                                style={{ padding: '0.4rem 0.6rem', backgroundColor: sendingPrescEmail === presc.id ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingPrescEmail === presc.id ? 'wait' : 'pointer' }}
-                                title="Enviar Receta por Correo Electrónico"
-                              >
-                                {sendingPrescEmail === presc.id ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                              </button>
-                            </>
-                          )}
+                            )}
+                            <a 
+                              href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(`Hola ${patient.first_name}, te comparto tu receta médica. Código: ${presc.verification_code}${presc.pdf_url ? `. Descárgala aquí: ${presc.pdf_url}` : ''}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary" 
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
+                              title="Enviar Receta por WhatsApp"
+                            >
+                              <MessageCircle size={14} />
+                            </a>
+                            <button
+                              onClick={() => handleSendPrescriptionEmail(presc.id)}
+                              disabled={sendingPrescEmail === presc.id}
+                              className="btn btn-secondary" 
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: sendingPrescEmail === presc.id ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingPrescEmail === presc.id ? 'wait' : 'pointer' }}
+                              title="Enviar Receta por Correo Electrónico"
+                            >
+                              {sendingPrescEmail === presc.id ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Expanded Medicine Details */}
+                        {isExpanded && (
+                          <div style={{
+                            marginTop: '1rem',
+                            padding: '1rem',
+                            backgroundColor: 'rgba(13, 148, 136, 0.04)',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(13, 148, 136, 0.12)',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                              <Pill size={16} color="var(--primary)" />
+                              <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
+                            </div>
+
+                            {/* Medicine Table */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                              {/* Table Header */}
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                gap: '0.5rem',
+                                padding: '0.4rem 0.6rem',
+                                fontSize: '0.7rem',
+                                fontWeight: '700',
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                              }}>
+                                <span>Medicamento</span>
+                                <span>Dosis</span>
+                                <span>Frecuencia</span>
+                                <span>Duración</span>
+                              </div>
+                              {/* Medicine Rows */}
+                              {(presc.medicines || []).map((med: any, idx: number) => (
+                                <div key={idx} style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                  gap: '0.5rem',
+                                  padding: '0.5rem 0.6rem',
+                                  backgroundColor: 'var(--bg-card)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.82rem',
+                                  border: '1px solid var(--border-color)',
+                                }}>
+                                  <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{idx + 1}. {med.name}</span>
+                                  <span style={{ color: 'var(--text-muted)' }}>{med.dose || '—'}</span>
+                                  <span style={{ color: 'var(--text-muted)' }}>{med.frequency || '—'}</span>
+                                  <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {presc.notes && (
+                              <div style={{
+                                marginTop: '0.75rem',
+                                padding: '0.6rem 0.8rem',
+                                backgroundColor: '#fffbeb',
+                                border: '1px solid #fde68a',
+                                borderRadius: '6px',
+                                borderLeft: '3px solid #f59e0b',
+                              }}>
+                                <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#92400e', margin: '0 0 0.25rem', textTransform: 'uppercase' }}>📝 Indicaciones</p>
+                                <p style={{ fontSize: '0.82rem', color: '#78350f', margin: 0, whiteSpace: 'pre-line' }}>{presc.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
