@@ -225,6 +225,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '0.75rem',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   searchWrapper: {
     position: 'relative',

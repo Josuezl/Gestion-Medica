@@ -110,7 +110,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* Stats Section */}
-      <section style={styles.statsGrid} className="grid-4">
+      <section className="responsive-stats-grid">
         <div className="card" style={styles.statCard}>
           <div style={{ ...styles.iconContainer, backgroundColor: 'rgba(13, 148, 136, 0.1)' }}>
             <Users size={22} color="var(--primary)" />
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* Main Content Split Grid */}
-      <div style={styles.splitGrid}>
+      <div className="responsive-split-grid">
         {/* Today's Appointments List */}
         <div className="card" style={styles.appointmentListContainer}>
           <div style={styles.sectionHeader}>
@@ -279,6 +279,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 'var(--radius-lg)',
     padding: '1.5rem 2rem',
     gap: '2rem',
+    flexWrap: 'wrap',
   },
   bannerContent: {
     flex: 1,
@@ -386,6 +387,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid var(--border-color)',
     gap: '1.5rem',
     transition: 'border-color var(--transition-fast)',
+    flexWrap: 'wrap',
   },
   appointmentTimeWrapper: {
     display: 'flex',

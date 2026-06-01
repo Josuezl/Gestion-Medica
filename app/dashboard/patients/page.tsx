@@ -204,6 +204,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '1rem',
   },
   title: {
     fontSize: '1.5rem',
@@ -220,6 +222,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '0.75rem',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   searchWrapper: {
     position: 'relative',

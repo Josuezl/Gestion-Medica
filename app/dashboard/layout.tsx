@@ -11,7 +11,8 @@ import {
   LogOut, 
   Stethoscope, 
   User as UserIcon,
-  MessageSquare
+  MessageSquare,
+  Menu
 } from 'lucide-react'
 
 interface SidebarLinkProps {
@@ -62,9 +63,13 @@ export default async function DashboardLayout({
   const specialty = profile?.specialty || 'General'
 
   return (
-    <div style={styles.container}>
+    <div className="dashboard-container">
+      {/* Checkbox toggle and overlay for mobile menu */}
+      <input type="checkbox" id="sidebar-toggle" className="sidebar-toggle-checkbox" />
+      <label htmlFor="sidebar-toggle" className="sidebar-overlay"></label>
+
       {/* Sidebar */}
-      <aside style={styles.sidebar}>
+      <aside className="dashboard-sidebar">
         <div style={styles.logoContainer}>
           <div style={styles.logoIcon}>
             <Stethoscope size={24} color="#2dd4bf" />
@@ -104,12 +109,18 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main Panel */}
-      <div style={styles.mainPanel}>
+      <div className="dashboard-main-panel">
         {/* Header */}
-        <header style={styles.header}>
-          <div>
-            <h2 style={styles.headerTitle}>Panel de Control</h2>
-            <p style={styles.headerSubtitle}>Bienvenido de vuelta, gestiona tu consultorio hoy</p>
+        <header className="dashboard-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Hamburger button visible only on mobile */}
+            <label htmlFor="sidebar-toggle" className="sidebar-toggle-label">
+              <Menu size={20} />
+            </label>
+            <div>
+              <h2 style={styles.headerTitle}>Panel de Control</h2>
+              <p style={styles.headerSubtitle}>Bienvenido de vuelta, gestiona tu consultorio hoy</p>
+            </div>
           </div>
           <div style={styles.headerActions}>
             <div style={styles.whatsappBadge}>
@@ -120,7 +131,7 @@ export default async function DashboardLayout({
         </header>
 
         {/* Dynamic page contents */}
-        <main style={styles.content}>
+        <main className="dashboard-content">
           {children}
         </main>
       </div>
