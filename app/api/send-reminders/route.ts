@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendAppointmentReminder } from '@/utils/whatsapp'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function GET(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('Advertencia: Variables de entorno de Supabase no configuradas durante la compilación.')
+    return NextResponse.json({ success: false, error: 'Credenciales de Supabase no configuradas.' }, { status: 500 })
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
   // Opcional: Proteger el endpoint con un token de autorización en el header
   const authHeader = request.headers.get('authorization')
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

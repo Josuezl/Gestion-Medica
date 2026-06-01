@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { analyzePatientMessage } from '@/utils/gemini'
 
-// Inicializar cliente de Supabase administrativo (Bypasa RLS para el bot público)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 // Utilidad para enviar mensaje de WhatsApp mediante Meta Graph API
 async function sendWhatsAppMessage(to: string, text: string) {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
@@ -66,6 +60,16 @@ export async function GET(request: NextRequest) {
 
 // 2. POST: Procesamiento de Mensajes Entrantes de Pacientes
 export async function POST(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.warn('Advertencia: Variables de entorno de Supabase no configuradas durante la compilación.')
+    return NextResponse.json({ success: false, error: 'Credenciales de Supabase no configuradas.' }, { status: 200 })
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
   try {
     const body = await request.json()
 
