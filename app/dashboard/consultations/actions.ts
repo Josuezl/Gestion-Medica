@@ -1,0 +1,189 @@
+'use server'
+
+import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { generatePrescriptionPDF } from '@/utils/pdf-generator'
+import { sendPrescriptionNotification } from '@/utils/whatsapp'
+
+export async function createConsultation(
+  patientId: string,
+  appointmentId: string | null,
+  medicines: any[],
+  formData: FormData
+) {
+  const supabase = await createClient()
+
+  // 1. Obtener datos del doctor
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.clinic_id) {
+    return { error: 'Error: El médico no está asociado a una clínica.' }
+  }
+
+  const clinicId = profile.clinic_id
+
+  // 2. Extraer datos de signos vitales y notas clínicas
+  const reasonForVisit = formData.get('reason_for_visit') as string
+  const symptoms = formData.get('symptoms') as string || null
+  const physicalExam = formData.get('physical_exam') as string || null
+  const diagnosis = formData.get('diagnosis') as string
+  const treatmentPlan = formData.get('treatment_plan') as string
+
+  const bp = formData.get('blood_pressure') as string || null
+  const tempVal = formData.get('temperature') as string
+  const weightVal = formData.get('weight') as string
+  const hrVal = formData.get('heart_rate') as string
+
+  const temperature = tempVal ? parseFloat(tempVal) : null
+  const weight = weightVal ? parseFloat(weightVal) : null
+  const heartRate = hrVal ? parseInt(hrVal, 10) : null
+
+  // 3. Insertar la consulta
+  const { data: consultation, error: consultError } = await supabase
+    .from('consultations')
+    .insert([{
+      clinic_id: clinicId,
+      patient_id: patientId,
+      doctor_id: user.id,
+      reason_for_visit: reasonForVisit,
+      symptoms,
+      physical_exam: physicalExam,
+      diagnosis,
+      treatment_plan: treatmentPlan,
+      blood_pressure: bp,
+      temperature,
+      weight,
+      heart_rate: heartRate
+    }])
+    .select()
+    .single()
+
+  if (consultError) {
+    return { error: `Error al registrar consulta: ${consultError.message}` }
+  }
+
+  // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
+  if (medicines && medicines.length > 0) {
+    const verificationCode = `MC-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+    const prescriptionNotes = formData.get('prescription_notes') as string || ''
+
+    const { data: prescription, error: prescriptionError } = await supabase
+      .from('prescriptions')
+      .insert([{
+        clinic_id: clinicId,
+        patient_id: patientId,
+        consultation_id: consultation.id,
+        doctor_id: user.id,
+        medicines,
+        notes: prescriptionNotes,
+        verification_code: verificationCode
+      }])
+      .select()
+      .single()
+
+    if (prescriptionError) {
+      console.error('Error al insertar receta en DB:', prescriptionError)
+    } else {
+      try {
+        // Cargar información completa de paciente, clínica y doctor para el PDF
+        const { data: patient } = await supabase.from('patients').select('*').eq('id', patientId).single()
+        const { data: clinic } = await supabase.from('clinics').select('*').eq('id', clinicId).single()
+        const { data: docProfile } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
+
+        const calculateAge = (birthDateString: string) => {
+          const today = new Date()
+          const birthDate = new Date(birthDateString)
+          let age = today.getFullYear() - birthDate.getFullYear()
+          const m = today.getMonth() - birthDate.getMonth()
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
+          return age
+        }
+
+        const formattedDate = new Date(consultation.created_at).toLocaleDateString('es-HN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
+
+        // Generar el PDF
+        const pdfBuffer = await generatePrescriptionPDF({
+          clinicName: clinic?.name || 'Consultorio Médico',
+          clinicPhone: clinic?.phone || 'N/A',
+          clinicAddress: clinic?.address || 'Honduras',
+          doctorName: `Dr. ${docProfile?.first_name} ${docProfile?.last_name}`,
+          doctorSpecialty: docProfile?.specialty || 'Medicina General',
+          doctorProfessionalId: docProfile?.professional_id || 'N/A',
+          patientName: `${patient?.first_name} ${patient?.last_name}`,
+          patientAge: patient ? calculateAge(patient.birth_date) : 0,
+          patientDni: patient?.id_card || 'N/A',
+          date: formattedDate,
+          medicines,
+          notes: prescriptionNotes,
+          verificationCode
+        })
+
+        // Subir el PDF a Supabase Storage
+        const filePath = `${clinicId}/${patientId}/${prescription.id}.pdf`
+        const { error: uploadError } = await supabase.storage
+          .from('prescriptions')
+          .upload(filePath, Buffer.from(pdfBuffer), {
+            contentType: 'application/pdf',
+            upsert: true
+          })
+
+        if (uploadError) {
+          console.error('Error al subir PDF a Storage:', uploadError)
+        } else {
+          // Actualizar el registro de la receta con la ubicación del PDF
+          await supabase
+            .from('prescriptions')
+            .update({ pdf_url: filePath })
+            .eq('id', prescription.id)
+
+          // Generar URL firmada por 24 horas para enviar por WhatsApp
+          const { data: signedData } = await supabase.storage
+            .from('prescriptions')
+            .createSignedUrl(filePath, 86400) // 24 horas
+
+          if (signedData?.signedUrl && patient?.phone) {
+            const docName = `Dr. ${docProfile?.first_name} ${docProfile?.last_name}`
+            const patientName = `${patient.first_name} ${patient.last_name}`
+            await sendPrescriptionNotification(
+              patient.phone,
+              patientName,
+              docName,
+              signedData.signedUrl,
+              verificationCode
+            )
+          }
+        }
+      } catch (pdfErr) {
+        console.error('Error en el flujo de PDF de receta:', pdfErr)
+      }
+    }
+  }
+
+  // 5. Si viene de una cita agendada, actualizar su estado a COMPLETED
+  if (appointmentId) {
+    const { error: apptError } = await supabase
+      .from('appointments')
+      .update({ status: 'COMPLETED' })
+      .eq('id', appointmentId)
+
+    if (apptError) {
+      console.error('Error al actualizar estado de la cita:', apptError)
+    }
+  }
+
+  // 6. Revalidar y redirigir
+  revalidatePath(`/dashboard/patients/${patientId}`)
+  redirect(`/dashboard/patients/${patientId}`)
+}
