@@ -2,6 +2,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function updateSession(request: NextRequest) {
+  console.log("MIDDLEWARE DIAGNOSTICS: SUPABASE_URL =", process.env.NEXT_PUBLIC_SUPABASE_URL ? `defined (len: ${process.env.NEXT_PUBLIC_SUPABASE_URL.length})` : "undefined");
+  console.log("MIDDLEWARE DIAGNOSTICS: SUPABASE_ANON_KEY =", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? `defined (len: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length})` : "undefined");
+
   let supabaseResponse = NextResponse.next({
     request,
   })
