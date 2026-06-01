@@ -18,7 +18,10 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Download,
-  Plus
+  Plus,
+  Printer,
+  Share2,
+  MessageCircle
 } from 'lucide-react'
 
 // Utilidad para calcular edad
@@ -96,6 +99,68 @@ export default function PatientDetailsClient({
     }
   }
 
+  const printMedicalRecord = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    const html = `
+      <html>
+        <head>
+          <title>Ficha Médica - ${patient.first_name} ${patient.last_name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 30px; color: #333; line-height: 1.5; }
+            h1 { border-bottom: 2px solid #0d9488; padding-bottom: 10px; color: #0d9488; }
+            h2 { margin-top: 30px; color: #0d9488; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+            .row { display: flex; flex-wrap: wrap; margin-bottom: 15px; }
+            .col { flex: 1; min-width: 200px; margin-bottom: 10px; }
+            .label { font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; }
+            .value { font-size: 16px; margin-top: 4px; }
+            .alert { color: #d9534f; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h1>Ficha Médica Clínica</h1>
+          <div class="row">
+            <div class="col"><div class="label">Paciente</div><div class="value">${patient.first_name} ${patient.last_name}</div></div>
+            <div class="col"><div class="label">Identidad (DNI)</div><div class="value">${patient.id_card || 'N/A'}</div></div>
+            <div class="col"><div class="label">Edad / Sexo</div><div class="value">${calculateAge(patient.birth_date)} años / ${patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}</div></div>
+          </div>
+          <div class="row">
+            <div class="col"><div class="label">Teléfono</div><div class="value">${patient.phone || 'N/A'}</div></div>
+            <div class="col"><div class="label">Correo</div><div class="value">${patient.email || 'N/A'}</div></div>
+            <div class="col"><div class="label">Tipo de Sangre</div><div class="value">${patient.blood_type || 'N/A'}</div></div>
+          </div>
+          
+          <div style="margin-top: 20px; padding: 15px; border: 1px solid #ff9800; background: #fff3e0; border-radius: 5px;">
+            <div class="label" style="color: #e65100;">Alergias</div>
+            <div class="value alert">${patient.allergies || 'Ninguna conocida'}</div>
+          </div>
+
+          <h2>Antecedentes Patológicos</h2>
+          <p>${patient.pathological_history || 'No declarados'}</p>
+
+          <h2>Antecedentes No Patológicos</h2>
+          <p>${patient.non_pathological_history || 'No declarados'}</p>
+
+          <h2>Antecedentes Heredofamiliares</h2>
+          <p>${patient.family_history || 'No declarados'}</p>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  const generateFichaText = () => {
+    return `*Ficha Médica*\nPaciente: ${patient.first_name} ${patient.last_name}\nEdad: ${calculateAge(patient.birth_date)} años\nDNI: ${patient.id_card || 'N/A'}\nSangre: ${patient.blood_type || 'N/A'}\nAlergias: ${patient.allergies || 'Ninguna'}\n\n*Antecedentes:*\nPatológicos: ${patient.pathological_history || 'N/A'}\nNo Patológicos: ${patient.non_pathological_history || 'N/A'}\nFamiliares: ${patient.family_history || 'N/A'}`;
+  }
+
+  const patientPhoneClean = patient.phone ? patient.phone.replace('+', '') : '';
+
   return (
     <div style={styles.container} className="animate-fade-in">
       {/* Patient Profile Header Card */}
@@ -144,6 +209,30 @@ export default function PatientDetailsClient({
               <Edit size={16} />
               {isEditing ? 'Cancelar Edición' : 'Editar Ficha'}
             </button>
+            <button onClick={printMedicalRecord} className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none' }}>
+              <Printer size={16} />
+              Imprimir Ficha
+            </button>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <a 
+                href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(generateFichaText())}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="btn btn-secondary" 
+                style={{ padding: '0.5rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
+                title="Enviar Ficha por WhatsApp"
+              >
+                <MessageCircle size={16} />
+              </a>
+              <a 
+                href={`mailto:${patient.email || ''}?subject=${encodeURIComponent(`Ficha Médica - ${patient.first_name} ${patient.last_name}`)}&body=${encodeURIComponent(generateFichaText())}`}
+                className="btn btn-secondary" 
+                style={{ padding: '0.5rem', backgroundColor: '#e0e7ff', color: '#4338ca', border: 'none' }}
+                title="Enviar Ficha por Correo"
+              >
+                <Mail size={16} />
+              </a>
+            </div>
             <a 
               href={`/dashboard/consultations/new?patientId=${patient.id}`} 
               className="btn btn-primary" 
@@ -414,10 +503,30 @@ export default function PatientDetailsClient({
                         </div>
                         <div style={styles.studyActions}>
                           {presc.pdf_url && (
-                            <a href={presc.pdf_url} target="_blank" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}>
-                              <Download size={14} />
-                              Descargar PDF
-                            </a>
+                            <>
+                              <a href={presc.pdf_url} target="_blank" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}>
+                                <Printer size={14} />
+                                Imprimir / Ver
+                              </a>
+                              <a 
+                                href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(`Hola ${patient.first_name}, te comparto tu receta médica en el siguiente enlace seguro: ${presc.pdf_url}`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-secondary" 
+                                style={{ padding: '0.4rem 0.6rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
+                                title="Enviar Receta por WhatsApp"
+                              >
+                                <MessageCircle size={14} />
+                              </a>
+                              <a 
+                                href={`mailto:${patient.email || ''}?subject=${encodeURIComponent('Tu Receta Médica')}&body=${encodeURIComponent(`Hola ${patient.first_name},\n\nTe comparto tu receta médica en el siguiente enlace seguro: ${presc.pdf_url}\n\nSaludos.`)}`}
+                                className="btn btn-secondary" 
+                                style={{ padding: '0.4rem 0.6rem', backgroundColor: '#e0e7ff', color: '#4338ca', border: 'none' }}
+                                title="Enviar Receta por Correo"
+                              >
+                                <Mail size={14} />
+                              </a>
+                            </>
                           )}
                         </div>
                       </div>
