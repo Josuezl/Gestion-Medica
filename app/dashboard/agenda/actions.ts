@@ -29,8 +29,8 @@ export async function createAppointment(formData: FormData) {
   }
 
   // Combinar fecha y hora en formato ISO string
-  // Usamos el huso de Honduras (GMT-6)
-  const scheduledAt = new Date(`${dateStr}T${timeStr}:00`).toISOString()
+  // Indicamos explícitamente que la hora ingresada es de Honduras (UTC-6)
+  const scheduledAt = new Date(`${dateStr}T${timeStr}:00-06:00`).toISOString()
 
   const appointmentData = {
     clinic_id: profile.clinic_id,
