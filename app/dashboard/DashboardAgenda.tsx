@@ -17,6 +17,8 @@ import {
   MessageCircle
 } from 'lucide-react'
 
+const HN_TZ = 'America/Tegucigalpa'
+
 function calculateAge(birthDateString: string) {
   const today = new Date()
   const birthDate = new Date(birthDateString)
@@ -32,7 +34,8 @@ interface DashboardAgendaProps {
 }
 
 export default function DashboardAgenda({ appointments, patients }: DashboardAgendaProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
+  // Obtener fecha de hoy en zona horaria de Honduras
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: HN_TZ }) // formato YYYY-MM-DD
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [showAddForm, setShowAddForm] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -56,8 +59,9 @@ export default function DashboardAgenda({ appointments, patients }: DashboardAge
   }
 
   const filteredAppointments = appointments.filter((app) => {
-    const appDateStr = new Date(app.scheduled_at).toISOString().split('T')[0]
-    return appDateStr === selectedDate
+    // Convertir la fecha de la cita a zona horaria de Honduras para comparar
+    const appDateHN = new Date(app.scheduled_at).toLocaleDateString('en-CA', { timeZone: HN_TZ })
+    return appDateHN === selectedDate
   })
 
   function handleStatusChange(appointmentId: string, newStatus: string) {
@@ -87,7 +91,8 @@ export default function DashboardAgenda({ appointments, patients }: DashboardAge
     weekday: 'long',
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: HN_TZ
   })
 
   return (
@@ -193,6 +198,7 @@ export default function DashboardAgenda({ appointments, patients }: DashboardAge
               hour: '2-digit',
               minute: '2-digit',
               hour12: true,
+              timeZone: HN_TZ
             })
             const patientPhone = patient?.phone?.replace('+', '') || ''
 

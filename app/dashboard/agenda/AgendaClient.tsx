@@ -17,6 +17,8 @@ import {
   Loader2
 } from 'lucide-react'
 
+const HN_TZ = 'America/Tegucigalpa'
+
 interface AgendaClientProps {
   patients: any[]
   initialAppointments: any[]
@@ -27,7 +29,7 @@ export default function AgendaClient({
   initialAppointments
 }: AgendaClientProps) {
   // Estado para la fecha seleccionada en la vista (YYYY-MM-DD)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: HN_TZ })
   const [selectedDate, setSelectedDate] = useState(todayStr)
   
   // Estado para abrir formulario de agendamiento
@@ -84,8 +86,8 @@ export default function AgendaClient({
 
   // Filtrar citas para la fecha seleccionada
   const filteredAppointments = initialAppointments.filter((app) => {
-    const appDateStr = new Date(app.scheduled_at).toISOString().split('T')[0]
-    return appDateStr === selectedDate
+    const appDateHN = new Date(app.scheduled_at).toLocaleDateString('en-CA', { timeZone: HN_TZ })
+    return appDateHN === selectedDate
   })
 
   return (
@@ -112,7 +114,8 @@ export default function AgendaClient({
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric'
+                    day: 'numeric',
+                    timeZone: HN_TZ
                   })}
                 </span>
               </div>
@@ -147,7 +150,8 @@ export default function AgendaClient({
                   const appTime = new Date(app.scheduled_at).toLocaleTimeString('es-HN', {
                     hour: '2-digit',
                     minute: '2-digit',
-                    hour12: true
+                    hour12: true,
+                    timeZone: HN_TZ
                   })
 
                   return (
