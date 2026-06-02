@@ -5,23 +5,10 @@ import {
   Calendar as CalendarIcon, 
   FileText, 
   Clock, 
-  Plus, 
   TrendingUp,
-  UserCheck,
   UserPlus
 } from 'lucide-react'
-
-// Función para calcular la edad
-function calculateAge(birthDateString: string) {
-  const today = new Date()
-  const birthDate = new Date(birthDateString)
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const m = today.getMonth() - birthDate.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
-  return age
-}
+import DashboardAgenda from './DashboardAgenda'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -72,7 +59,15 @@ export default async function DashboardPage() {
     .eq('clinic_id', clinicId || '')
     .eq('status', 'PENDING')
 
-  // 3. Obtener el listado de citas para el día de hoy
+  // 3. Cargar citas (rango amplio: 30 días atrás, 60 días adelante) para navegación
+  const rangeStart = new Date()
+  rangeStart.setDate(rangeStart.getDate() - 30)
+  rangeStart.setHours(0, 0, 0, 0)
+
+  const rangeEnd = new Date()
+  rangeEnd.setDate(rangeEnd.getDate() + 60)
+  rangeEnd.setHours(23, 59, 59, 999)
+
   const { data: appointments } = await supabase
     .from('appointments')
     .select(`
@@ -89,9 +84,16 @@ export default async function DashboardPage() {
       )
     `)
     .eq('clinic_id', clinicId || '')
-    .gte('scheduled_at', todayStart.toISOString())
-    .lte('scheduled_at', todayEnd.toISOString())
+    .gte('scheduled_at', rangeStart.toISOString())
+    .lte('scheduled_at', rangeEnd.toISOString())
     .order('scheduled_at', { ascending: true })
+
+  // 4. Cargar lista de pacientes para formulario de citas rápidas
+  const { data: patientsList } = await supabase
+    .from('patients')
+    .select('id, first_name, last_name, phone')
+    .eq('clinic_id', clinicId || '')
+    .order('last_name', { ascending: true })
 
   return (
     <div style={styles.container} className="animate-fade-in">
@@ -154,73 +156,11 @@ export default async function DashboardPage() {
 
       {/* Main Content Split Grid */}
       <div className="responsive-split-grid">
-        {/* Today's Appointments List */}
-        <div className="card" style={styles.appointmentListContainer}>
-          <div style={styles.sectionHeader}>
-            <h3 style={styles.sectionTitle}>Agenda para Hoy</h3>
-            <span className="badge badge-info">{todayAppointmentsCount || 0} Citas</span>
-          </div>
-
-          <div style={styles.listWrapper}>
-            {!appointments || appointments.length === 0 ? (
-              <div style={styles.emptyState}>
-                <CalendarIcon size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                <p style={styles.emptyText}>No tienes citas programadas para hoy.</p>
-                <a href="/dashboard/agenda" className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
-                  <Plus size={16} /> Programar Cita
-                </a>
-              </div>
-            ) : (
-              appointments.map((appointment) => {
-                const patient = appointment.patients as any
-                const apptDate = new Date(appointment.scheduled_at)
-                const formattedTime = apptDate.toLocaleTimeString('es-HN', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true,
-                })
-                
-                return (
-                  <div key={appointment.id} style={styles.appointmentRow}>
-                    <div style={styles.appointmentTimeWrapper}>
-                      <span style={styles.appointmentTime}>{formattedTime}</span>
-                      <span style={styles.appointmentTimeSub}>GMT-6</span>
-                    </div>
-
-                    <div style={styles.patientDetails}>
-                      <p style={styles.patientName}>
-                        {patient ? `${patient.first_name} ${patient.last_name}` : 'Paciente sin registrar'}
-                      </p>
-                      <p style={styles.patientSub}>
-                        {patient ? `${calculateAge(patient.birth_date)} años • Tel: ${patient.phone}` : 'Vía Bot de WhatsApp'}
-                      </p>
-                    </div>
-
-                    <div style={styles.rowActions}>
-                      <span className={`badge ${
-                        appointment.status === 'CONFIRMED' ? 'badge-success' :
-                        appointment.status === 'PENDING' ? 'badge-warning' : 'badge-info'
-                      }`}>
-                        {appointment.status === 'CONFIRMED' ? 'Confirmada' :
-                         appointment.status === 'PENDING' ? 'Pendiente' : appointment.status}
-                      </span>
-
-                      {patient && (
-                        <a 
-                          href={`/dashboard/consultations/new?patientId=${patient.id}&appointmentId=${appointment.id}`} 
-                          className="btn btn-primary" 
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}
-                        >
-                          Iniciar Consulta
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
+        {/* Interactive Agenda */}
+        <DashboardAgenda
+          appointments={appointments || []}
+          patients={patientsList || []}
+        />
 
         {/* Quick Actions Panel */}
         <div style={styles.sidePanel}>
@@ -242,7 +182,7 @@ export default async function DashboardPage() {
                   <CalendarIcon size={18} color="var(--secondary)" />
                 </div>
                 <div style={styles.actionDetails}>
-                  <p style={styles.actionLabel}>Programar Cita</p>
+                  <p style={styles.actionLabel}>Agenda Completa</p>
                   <p style={styles.actionSub}>Ver disponibilidad y agendar manual</p>
                 </div>
               </a>
