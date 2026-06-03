@@ -5,11 +5,15 @@ import PatientDetailsClient from './PatientDetailsClient'
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function PatientPage({ params }: PageProps) {
+export default async function PatientPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params
   const patientId = resolvedParams.id
+  
+  const resolvedSearchParams = searchParams ? await searchParams : {}
+  const isEditing = resolvedSearchParams.edit === 'true'
   
   const supabase = await createClient()
 
@@ -104,6 +108,7 @@ export default async function PatientPage({ params }: PageProps) {
       consultations={consultations || []}
       studies={studiesWithSignedUrls}
       prescriptions={prescriptionsWithSignedUrls}
+      initialEdit={isEditing}
     />
   )
 }

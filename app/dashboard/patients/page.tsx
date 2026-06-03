@@ -1,6 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { Search, Plus, User, Eye, Phone, Calendar, Clipboard } from 'lucide-react'
+import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
 
 // Calcular edad
 function calculateAge(birthDateString: string) {
@@ -162,6 +162,15 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                       </td>
                       <td style={{ ...styles.td, textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
+                          <a
+                            href={`/dashboard/patients/${patient.id}?edit=true`}
+                            className="btn btn-secondary"
+                            style={styles.viewBtn}
+                            title="Editar Información"
+                          >
+                            <Edit size={15} />
+                            <span>Editar</span>
+                          </a>
                           <a
                             href={`/dashboard/patients/${patient.id}`}
                             className="btn btn-secondary"

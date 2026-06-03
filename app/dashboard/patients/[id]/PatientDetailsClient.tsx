@@ -48,13 +48,15 @@ interface PatientDetailsClientProps {
   consultations: any[]
   studies: any[]
   prescriptions: any[]
+  initialEdit?: boolean
 }
 
 export default function PatientDetailsClient({
   patient,
   consultations,
   studies,
-  prescriptions
+  prescriptions,
+  initialEdit = false
 }: PatientDetailsClientProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
@@ -63,7 +65,7 @@ export default function PatientDetailsClient({
   const [editNotes, setEditNotes] = useState('')
   const [savingPrescription, setSavingPrescription] = useState(false)
   const [prescSaveMsg, setPrescSaveMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(initialEdit)
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
 
