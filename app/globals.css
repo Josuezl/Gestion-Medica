@@ -362,16 +362,681 @@ h1, h2, h3, h4, h5, h6 {
   gap: 1.5rem;
 }
 
-/* Mobile responsive media query */
+/* =====================================================
+   FORCE LIGHT THEME ON DASHBOARD CONTENT AREA
+   Sidebar stays dark. Content always white/light.
+   ===================================================== */
+.dashboard-main-panel {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.dashboard-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.dashboard-content {
+  color: #0f172a !important;
+}
+
+.dashboard-content .card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.dashboard-content .form-input {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.dashboard-content .form-label {
+  color: #0f172a !important;
+}
+
+.dashboard-content .btn-secondary {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.dashboard-content .btn-secondary:hover {
+  background: #e2e8f0 !important;
+}
+
+.dashboard-content h1,
+.dashboard-content h2,
+.dashboard-content h3,
+.dashboard-content h4,
+.dashboard-content h5,
+.dashboard-content h6 {
+  color: #0f172a !important;
+}
+
+.dashboard-content p {
+  color: #334155;
+}
+
+/* =====================================================
+   AGENDA LAYOUT SYSTEM
+   ===================================================== */
+.agenda-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 160px);
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.agenda-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.agenda-main {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+/* Top Bar (tabs + nav + filters) */
+.agenda-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* View Mode Tabs */
+.view-tabs {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.view-tab {
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border: none;
+  background: #ffffff;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.view-tab:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.view-tab.active {
+  background: #1e40af;
+  color: #ffffff;
+}
+
+/* =====================================================
+   MINI CALENDAR
+   ===================================================== */
+.mini-calendar {
+  user-select: none;
+}
+
+.mini-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.mini-calendar-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+.mini-calendar-nav {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.mini-calendar-nav:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  text-align: center;
+}
+
+.mini-calendar-day-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 0.25rem 0;
+  text-transform: uppercase;
+}
+
+.mini-calendar-day {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.3rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #334155;
+  transition: all 0.1s ease;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-calendar-day:hover {
+  background: #f1f5f9;
+}
+
+.mini-calendar-day.today {
+  border: 2px solid #1e40af;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.mini-calendar-day.selected {
+  background: #1e40af;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.mini-calendar-day.other-month {
+  color: #cbd5e1;
+}
+
+.mini-calendar-day.has-appointments {
+  position: relative;
+}
+
+.mini-calendar-day.has-appointments::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.mini-calendar-day.selected.has-appointments::after {
+  background: #ffffff;
+}
+
+.mini-calendar-day.week-highlight {
+  background: #eff6ff;
+}
+
+/* =====================================================
+   TIME GRID (Day & Week views)
+   ===================================================== */
+.time-grid {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.time-grid-header {
+  display: flex;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.time-grid-header-label {
+  width: 65px;
+  min-width: 65px;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+  text-transform: uppercase;
+}
+
+.time-grid-day-header {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  border-right: 1px solid #f1f5f9;
+  text-transform: uppercase;
+}
+
+.time-grid-day-header.is-today {
+  background: #1e40af;
+  color: #ffffff;
+  border-radius: 6px;
+  margin: 0.15rem;
+}
+
+.time-grid-body {
+  display: flex;
+  position: relative;
+}
+
+.time-grid-labels {
+  width: 65px;
+  min-width: 65px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.time-label {
+  height: 60px;
+  padding: 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-top: 0;
+  transform: translateY(-0.4em);
+}
+
+.time-grid-columns {
+  flex: 1;
+  display: flex;
+  position: relative;
+}
+
+.time-grid-column {
+  flex: 1;
+  border-right: 1px solid #f1f5f9;
+  position: relative;
+}
+
+.time-slot {
+  height: 60px;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+}
+
+.time-slot:nth-child(odd) {
+  border-bottom-style: dashed;
+  border-bottom-color: #f1f5f9;
+}
+
+.time-slot-half {
+  height: 30px;
+  border-bottom: 1px dashed #f8fafc;
+}
+
+/* =====================================================
+   APPOINTMENT BLOCKS (Day & Week views)
+   ===================================================== */
+.appointment-block {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.7rem;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  border-left: 3px solid;
+  transition: box-shadow 0.15s ease;
+}
+
+.appointment-block:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 3;
+}
+
+.appointment-block.status-pending {
+  background: #f3f4f6;
+  border-left-color: #9ca3af;
+  color: #374151;
+}
+
+.appointment-block.status-waiting {
+  background: #fef3c7;
+  border-left-color: #f59e0b;
+  color: #92400e;
+}
+
+.appointment-block.status-in-progress {
+  background: #dbeafe;
+  border-left-color: #3b82f6;
+  color: #1e40af;
+}
+
+.appointment-block.status-completed {
+  background: #d1fae5;
+  border-left-color: #10b981;
+  color: #065f46;
+}
+
+.appointment-block.status-cancelled {
+  background: #fee2e2;
+  border-left-color: #ef4444;
+  color: #991b1b;
+  opacity: 0.6;
+}
+
+.appointment-block.status-no-show {
+  background: #e5e7eb;
+  border-left-color: #6b7280;
+  color: #374151;
+  opacity: 0.6;
+}
+
+.appointment-block-name {
+  font-weight: 700;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appointment-block-info {
+  font-size: 0.62rem;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =====================================================
+   STATUS DROPDOWN
+   ===================================================== */
+.status-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.status-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  background: #ffffff;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.status-dropdown-trigger:hover {
+  border-color: #94a3b8;
+}
+
+.status-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+  z-index: 50;
+  min-width: 180px;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+.status-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+  color: #334155;
+  transition: background 0.1s ease;
+}
+
+.status-dropdown-item:hover {
+  background: #f8fafc;
+}
+
+.status-dropdown-item.active {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+/* =====================================================
+   MONTH CALENDAR VIEW
+   ===================================================== */
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+}
+
+.month-day-header {
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #f1f5f9;
+}
+
+.month-day-cell {
+  min-height: 90px;
+  padding: 0.35rem;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  position: relative;
+}
+
+.month-day-cell:hover {
+  background: #f8fafc;
+}
+
+.month-day-cell.other-month {
+  background: #fafafa;
+  color: #cbd5e1;
+}
+
+.month-day-cell.today {
+  background: #eff6ff;
+}
+
+.month-day-number {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.25rem;
+}
+
+.month-day-cell.today .month-day-number {
+  background: #1e40af;
+  color: #ffffff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.month-day-cell.other-month .month-day-number {
+  color: #cbd5e1;
+}
+
+.month-appointment-bar {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.month-appointment-bar.status-pending { background: #e5e7eb; color: #374151; }
+.month-appointment-bar.status-waiting { background: #fef3c7; color: #92400e; }
+.month-appointment-bar.status-in-progress { background: #dbeafe; color: #1e40af; }
+.month-appointment-bar.status-completed { background: #d1fae5; color: #065f46; }
+.month-appointment-bar.status-cancelled { background: #fee2e2; color: #991b1b; }
+.month-appointment-bar.status-no-show { background: #e5e7eb; color: #6b7280; }
+
+.month-more-label {
+  font-size: 0.6rem;
+  color: #3b82f6;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+}
+
+/* =====================================================
+   AGENDA LIST VIEW (Table)
+   ===================================================== */
+.agenda-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.agenda-table th {
+  text-align: left;
+  padding: 0.6rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #ef4444;
+  background: #fef2f2;
+  border-bottom: 2px solid #fecaca;
+}
+
+.agenda-table th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.agenda-table th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.agenda-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.agenda-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* FAB Button */
+.agenda-fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, hsl(173, 80%, 35%) 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  transition: all 0.2s ease;
+}
+
+.agenda-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.5);
+}
+
+/* =====================================================
+   RESPONSIVE: MOBILE
+   ===================================================== */
 @media (max-width: 1200px) {
   .responsive-stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .agenda-layout {
+    grid-template-columns: 220px 1fr;
   }
 }
 
 @media (max-width: 900px) {
   .responsive-split-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .agenda-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .agenda-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .mini-calendar {
+    flex: 1;
+    min-width: 200px;
   }
 }
 
@@ -433,5 +1098,15 @@ h1, h2, h3, h4, h5, h6 {
     align-items: flex-start !important;
     gap: 1rem;
   }
+  
+  .agenda-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .time-grid-header-label,
+  .time-grid-labels {
+    width: 50px;
+    min-width: 50px;
+  }
 }
-

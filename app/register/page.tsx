@@ -1,12 +1,33 @@
 'use client'
 
-import React, { useState } from 'react'
-import { signup } from '../auth/actions'
+import React, { useState, useEffect, Suspense } from 'react'
+import { signup, getInvitationDetails } from '../auth/actions'
 import { Stethoscope, Lock, Mail, User, Building, Landmark, Award, Loader2, ArrowRight } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [invitationLoading, setInvitationLoading] = useState(false)
+  const [invitationData, setInvitationData] = useState<any>(null)
+  
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams?.get('invite')
+
+  useEffect(() => {
+    async function loadInvite() {
+      if (!inviteToken) return
+      setInvitationLoading(true)
+      const res = await getInvitationDetails(inviteToken)
+      if (res.error) {
+        setError(res.error)
+      } else {
+        setInvitationData(res)
+      }
+      setInvitationLoading(false)
+    }
+    loadInvite()
+  }, [inviteToken])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -31,6 +52,14 @@ export default function RegisterPage() {
     }
   }
 
+  if (invitationLoading) {
+    return (
+      <div style={{ ...styles.container, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Loader2 size={32} className="animate-spin" color="var(--primary)" style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    )
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.bubble1}></div>
@@ -42,36 +71,52 @@ export default function RegisterPage() {
             <Stethoscope size={32} color="var(--primary)" />
           </div>
           <h1 style={styles.appName}>MedConnect</h1>
-          <p style={styles.tagline}>Crea tu cuenta de consultorio</p>
+          <p style={styles.tagline}>
+            {invitationData ? 'Únete a tu equipo médico' : 'Crea tu cuenta de consultorio'}
+          </p>
         </div>
 
-        <h2 style={styles.title}>Registrar Clínica</h2>
-        <p style={styles.subtitle}>Completa los datos para iniciar tu plataforma médica</p>
+        <h2 style={styles.title}>
+          {invitationData ? `Invitación a ${invitationData.clinicName}` : 'Registrar Clínica'}
+        </h2>
+        <p style={styles.subtitle}>
+          {invitationData 
+            ? `Has sido invitado como ${invitationData.role === 'DOCTOR' ? 'Médico' : 'Asistente'}` 
+            : 'Completa los datos para iniciar tu plataforma médica'}
+        </p>
 
         {error && <div style={styles.errorAlert}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.sectionTitle}>Datos del Consultorio</div>
+          {inviteToken && <input type="hidden" name="invite_token" value={inviteToken} />}
           
-          <div className="form-group">
-            <label className="form-label" htmlFor="clinicName">
-              Nombre de la Clínica o Consultorio
-            </label>
-            <div style={styles.inputWrapper}>
-              <Building size={18} style={styles.inputIcon} />
-              <input
-                className="form-input"
-                id="clinicName"
-                name="clinicName"
-                type="text"
-                placeholder="Ej. Clínica Médica del Valle"
-                required
-                style={styles.inputWithIcon}
-              />
-            </div>
-          </div>
+          {!invitationData && (
+            <>
+              <div style={styles.sectionTitle}>Datos del Consultorio</div>
+              
+              <div className="form-group">
+                <label className="form-label" htmlFor="clinicName">
+                  Nombre de la Clínica o Consultorio
+                </label>
+                <div style={styles.inputWrapper}>
+                  <Building size={18} style={styles.inputIcon} />
+                  <input
+                    className="form-input"
+                    id="clinicName"
+                    name="clinicName"
+                    type="text"
+                    placeholder="Ej. Clínica Médica del Valle"
+                    required
+                    style={styles.inputWithIcon}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
-          <div style={styles.sectionTitle}>Datos Profesionales del Médico Administrador</div>
+          <div style={styles.sectionTitle}>
+            {invitationData ? 'Tus Datos Personales' : 'Datos Profesionales del Médico Administrador'}
+          </div>
 
           <div style={styles.grid}>
             <div className="form-group">
@@ -124,7 +169,8 @@ export default function RegisterPage() {
                   name="specialty"
                   type="text"
                   placeholder="Ej. Pediatría, Dermatología"
-                  required
+                  defaultValue={invitationData?.specialty || ''}
+                  required={invitationData?.role !== 'ASSISTANT'}
                   style={styles.inputWithIcon}
                 />
               </div>
@@ -142,7 +188,7 @@ export default function RegisterPage() {
                   name="professionalId"
                   type="text"
                   placeholder="Ej. CMH-8942"
-                  required
+                  required={invitationData?.role !== 'ASSISTANT'}
                   style={styles.inputWithIcon}
                 />
               </div>
@@ -163,8 +209,10 @@ export default function RegisterPage() {
                 name="email"
                 type="email"
                 placeholder="doctor@ejemplo.com"
+                defaultValue={invitationData?.email || ''}
+                readOnly={!!invitationData}
                 required
-                style={styles.inputWithIcon}
+                style={{ ...styles.inputWithIcon, backgroundColor: invitationData ? '#f1f5f9' : '#ffffff' }}
               />
             </div>
           </div>
@@ -211,11 +259,11 @@ export default function RegisterPage() {
             {loading ? (
               <>
                 <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                Creando Clínica...
+                Creando Cuenta...
               </>
             ) : (
               <>
-                Registrar Clínica y Entrar
+                {invitationData ? 'Crear Cuenta y Entrar' : 'Registrar Clínica y Entrar'}
                 <ArrowRight size={18} />
               </>
             )}
@@ -376,4 +424,12 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: 'none',
     fontWeight: '600',
   },
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}><Loader2 size={32} className="animate-spin" color="var(--primary)" /></div>}>
+      <RegisterPageContent />
+    </Suspense>
+  )
 }

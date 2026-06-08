@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { sendPrescriptionNotification } from '@/utils/whatsapp'
+import { requireRole } from '@/utils/auth-guard'
 
 export async function createConsultation(
   patientId: string,
@@ -12,23 +13,13 @@ export async function createConsultation(
   medicines: any[],
   formData: FormData
 ) {
+  // 1. Verificar autorización y roles (Solo médicos y admin pueden crear consultas)
+  const ctx = await requireRole(['ADMIN', 'DOCTOR'])
+  if (!ctx) return { error: 'No autorizado. Solo los médicos pueden crear consultas.' }
+
   const supabase = await createClient()
-
-  // 1. Obtener datos del doctor
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.clinic_id) {
-    return { error: 'Error: El médico no está asociado a una clínica.' }
-  }
-
-  const clinicId = profile.clinic_id
+  const clinicId = ctx.clinicId
+  const user = ctx.user
 
   // 2. Extraer datos de signos vitales y notas clínicas
   const reasonForVisit = formData.get('reason_for_visit') as string

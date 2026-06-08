@@ -19,10 +19,12 @@ export async function createAppointment(formData: FormData) {
   if (!profile?.clinic_id) return { error: 'Error: clínica no asociada.' }
 
   const patientId = formData.get('patient_id') as string || null
-  const doctorId = user.id // Por defecto se agenda con el médico autenticado
+  const doctorId = formData.get('doctor_id') as string || user.id // Asistente puede enviar doctor_id
   const dateStr = formData.get('date') as string // YYYY-MM-DD
   const timeStr = formData.get('time') as string // HH:MM
   const notes = formData.get('notes') as string || null
+  const durationStr = formData.get('duration_minutes') as string
+  const duration = durationStr ? parseInt(durationStr, 10) : 15
 
   if (!dateStr || !timeStr) {
     return { error: 'Por favor selecciona fecha y hora para la cita.' }
@@ -37,7 +39,8 @@ export async function createAppointment(formData: FormData) {
     patient_id: patientId,
     doctor_id: doctorId,
     scheduled_at: scheduledAt,
-    status: 'CONFIRMED', // Las citas creadas por el doctor se marcan automáticamente como CONFIRMADAS
+    status: 'PENDING', // Nuevo estado por defecto PENDING (antes CONFIRMED)
+    duration_minutes: duration,
     notes
   }
 
@@ -47,6 +50,41 @@ export async function createAppointment(formData: FormData) {
 
   if (error) {
     return { error: `Error al crear la cita: ${error.message}` }
+  }
+
+  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function updateAppointment(id: string, formData: FormData) {
+  const supabase = await createClient()
+
+  const doctorId = formData.get('doctor_id') as string
+  const dateStr = formData.get('date') as string
+  const timeStr = formData.get('time') as string
+  const notes = formData.get('notes') as string || null
+  const durationStr = formData.get('duration_minutes') as string
+  const duration = durationStr ? parseInt(durationStr, 10) : 15
+
+  if (!dateStr || !timeStr || !doctorId) {
+    return { error: 'Datos incompletos para actualizar.' }
+  }
+
+  const scheduledAt = new Date(`${dateStr}T${timeStr}:00-06:00`).toISOString()
+
+  const { error } = await supabase
+    .from('appointments')
+    .update({
+      doctor_id: doctorId,
+      scheduled_at: scheduledAt,
+      duration_minutes: duration,
+      notes
+    })
+    .eq('id', id)
+
+  if (error) {
+    return { error: `Error al actualizar la cita: ${error.message}` }
   }
 
   revalidatePath('/dashboard/agenda')

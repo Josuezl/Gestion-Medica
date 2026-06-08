@@ -84,8 +84,12 @@ export default async function DashboardLayout({
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
           <SidebarLink href="/dashboard/agenda" label="Agenda de Citas" icon={<Calendar size={20} />} />
-          <SidebarLink href="/dashboard/consultations" label="Consultas" icon={<FileText size={20} />} />
-          <SidebarLink href="/dashboard/config" label="Configuración" icon={<Settings size={20} />} />
+          {(profile?.role === 'ADMIN' || profile?.role === 'DOCTOR') && (
+            <SidebarLink href="/dashboard/consultations" label="Consultas" icon={<FileText size={20} />} />
+          )}
+          {profile?.role === 'ADMIN' && (
+            <SidebarLink href="/dashboard/config" label="Configuración" icon={<Settings size={20} />} />
+          )}
         </nav>
 
         <div style={styles.sidebarFooter}>
@@ -94,7 +98,15 @@ export default async function DashboardLayout({
               <UserIcon size={18} color="#fff" />
             </div>
             <div style={styles.doctorTextDetails}>
-              <p style={styles.doctorNameText}>{doctorName}</p>
+              <p style={{ ...styles.doctorNameText, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {doctorName}
+                <span style={{ 
+                  fontSize: '0.6rem', padding: '0.1rem 0.3rem', borderRadius: '4px', 
+                  backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8' 
+                }}>
+                  {profile?.role}
+                </span>
+              </p>
               <p style={styles.doctorSpecialtyText}>{specialty}</p>
             </div>
           </div>

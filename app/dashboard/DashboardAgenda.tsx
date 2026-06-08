@@ -233,18 +233,22 @@ export default function DashboardAgenda({ appointments, patients }: DashboardAge
                     appointment.status === 'CONFIRMED' ? 'badge-success' :
                     appointment.status === 'PENDING' ? 'badge-warning' :
                     appointment.status === 'WAITING' ? 'badge-warning' :
+                    appointment.status === 'IN_PROGRESS' ? 'badge-info' :
                     appointment.status === 'COMPLETED' ? 'badge-success' :
-                    appointment.status === 'CANCELLED' ? 'badge-danger' : 'badge-info'
+                    appointment.status === 'CANCELLED' ? 'badge-danger' : 
+                    appointment.status === 'NO_SHOW' ? 'badge-danger' : 'badge-info'
                   }`} style={{ fontSize: '0.68rem' }}>
                     {appointment.status === 'CONFIRMED' ? 'Confirmada' :
                      appointment.status === 'PENDING' ? 'Pendiente' :
-                     appointment.status === 'WAITING' ? 'En Espera' :
-                     appointment.status === 'COMPLETED' ? 'Completada' :
-                     appointment.status === 'CANCELLED' ? 'Cancelada' : appointment.status}
+                     appointment.status === 'WAITING' ? 'En sala' :
+                     appointment.status === 'IN_PROGRESS' ? 'En consulta' :
+                     appointment.status === 'COMPLETED' ? 'Realizada' :
+                     appointment.status === 'CANCELLED' ? 'Cancelada' : 
+                     appointment.status === 'NO_SHOW' ? 'No vino' : appointment.status}
                   </span>
 
                   {/* Action Buttons */}
-                  {appointment.status !== 'COMPLETED' && appointment.status !== 'CANCELLED' && (
+                  {appointment.status !== 'COMPLETED' && appointment.status !== 'CANCELLED' && appointment.status !== 'NO_SHOW' && (
                     <div style={styles.actionsGroup}>
                       {/* Mark as Waiting */}
                       {appointment.status === 'CONFIRMED' && (
