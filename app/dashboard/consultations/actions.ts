@@ -14,7 +14,7 @@ export async function createConsultation(
   formData: FormData
 ) {
   // 1. Verificar autorización y roles (Solo médicos y admin pueden crear consultas)
-  const ctx = await requireRole(['ADMIN', 'DOCTOR'])
+  const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO'])
   if (!ctx) return { error: 'No autorizado. Solo los médicos pueden crear consultas.' }
 
   const supabase = await createClient()

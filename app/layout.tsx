@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MedConnect - Gestión Médica Inteligente",
+  title: "CloudMedHN - Gestión Médica Inteligente",
   description: "Plataforma de historia clínica electrónica y agendamiento automatizado por WhatsApp.",
 };
 

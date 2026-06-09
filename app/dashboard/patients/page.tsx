@@ -15,12 +15,17 @@ function calculateAge(birthDateString: string) {
 }
 
 interface PageProps {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }
 
 export default async function PatientsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const searchQuery = resolvedSearchParams.q || ''
+  
+  const PAGE_SIZE = 10
+  const currentPage = parseInt(resolvedSearchParams.page || '1', 10) || 1
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
   
   const supabase = await createClient()
 
@@ -39,14 +44,18 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, id_card, gender, birth_date, phone, blood_type')
+    .select('id, first_name, last_name, id_card, gender, birth_date, phone, blood_type', { count: 'exact' })
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
     dbQuery = dbQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,id_card.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
   }
 
-  const { data: patients, error } = await dbQuery.order('last_name', { ascending: true })
+  const { data: patients, count, error } = await dbQuery
+    .order('first_name', { ascending: true })
+    .range(from, to)
+
+  const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1
 
   return (
     <div style={styles.container} className="animate-fade-in">
@@ -105,25 +114,25 @@ export default async function PatientsPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <div style={styles.tableWrapper}>
-            <table style={styles.table}>
+            <table className="table-modern">
               <thead>
-                <tr style={styles.thRow}>
-                  <th style={styles.th}>Paciente</th>
-                  <th style={styles.th}>Identidad (DNI)</th>
-                  <th style={styles.th}>Edad / Género</th>
-                  <th style={styles.th}>Teléfono</th>
-                  <th style={styles.th}>Tipo Sangre</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Acciones</th>
+                <tr>
+                  <th>Paciente</th>
+                  <th>Identidad (DNI)</th>
+                  <th>Edad / Género</th>
+                  <th>Teléfono</th>
+                  <th>Tipo Sangre</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {patients.map((patient) => {
-                  const patientName = `${patient.last_name}, ${patient.first_name}`
+                  const patientName = `${patient.first_name} ${patient.last_name}`
                   const age = calculateAge(patient.birth_date)
                   
                   return (
-                    <tr key={patient.id} style={styles.tr}>
-                      <td style={styles.td}>
+                    <tr key={patient.id}>
+                      <td>
                         <div style={styles.patientAvatarWrapper}>
                           <div style={styles.patientAvatar}>
                             {patient.first_name.charAt(0)}{patient.last_name.charAt(0)}
@@ -134,10 +143,10 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           </div>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <span style={styles.idCardText}>{patient.id_card || 'No Registrado'}</span>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={styles.ageText}>{age} años</span>
                           <span style={styles.genderSub}>
@@ -145,13 +154,13 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           </span>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <div style={styles.phoneWrapper}>
                           <Phone size={14} color="var(--text-muted)" />
                           <span style={styles.phoneText}>{patient.phone}</span>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         {patient.blood_type ? (
                           <span className="badge badge-danger" style={{ fontWeight: '700' }}>
                             {patient.blood_type}
@@ -160,7 +169,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           <span style={styles.mutedText}>-</span>
                         )}
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
                           <a
                             href={`/dashboard/patients/${patient.id}?edit=true`}
@@ -196,6 +205,21 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                 })}
               </tbody>
             </table>
+            
+            {totalPages > 1 && (
+              <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <a
+                    key={page}
+                    href={`/dashboard/patients?page=${page}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+                    className={`btn ${currentPage === page ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.5rem 1rem', minWidth: '40px' }}
+                  >
+                    {page}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -226,6 +250,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   searchCard: {
     padding: '1rem',
+    backgroundColor: 'var(--bg-input)',
+    boxShadow: 'none',
+    border: '1px solid var(--border-color)',
   },
   searchForm: {
     display: 'flex',
@@ -249,7 +276,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.75rem 1rem 0.75rem 2.75rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border-color)',
-    backgroundColor: 'var(--bg-input)',
+    backgroundColor: '#ffffff',
     color: 'var(--text-main)',
     fontSize: '0.95rem',
   },

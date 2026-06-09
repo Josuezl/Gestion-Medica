@@ -1,13 +1,30 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { requireRole } from '@/utils/auth-guard'
+import { requireRole, requireOrgAdmin } from '@/utils/auth-guard'
 import { sendInvitationEmail } from '@/utils/email-invitation'
 import { revalidatePath } from 'next/cache'
 
+export async function upgradeToClinicPlan() {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('clinics')
+    .update({ plan_code: 'HOSPITAL' })
+    .eq('id', ctx.clinicId)
+    
+  if (error) return { error: error.message }
+  
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
 export async function sendInvitation(formData: FormData) {
-  const ctx = await requireRole(['ADMIN'])
-  if (!ctx) return { error: 'No autorizado' }
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado. Solo los administradores de la organización pueden enviar invitaciones.' }
 
   const email = formData.get('email') as string
   const role = formData.get('role') as string
@@ -17,14 +34,25 @@ export async function sendInvitation(formData: FormData) {
 
   const supabase = await createClient()
 
-  // Verify limit
-  const { count: usersCount } = await supabase
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', ctx.clinicId)
+  // Verify limits based on plan
+  const { data: planData } = await supabase
+    .from('plans')
+    .select('*')
+    .eq('code', ctx.planCode)
+    .single()
 
-  if (usersCount !== null && usersCount >= ctx.maxUsers) {
-    return { error: `Límite de usuarios alcanzado (${ctx.maxUsers}). Contacte a soporte para mejorar su plan.` }
+  if (planData) {
+    const { count: currentUsers } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', ctx.clinicId)
+      .eq('role', role)
+
+    const maxAllowed = role === 'DOCTOR' ? planData.max_doctors : planData.max_assistants
+    
+    if (currentUsers !== null && currentUsers >= maxAllowed) {
+      return { error: `Has alcanzado el límite de ${maxAllowed} usuarios con rol ${role} para tu plan ${planData.name}.` }
+    }
   }
 
   // Check existing active invitation
@@ -78,7 +106,7 @@ export async function sendInvitation(formData: FormData) {
 }
 
 export async function revokeInvitation(invitationId: string) {
-  const ctx = await requireRole(['ADMIN'])
+  const ctx = await requireOrgAdmin()
   if (!ctx) return { error: 'No autorizado' }
 
   const supabase = await createClient()
@@ -95,7 +123,7 @@ export async function revokeInvitation(invitationId: string) {
 }
 
 export async function updateClinicInfo(formData: FormData) {
-  const ctx = await requireRole(['ADMIN'])
+  const ctx = await requireOrgAdmin()
   if (!ctx) return { error: 'No autorizado' }
 
   const name = formData.get('name') as string
@@ -114,5 +142,65 @@ export async function updateClinicInfo(formData: FormData) {
   
   revalidatePath('/dashboard/config')
   revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function createLocation(formData: FormData) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const name = formData.get('name') as string
+  const address = formData.get('address') as string
+
+  if (!name) return { error: 'El nombre de la sucursal es requerido' }
+
+  const supabase = await createClient()
+
+  // Verify limit
+  const { data: planData } = await supabase
+    .from('plans')
+    .select('max_locations')
+    .eq('code', ctx.planCode)
+    .single()
+
+  if (planData) {
+    const { count: currentLocations } = await supabase
+      .from('locations')
+      .select('*', { count: 'exact', head: true })
+      .eq('clinic_id', ctx.clinicId)
+
+    if (currentLocations !== null && currentLocations >= planData.max_locations) {
+      return { error: `Límite alcanzado (${planData.max_locations} sucursales).` }
+    }
+  }
+
+  const { error } = await supabase
+    .from('locations')
+    .insert([{
+      clinic_id: ctx.clinicId,
+      name,
+      address: address || null
+    }])
+
+  if (error) return { error: 'Error al crear la sucursal: ' + error.message }
+  
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function toggleLocationStatus(id: string, isActive: boolean) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('locations')
+    .update({ is_active: isActive })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+
+  if (error) return { error: 'Error al actualizar estado: ' + error.message }
+  
+  revalidatePath('/dashboard/config')
   return { success: true }
 }

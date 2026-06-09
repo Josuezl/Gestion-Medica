@@ -70,7 +70,7 @@ function RegisterPageContent() {
           <div style={styles.logoIconContainer}>
             <Stethoscope size={32} color="var(--primary)" />
           </div>
-          <h1 style={styles.appName}>MedConnect</h1>
+          <h1 style={styles.appName}>CloudMedHN</h1>
           <p style={styles.tagline}>
             {invitationData ? 'Únete a tu equipo médico' : 'Crea tu cuenta de consultorio'}
           </p>

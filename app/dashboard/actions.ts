@@ -22,9 +22,11 @@ export async function createAppointment(formData: FormData) {
   const doctorId = formData.get('doctor_id') as string || user.id // Asistente puede enviar doctor_id
   const dateStr = formData.get('date') as string // YYYY-MM-DD
   const timeStr = formData.get('time') as string // HH:MM
+  const locationId = formData.get('location_id') as string || null
   const notes = formData.get('notes') as string || null
   const durationStr = formData.get('duration_minutes') as string
   const duration = durationStr ? parseInt(durationStr, 10) : 15
+  const status = formData.get('status') as string || 'PENDING'
 
   if (!dateStr || !timeStr) {
     return { error: 'Por favor selecciona fecha y hora para la cita.' }
@@ -39,8 +41,9 @@ export async function createAppointment(formData: FormData) {
     patient_id: patientId,
     doctor_id: doctorId,
     scheduled_at: scheduledAt,
-    status: 'PENDING', // Nuevo estado por defecto PENDING (antes CONFIRMED)
+    status: status,
     duration_minutes: duration,
+    location_id: locationId,
     notes
   }
 
@@ -52,7 +55,7 @@ export async function createAppointment(formData: FormData) {
     return { error: `Error al crear la cita: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
   revalidatePath('/dashboard')
   return { success: true }
 }
@@ -63,9 +66,11 @@ export async function updateAppointment(id: string, formData: FormData) {
   const doctorId = formData.get('doctor_id') as string
   const dateStr = formData.get('date') as string
   const timeStr = formData.get('time') as string
+  const locationId = formData.get('location_id') as string || null
   const notes = formData.get('notes') as string || null
   const durationStr = formData.get('duration_minutes') as string
   const duration = durationStr ? parseInt(durationStr, 10) : 15
+  const status = formData.get('status') as string || 'PENDING'
 
   if (!dateStr || !timeStr || !doctorId) {
     return { error: 'Datos incompletos para actualizar.' }
@@ -79,7 +84,9 @@ export async function updateAppointment(id: string, formData: FormData) {
       doctor_id: doctorId,
       scheduled_at: scheduledAt,
       duration_minutes: duration,
-      notes
+      location_id: locationId,
+      notes,
+      status
     })
     .eq('id', id)
 
@@ -87,7 +94,7 @@ export async function updateAppointment(id: string, formData: FormData) {
     return { error: `Error al actualizar la cita: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
   revalidatePath('/dashboard')
   return { success: true }
 }
@@ -104,7 +111,7 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
     return { error: `Error al actualizar estado: ${error.message}` }
   }
 
-  revalidatePath('/dashboard/agenda')
+  revalidatePath('/dashboard')
   revalidatePath('/dashboard')
   return { success: true }
 }

@@ -32,9 +32,9 @@ export default function LoginPage() {
       <div className="card-glass animate-fade-in" style={styles.loginCard}>
         <div style={styles.logoHeader}>
           <div style={styles.logoIconContainer}>
-            <Stethoscope size={32} color="var(--primary)" />
+            <img src="/Logo%20de%20Honduras.png" alt="CloudMedHN" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
           </div>
-          <h1 style={styles.appName}>MedConnect</h1>
+          <h1 style={styles.appName}>CloudMedHN</h1>
           <p style={styles.tagline}>Gestión Médica & Comunicación Automatizada</p>
         </div>
 
@@ -165,15 +165,10 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '2rem',
   },
   logoIconContainer: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '16px',
-    background: 'rgba(13, 148, 136, 0.1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '0.75rem',
-    border: '1px solid rgba(13, 148, 136, 0.2)',
   },
   appName: {
     fontSize: '1.75rem',

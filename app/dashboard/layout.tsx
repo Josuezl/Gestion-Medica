@@ -50,6 +50,7 @@ export default async function DashboardLayout({
       first_name,
       last_name,
       role,
+      is_org_admin,
       specialty,
       clinics (
         name
@@ -58,9 +59,17 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
-  const doctorName = profile ? `Dr. ${profile.first_name} ${profile.last_name}` : 'Médico'
-  const clinicName = profile?.clinics ? (profile.clinics as any).name : 'Mi Clínica'
+  const clinicName = (profile?.clinics as any)?.name || 'Mi Consultorio'
+  const doctorName = profile ? `${profile.first_name} ${profile.last_name}` : 'Médico'
   const specialty = profile?.specialty || 'General'
+
+  // Derived UI Role
+  let displayRole = 'Asistente'
+  if (profile?.role === 'DOCTOR') {
+    displayRole = profile.is_org_admin ? 'Médico (Administrador)' : 'Médico'
+  } else if (profile?.role === 'ADMIN') {
+    displayRole = 'Administrador'
+  }
 
   return (
     <div className="dashboard-container">
@@ -72,10 +81,10 @@ export default async function DashboardLayout({
       <aside className="dashboard-sidebar">
         <div style={styles.logoContainer}>
           <div style={styles.logoIcon}>
-            <Stethoscope size={24} color="#2dd4bf" />
+            <img src="/Logo%20de%20Honduras.png" alt="CloudMedHN" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           </div>
           <div>
-            <h1 style={styles.logoText}>MedConnect</h1>
+            <h1 style={styles.logoText}>CloudMedHN</h1>
             <p style={styles.logoSubtext}>{clinicName}</p>
           </div>
         </div>
@@ -83,20 +92,16 @@ export default async function DashboardLayout({
         <nav style={styles.navigation}>
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
-          <SidebarLink href="/dashboard/agenda" label="Agenda de Citas" icon={<Calendar size={20} />} />
           {(profile?.role === 'ADMIN' || profile?.role === 'DOCTOR') && (
-            <SidebarLink href="/dashboard/consultations" label="Consultas" icon={<FileText size={20} />} />
+            <SidebarLink href="/dashboard/consultations" label="Historial de Consultas" icon={<FileText size={20} />} />
           )}
-          {profile?.role === 'ADMIN' && (
+          {profile?.is_org_admin && (
             <SidebarLink href="/dashboard/config" label="Configuración" icon={<Settings size={20} />} />
           )}
         </nav>
 
         <div style={styles.sidebarFooter}>
           <div style={styles.doctorInfoCard}>
-            <div style={styles.avatarIcon}>
-              <UserIcon size={18} color="#fff" />
-            </div>
             <div style={styles.doctorTextDetails}>
               <p style={{ ...styles.doctorNameText, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {doctorName}
@@ -104,7 +109,7 @@ export default async function DashboardLayout({
                   fontSize: '0.6rem', padding: '0.1rem 0.3rem', borderRadius: '4px', 
                   backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8' 
                 }}>
-                  {profile?.role}
+                  {displayRole}
                 </span>
               </p>
               <p style={styles.doctorSpecialtyText}>{specialty}</p>
@@ -122,28 +127,11 @@ export default async function DashboardLayout({
 
       {/* Main Panel */}
       <div className="dashboard-main-panel">
-        {/* Header */}
-        <header className="dashboard-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Hamburger button visible only on mobile */}
-            <label htmlFor="sidebar-toggle" className="sidebar-toggle-label">
-              <Menu size={20} />
-            </label>
-            <div>
-              <h2 style={styles.headerTitle}>Panel de Control</h2>
-              <p style={styles.headerSubtitle}>Bienvenido de vuelta, gestiona tu consultorio hoy</p>
-            </div>
-          </div>
-          <div style={styles.headerActions}>
-            <div style={styles.whatsappBadge}>
-              <MessageSquare size={16} color="#10b981" />
-              <span style={styles.whatsappBadgeText}>WhatsApp Bot Activo</span>
-            </div>
-          </div>
-        </header>
-
         {/* Dynamic page contents */}
         <main className="dashboard-content">
+          <label htmlFor="sidebar-toggle" className="sidebar-toggle-label" style={{ marginBottom: '1rem', alignSelf: 'flex-start' }}>
+            <Menu size={20} />
+          </label>
           {children}
         </main>
       </div>
@@ -180,14 +168,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid rgba(255,255,255,0.08)',
   },
   logoIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '10px',
-    backgroundColor: 'rgba(45, 212, 191, 0.1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid rgba(45, 212, 191, 0.2)',
   },
   logoText: {
     fontSize: '1.25rem',

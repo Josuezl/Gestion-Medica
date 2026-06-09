@@ -9,8 +9,8 @@ export interface AuthContext {
   clinicId: string
   clinicName: string
   role: 'ADMIN' | 'DOCTOR' | 'ASSISTANT'
-  planType: string
-  maxUsers: number
+  isOrgAdmin: boolean
+  planCode: string
 }
 
 export async function getAuthContext(): Promise<AuthContext | null> {
@@ -18,13 +18,16 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('user_profiles')
-    .select('*, clinics(name, plan_type, max_users)')
+    .select('*, clinics(name, plan_code)')
     .eq('id', user.id)
     .single()
 
-  if (!profile) return null
+  if (error || !profile) {
+    console.log('[auth-guard] Error getting profile:', error)
+    return null
+  }
 
   return {
     user,
@@ -32,14 +35,25 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     clinicId: profile.clinic_id,
     clinicName: (profile.clinics as any)?.name || '',
     role: profile.role as 'ADMIN' | 'DOCTOR' | 'ASSISTANT',
-    planType: (profile.clinics as any)?.plan_type || 'standard',
-    maxUsers: (profile.clinics as any)?.max_users || 10,
+    isOrgAdmin: !!profile.is_org_admin,
+    planCode: (profile.clinics as any)?.plan_code || 'SOLO_MEDICO',
   }
 }
 
 export async function requireRole(allowedRoles: string[]): Promise<AuthContext | null> {
   const ctx = await getAuthContext()
   if (!ctx) return null
-  if (!allowedRoles.includes(ctx.role)) return null
+  const userRole = (ctx.role || '').toUpperCase().trim()
+  const upperAllowedRoles = allowedRoles.map(r => r.toUpperCase().trim())
+  
+  if (!upperAllowedRoles.includes(userRole)) {
+    console.log(`[auth-guard] Role mismatch: User has '${ctx.role}', allowed: ${allowedRoles.join(', ')}`)
+    return null
+  }
+  return ctx
+}
+export async function requireOrgAdmin(): Promise<AuthContext | null> {
+  const ctx = await getAuthContext()
+  if (!ctx || !ctx.isOrgAdmin) return null
   return ctx
 }

@@ -1,6 +1,5 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
 
 export async function sendInvitationEmail(
@@ -12,6 +11,12 @@ export async function sendInvitationEmail(
   token: string
 ) {
   try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('⚠️ RESEND_API_KEY no está configurada. Simulando envío de correo en entorno local.')
+      return { success: true, data: { id: 'simulated_email_id' } }
+    }
+    
+    const resend = new Resend(process.env.RESEND_API_KEY)
     const roleEs = role === 'DOCTOR' ? 'Médico' : 'Asistente'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const inviteLink = `${appUrl}/register?invite=${token}`

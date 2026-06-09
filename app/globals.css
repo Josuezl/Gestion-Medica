@@ -71,29 +71,6 @@
   --primary-light: hsl(173, 80%, 15%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    /* Fallback to dark variables if system is dark and no light theme is explicitly set */
-    --bg-main: #090d16;
-    --bg-card: #111827;
-    --bg-sidebar: #0b0f19;
-    --bg-input: #1f2937;
-    
-    --text-main: #f9fafb;
-    --text-muted: #9ca3af;
-    --text-inverse: #111827;
-    
-    --border-color: #374151;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-    --glass-bg: rgba(17, 24, 39, 0.7);
-    --glass-border: rgba(55, 65, 81, 0.6);
-    
-    --primary-light: hsl(173, 80%, 15%);
-  }
-}
-
 /* Reset and base styles */
 * {
   box-sizing: border-box;
@@ -427,7 +404,7 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 0;
-  min-height: calc(100vh - 160px);
+  height: calc(100vh - 160px);
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -471,8 +448,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .view-tab {
-  padding: 0.45rem 1rem;
-  font-size: 0.8rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
   font-weight: 600;
   font-family: var(--font-sans);
   cursor: pointer;
@@ -712,13 +689,21 @@ h1, h2, h3, h4, h5, h6 {
   left: 2px;
   right: 2px;
   border-radius: 6px;
-  padding: 0.3rem 0.5rem;
+  padding: 4px 8px;
   font-size: 0.7rem;
   overflow: hidden;
   cursor: pointer;
   z-index: 2;
-  border-left: 3px solid;
-  transition: box-shadow 0.15s ease;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-left-style: solid;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+  min-height: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .appointment-block:hover {
@@ -726,43 +711,12 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 3;
 }
 
-.appointment-block.status-pending {
-  background: #f3f4f6;
-  border-left-color: #9ca3af;
-  color: #374151;
-}
-
-.appointment-block.status-waiting {
-  background: #fef3c7;
-  border-left-color: #f59e0b;
-  color: #92400e;
-}
-
-.appointment-block.status-in-progress {
-  background: #dbeafe;
-  border-left-color: #3b82f6;
-  color: #1e40af;
-}
-
-.appointment-block.status-completed {
-  background: #d1fae5;
-  border-left-color: #10b981;
-  color: #065f46;
-}
-
-.appointment-block.status-cancelled {
-  background: #fee2e2;
-  border-left-color: #ef4444;
-  color: #991b1b;
-  opacity: 0.6;
-}
-
-.appointment-block.status-no-show {
-  background: #e5e7eb;
-  border-left-color: #6b7280;
-  color: #374151;
-  opacity: 0.6;
-}
+.appointment-block.status-pending { border-left-color: #9ca3af; }
+.appointment-block.status-waiting { border-left-color: #f59e0b; }
+.appointment-block.status-in-progress { border-left-color: #3b82f6; }
+.appointment-block.status-completed { border-left-color: #10b981; }
+.appointment-block.status-cancelled { border-left-color: #ef4444; opacity: 0.7; }
+.appointment-block.status-no-show { border-left-color: #6b7280; opacity: 0.7; }
 
 .appointment-block-name {
   font-weight: 700;
@@ -770,6 +724,7 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.1;
 }
 
 .appointment-block-info {
@@ -927,11 +882,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .month-appointment-bar.status-pending { background: #e5e7eb; color: #374151; }
+.month-appointment-bar.status-cancelled { background: #fee2e2; color: #991b1b; }
+.month-appointment-bar.status-confirmed { background: #dcfce7; color: #166534; }
+.month-appointment-bar.status-no-show { background: #f3f4f6; color: #6b7280; }
 .month-appointment-bar.status-waiting { background: #fef3c7; color: #92400e; }
 .month-appointment-bar.status-in-progress { background: #dbeafe; color: #1e40af; }
 .month-appointment-bar.status-completed { background: #d1fae5; color: #065f46; }
-.month-appointment-bar.status-cancelled { background: #fee2e2; color: #991b1b; }
-.month-appointment-bar.status-no-show { background: #e5e7eb; color: #6b7280; }
 
 .month-more-label {
   font-size: 0.6rem;
@@ -952,12 +908,20 @@ h1, h2, h3, h4, h5, h6 {
 .agenda-table th {
   text-align: left;
   padding: 0.6rem 1rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  color: #ef4444;
-  background: #fef2f2;
-  border-bottom: 2px solid #fecaca;
+  color: #334155;
+  background: #e2e8f0;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.status-dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
 }
 
 .agenda-table th:first-child {
@@ -975,6 +939,45 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .agenda-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* =====================================================
+   SHARED MODERN TABLE (For Patients and Consultations)
+   ===================================================== */
+.table-modern {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table-modern th {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  background: #e2e8f0;
+  border-bottom: 1px solid #cbd5e1;
+  text-transform: uppercase;
+}
+
+.table-modern th:first-child {
+  border-top-left-radius: 8px;
+}
+
+.table-modern th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.table-modern td {
+  padding: 1rem 1.25rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.table-modern tr:hover td {
   background: #f8fafc;
 }
 

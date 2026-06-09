@@ -1,31 +1,53 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User } from 'lucide-react'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, upgradeToClinicPlan } from './actions'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle } from 'lucide-react'
 
 interface ConfigClientProps {
   clinic: any
   teamMembers: any[]
   invitations: any[]
+  locations: any[]
   currentUserId: string
-  maxUsers: number
+  maxDoctors: number
+  maxAssistants: number
+  planCode: string
+  maxLocations: number
 }
 
 export default function ConfigClient({
   clinic,
   teamMembers,
   invitations,
+  locations,
   currentUserId,
-  maxUsers
+  maxDoctors,
+  maxAssistants,
+  planCode,
+  maxLocations
 }: ConfigClientProps) {
   const [showInviteForm, setShowInviteForm] = useState(false)
+  const [showLocationForm, setShowLocationForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  const totalCount = teamMembers.length + invitations.length
-  const limitReached = totalCount >= maxUsers
-  const usagePercentage = Math.min((totalCount / maxUsers) * 100, 100)
+  const [clinicLoading, setClinicLoading] = useState(false)
+  const [clinicError, setClinicError] = useState<string | null>(null)
+  
+  const allMembersAndInvites = [...teamMembers, ...invitations]
+  
+  const doctorCount = allMembersAndInvites.filter(m => m.role === 'DOCTOR' || m.role === 'ADMIN').length
+  const assistantCount = allMembersAndInvites.filter(m => m.role === 'ASSISTANT').length
+  
+  const doctorLimitReached = doctorCount >= maxDoctors
+  const assistantLimitReached = assistantCount >= maxAssistants
+  
+  const doctorUsagePercentage = Math.min((doctorCount / maxDoctors) * 100, 100)
+  const assistantUsagePercentage = Math.min((assistantCount / maxAssistants) * 100, 100)
+  
+  // Disable invite button if both limits are reached (or depending on plan restrictions)
+  const limitReached = planCode === 'SOLO_MEDICO' ? assistantLimitReached : (doctorLimitReached && assistantLimitReached)
 
   async function handleInvite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -49,20 +71,54 @@ export default function ConfigClient({
     await revokeInvitation(id)
   }
 
+  async function handleUpgrade() {
+    if (!confirm('¿Simular actualización a licencia de HOSPITAL / CLÍNICA? Esto habilitará la opción de invitar más médicos a tu equipo.')) return
+    setLoading(true)
+    const res = await upgradeToClinicPlan()
+    setLoading(false)
+    if (res?.error) setError(res.error)
+    else alert('¡Licencia actualizada a HOSPITAL con éxito!')
+  }
+
   async function handleUpdateClinic(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setClinicError(null)
+    setClinicLoading(true)
+    
+    const formData = new FormData(e.currentTarget)
+    try {
+      const res = await updateClinicInfo(formData)
+      setClinicLoading(false)
+      if (res?.error) {
+        setClinicError(res.error)
+      } else {
+        alert('Información actualizada')
+      }
+    } catch (err: any) {
+      setClinicLoading(false)
+      setClinicError('Error inesperado: ' + err.message)
+    }
+  }
+
+  async function handleCreateLocation(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setLoading(true)
     
     const formData = new FormData(e.currentTarget)
-    const res = await updateClinicInfo(formData)
+    const res = await createLocation(formData)
     
     setLoading(false)
     if (res?.error) {
       setError(res.error)
     } else {
-      alert('Información actualizada')
+      setShowLocationForm(false)
     }
+  }
+
+  async function handleToggleLocation(id: string, currentStatus: boolean) {
+    if (!confirm(`¿Estás seguro de ${currentStatus ? 'desactivar' : 'activar'} esta sucursal?`)) return
+    await toggleLocationStatus(id, !currentStatus)
   }
 
   return (
@@ -86,23 +142,60 @@ export default function ConfigClient({
         </div>
 
         {/* Uso del Plan */}
-        <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-            <span style={{ fontWeight: 600 }}>Uso de la licencia</span>
-            <span>{totalCount} / {maxUsers} miembros</span>
+        <div style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          {/* Progress Bar Doctores */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+              <span style={{ fontWeight: 600 }}>Médicos Especialistas</span>
+              <span>{doctorCount} / {maxDoctors} miembros</span>
+            </div>
+            <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ 
+                height: '100%', 
+                background: doctorLimitReached ? 'var(--danger)' : 'var(--primary)',
+                width: `${doctorUsagePercentage}%`,
+                transition: 'width 0.3s ease'
+              }}></div>
+            </div>
+            {doctorLimitReached && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--danger)' }}>
+                Has alcanzado el límite de médicos para tu licencia actual.
+              </p>
+            )}
           </div>
-          <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ 
-              height: '100%', 
-              background: limitReached ? 'var(--danger)' : 'var(--primary)',
-              width: `${usagePercentage}%`,
-              transition: 'width 0.3s ease'
-            }}></div>
+
+          {/* Progress Bar Asistentes */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+              <span style={{ fontWeight: 600 }}>Asistentes / Secretarias</span>
+              <span>{assistantCount} / {maxAssistants} miembros</span>
+            </div>
+            <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ 
+                height: '100%', 
+                background: assistantLimitReached ? 'var(--danger)' : 'var(--primary)',
+                width: `${assistantUsagePercentage}%`,
+                transition: 'width 0.3s ease'
+              }}></div>
+            </div>
+            {assistantLimitReached && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--danger)' }}>
+                Has alcanzado el límite de asistentes para tu licencia actual.
+              </p>
+            )}
           </div>
-          {limitReached && (
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--danger)' }}>
-              Has alcanzado el límite de usuarios para tu plan actual.
-            </p>
+          {planCode !== 'HOSPITAL' && (
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={handleUpgrade}
+                disabled={loading}
+                className="btn" 
+                style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }}
+              >
+                <ArrowUpCircle size={16} />
+                {loading ? 'Procesando...' : 'Cambiar a Licencia HOSPITAL / CLÍNICA'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -123,15 +216,19 @@ export default function ConfigClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Rol</label>
-                <select name="role" className="form-input" required defaultValue="DOCTOR">
-                  <option value="DOCTOR">Médico Especialista</option>
+                <select name="role" className="form-input" required defaultValue={planCode === 'HOSPITAL' ? 'DOCTOR' : 'ASSISTANT'}>
+                  {planCode === 'HOSPITAL' && (
+                    <option value="DOCTOR">Médico Especialista</option>
+                  )}
                   <option value="ASSISTANT">Asistente/Secretaria</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Especialidad (opcional)</label>
-                <input type="text" name="specialty" className="form-input" placeholder="Ej. Pediatría" />
-              </div>
+              {planCode === 'HOSPITAL' && (
+                <div className="form-group">
+                  <label className="form-label">Especialidad (opcional)</label>
+                  <input type="text" name="specialty" className="form-input" placeholder="Ej. Pediatría" />
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -246,6 +343,11 @@ export default function ConfigClient({
         </div>
 
         <form onSubmit={handleUpdateClinic}>
+          {clinicError && (
+            <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              {clinicError}
+            </div>
+          )}
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Nombre de la Clínica</label>
@@ -262,12 +364,102 @@ export default function ConfigClient({
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            <button type="submit" className="btn btn-primary" disabled={clinicLoading}>
+              {clinicLoading ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Sección 3: Clínicas (Solo para plan SOLO_MEDICO que se mueve entre clínicas) */}
+      {planCode === 'SOLO_MEDICO' && (
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MapPin size={20} color="var(--primary)" />
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Clínicas / Consultorios</h3>
+            </div>
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowLocationForm(!showLocationForm)}
+              disabled={locations.length >= maxLocations}
+            >
+              <Plus size={16} />
+              Agregar Clínica
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            Límite de clínicas: {locations.length} / {maxLocations}
+          </div>
+
+          {showLocationForm && locations.length < maxLocations && (
+            <form onSubmit={handleCreateLocation} style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Nueva Clínica</h4>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Nombre de la Sucursal</label>
+                  <input type="text" name="name" className="form-input" required placeholder="Ej. Centro Médico San Juan" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Dirección (opcional)</label>
+                  <input type="text" name="address" className="form-input" placeholder="Ej. Calle Principal, Casa 4" />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Guardando...' : 'Crear Sucursal'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowLocationForm(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                  <th style={{ padding: '0.75rem 1rem' }}>Nombre</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Dirección</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Estado</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {locations.map((loc) => (
+                  <tr key={loc.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: loc.is_active ? 1 : 0.6 }}>
+                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{loc.name}</td>
+                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{loc.address || '—'}</td>
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
+                        {loc.is_active ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                      <button 
+                        onClick={() => handleToggleLocation(loc.id, loc.is_active)}
+                        style={{ background: 'none', border: 'none', color: loc.is_active ? 'var(--danger)' : 'var(--primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
+                      >
+                        <Power size={14} />
+                        {loc.is_active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {locations.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No tienes sucursales adicionales configuradas.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
     </div>
   )

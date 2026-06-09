@@ -3,12 +3,17 @@ import { createClient } from '@/utils/supabase/server'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
 }
 
 export default async function ConsultationsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
   const searchQuery = resolvedSearchParams.q || ''
+  
+  const PAGE_SIZE = 10
+  const currentPage = parseInt(resolvedSearchParams.page || '1', 10) || 1
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   const supabase = await createClient()
 
@@ -63,6 +68,9 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     })
   }
 
+  const totalPages = Math.ceil(filteredConsultations.length / PAGE_SIZE) || 1
+  const paginatedConsultations = filteredConsultations.slice(from, to + 1)
+
   return (
     <div style={styles.container} className="animate-fade-in">
       {/* Header Row */}
@@ -103,7 +111,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
 
       {/* Consultations Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {filteredConsultations.length === 0 ? (
+        {paginatedConsultations.length === 0 ? (
           <div style={styles.emptyState}>
             <FileText size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
             <h3>No se encontraron consultas</h3>
@@ -115,19 +123,19 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <div style={styles.tableWrapper}>
-            <table style={styles.table}>
+            <table className="table-modern">
               <thead>
-                <tr style={styles.thRow}>
-                  <th style={styles.th}>Fecha</th>
-                  <th style={styles.th}>Paciente</th>
-                  <th style={styles.th}>Motivo de Visita</th>
-                  <th style={styles.th}>Diagnóstico</th>
-                  <th style={styles.th}>Atendido Por</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Acciones</th>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Motivo de Visita</th>
+                  <th>Diagnóstico</th>
+                  <th>Atendido Por</th>
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredConsultations.map((consultation: any) => {
+                {paginatedConsultations.map((consultation: any) => {
                   const date = new Date(consultation.created_at).toLocaleDateString('es-HN', {
                     day: '2-digit',
                     month: '2-digit',
@@ -143,36 +151,36 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                     : 'Médico'
 
                   return (
-                    <tr key={consultation.id} style={styles.tr}>
-                      <td style={styles.td}>
+                    <tr key={consultation.id}>
+                      <td>
                         <div style={styles.dateWrapper}>
                           <Calendar size={14} color="var(--text-muted)" />
                           <span style={styles.dateText}>{date}</span>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <div style={styles.patientWrapper}>
                           <User size={14} color="var(--primary)" />
                           <span style={styles.patientText}>{patientName}</span>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <span style={styles.reasonText} title={consultation.reason_for_visit}>
-                          {consultation.reason_for_visit.length > 60 
-                            ? `${consultation.reason_for_visit.substring(0, 60)}...` 
-                            : consultation.reason_for_visit}
+                          {consultation.reason_for_visit && consultation.reason_for_visit.length > 30 
+                            ? `${consultation.reason_for_visit.substring(0, 30)}...` 
+                            : (consultation.reason_for_visit || '-')}
                         </span>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <div style={styles.diagnosisWrapper}>
                           <Activity size={14} color="var(--primary)" />
                           <span style={styles.diagnosisText}>{consultation.diagnosis}</span>
                         </div>
                       </td>
-                      <td style={styles.td}>
+                      <td>
                         <span style={styles.doctorText}>{doctorName}</span>
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right' }}>
                         {consultation.patients && (
                           <a
                             href={`/dashboard/patients/${consultation.patients.id}`}
@@ -190,6 +198,21 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                 })}
               </tbody>
             </table>
+            
+            {totalPages > 1 && (
+              <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <a
+                    key={page}
+                    href={`/dashboard/consultations?page=${page}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+                    className={`btn ${currentPage === page ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.5rem 1rem', minWidth: '40px' }}
+                  >
+                    {page}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -220,6 +243,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   searchCard: {
     padding: '1rem',
+    backgroundColor: 'var(--bg-input)',
+    boxShadow: 'none',
+    border: '1px solid var(--border-color)',
   },
   searchForm: {
     display: 'flex',
@@ -243,7 +269,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.75rem 1rem 0.75rem 2.75rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border-color)',
-    backgroundColor: 'var(--bg-input)',
+    backgroundColor: '#ffffff',
     color: 'var(--text-main)',
     fontSize: '0.95rem',
   },

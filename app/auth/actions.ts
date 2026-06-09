@@ -17,7 +17,7 @@ export async function login(formData: FormData) {
     return { error: 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.' }
   }
 
-  redirect('/dashboard')
+  redirect('/dashboard/select-location')
 }
 
 export async function getInvitationDetails(token: string) {
@@ -129,11 +129,28 @@ export async function signup(formData: FormData) {
     // Handle New Clinic Admin
     const { data: clinicData, error: clinicError } = await adminSupabase
       .from('clinics')
-      .insert([{ name: clinicName }])
+      .insert([{ 
+        name: clinicName,
+        plan_code: 'SOLO_MEDICO',
+        owner_user_id: user.id
+      }])
       .select()
       .single()
 
     if (clinicError) return { error: `Error al crear la clínica: ${clinicError.message}` }
+
+    // Crear la ubicación (Clínica/Sucursal) principal por defecto
+    const { data: locationData, error: locationError } = await adminSupabase
+      .from('locations')
+      .insert([{
+        clinic_id: clinicData.id,
+        name: 'Clínica Principal',
+        is_active: true
+      }])
+      .select()
+      .single()
+
+    if (locationError) return { error: `Error al crear la clínica principal: ${locationError.message}` }
 
     const { error: profileError } = await adminSupabase
       .from('user_profiles')
@@ -141,9 +158,11 @@ export async function signup(formData: FormData) {
         clinic_id: clinicData.id,
         first_name: firstName,
         last_name: lastName,
-        role: 'ADMIN',
+        role: 'DOCTOR',
+        is_org_admin: true,
         specialty: specialty || 'Medicina General',
         professional_id: professionalId,
+        default_location_id: locationData.id
       })
       .eq('id', user.id)
 
