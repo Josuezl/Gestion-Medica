@@ -443,7 +443,7 @@ export default function PatientDetailsClient({
             onClick={() => setActiveTab('studies')}
           >
             <FileSpreadsheet size={18} />
-            <span>Estudios & Archivos</span>
+            <span>Estudios Médicos</span>
           </button>
         </div>
 

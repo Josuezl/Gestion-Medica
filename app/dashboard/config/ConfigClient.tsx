@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, upgradeToClinicPlan } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle } from 'lucide-react'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, upgradeToClinicPlan, updateLocation } from './actions'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit } from 'lucide-react'
 
 interface ConfigClientProps {
   clinic: any
@@ -34,6 +34,10 @@ export default function ConfigClient({
   
   const [clinicLoading, setClinicLoading] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
+  
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null)
+  const [editLocName, setEditLocName] = useState('')
+  const [editLocAddress, setEditLocAddress] = useState('')
   
   const allMembersAndInvites = [...teamMembers, ...invitations]
   
@@ -117,8 +121,21 @@ export default function ConfigClient({
   }
 
   async function handleToggleLocation(id: string, currentStatus: boolean) {
-    if (!confirm(`¿Estás seguro de ${currentStatus ? 'desactivar' : 'activar'} esta sucursal?`)) return
-    await toggleLocationStatus(id, !currentStatus)
+    const confirmMessage = currentStatus 
+      ? '¿Estás seguro de desactivar esta clínica? Nadie podrá acceder a ella.'
+      : '¿Deseas reactivar esta clínica?'
+    
+    if (!confirm(confirmMessage)) return
+    
+    const res = await toggleLocationStatus(id, !currentStatus)
+    if (res.error) alert(res.error)
+  }
+
+  async function handleUpdateLocation(id: string) {
+    if (!editLocName.trim()) return
+    const res = await updateLocation(id, editLocName, editLocAddress)
+    if (res.error) alert(res.error)
+    else setEditingLocationId(null)
   }
 
   return (
@@ -184,19 +201,6 @@ export default function ConfigClient({
               </p>
             )}
           </div>
-          {planCode !== 'HOSPITAL' && (
-            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button 
-                onClick={handleUpgrade}
-                disabled={loading}
-                className="btn" 
-                style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1rem' }}
-              >
-                <ArrowUpCircle size={16} />
-                {loading ? 'Procesando...' : 'Cambiar a Licencia HOSPITAL / CLÍNICA'}
-              </button>
-            </div>
-          )}
         </div>
 
         {error && (
@@ -428,26 +432,64 @@ export default function ConfigClient({
                 </tr>
               </thead>
               <tbody>
-                {locations.map((loc) => (
-                  <tr key={loc.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: loc.is_active ? 1 : 0.6 }}>
-                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{loc.name}</td>
-                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{loc.address || '—'}</td>
-                    <td style={{ padding: '0.75rem 1rem' }}>
-                      <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
-                        {loc.is_active ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => handleToggleLocation(loc.id, loc.is_active)}
-                        style={{ background: 'none', border: 'none', color: loc.is_active ? 'var(--danger)' : 'var(--primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
-                      >
-                        <Power size={14} />
-                        {loc.is_active ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {locations.map((loc) => {
+                  const isEditing = editingLocationId === loc.id;
+                  
+                  return (
+                    <tr key={loc.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: loc.is_active ? 1 : 0.6 }}>
+                      {isEditing ? (
+                        <>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <input type="text" className="form-input" value={editLocName} onChange={e => setEditLocName(e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <input type="text" className="form-input" value={editLocAddress} onChange={e => setEditLocAddress(e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
+                              {loc.is_active ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                              <button onClick={() => handleUpdateLocation(loc.id)} className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>Guardar</button>
+                              <button onClick={() => setEditingLocationId(null)} className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>Cancelar</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{loc.name}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{loc.address || '—'}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
+                              {loc.is_active ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                            <button 
+                              onClick={() => {
+                                setEditingLocationId(loc.id)
+                                setEditLocName(loc.name)
+                                setEditLocAddress(loc.address || '')
+                              }}
+                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600, marginRight: '1rem' }}
+                            >
+                              <Edit size={14} /> Editar
+                            </button>
+                            <button 
+                              onClick={() => handleToggleLocation(loc.id, loc.is_active)}
+                              style={{ background: 'none', border: 'none', color: loc.is_active ? 'var(--danger)' : 'var(--primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
+                            >
+                              <Power size={14} />
+                              {loc.is_active ? 'Desactivar' : 'Activar'}
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  )
+                })}
                 {locations.length === 0 && (
                   <tr>
                     <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>

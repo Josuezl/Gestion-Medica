@@ -33,10 +33,34 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     notFound()
   }
 
+  // 3. Cargar consultas de evolución
+  const { data: consultations } = await supabase
+    .from('consultations')
+    .select('*, user_profiles(first_name, last_name), prescriptions(id, medicines, notes, verification_code, pdf_url)')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+
+  // 4. Cargar estudios médicos
+  const { data: studies } = await supabase
+    .from('studies')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+
+  // 5. Cargar recetas
+  const { data: prescriptions } = await supabase
+    .from('prescriptions')
+    .select('*, user_profiles(first_name, last_name)')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+
   return (
     <NewConsultationClient
       patient={patient}
       appointmentId={appointmentId}
+      consultations={consultations || []}
+      studies={studies || []}
+      prescriptions={prescriptions || []}
     />
   )
 }

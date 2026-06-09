@@ -616,24 +616,23 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                 alignItems: 'center', 
                 backgroundColor: '#f8fafc', 
                 borderRadius: '12px', 
-                padding: '1rem', 
+                padding: '0.75rem 1rem', 
                 borderLeft: `4px solid ${statusColor}`,
                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                 borderTop: '1px solid #e2e8f0',
                 borderRight: '1px solid #e2e8f0',
                 borderBottom: '1px solid #e2e8f0'
               }}>
-                <div style={{ width: '120px', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 700, color: statusColor, fontSize: '1.1rem' }}>{time}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem', fontWeight: 600 }}>GMT-6</div>
+                <div style={{ width: '95px', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, color: statusColor, fontSize: '1rem', whiteSpace: 'nowrap' }}>{time}</div>
                 </div>
                 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '1.05rem', marginBottom: '0.25rem' }}>
-                    {app.patients?.first_name} {app.patients?.last_name}
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    {ageText}Tel: {app.patients?.phone || 'Sin teléfono'}
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
+                    <span>{app.patients?.first_name?.split(' ')[0]} {app.patients?.last_name?.split(' ')[0]}</span>
+                    <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem' }}>
+                      ({ageText}Tel: {app.patients?.phone || 'Sin teléfono'})
+                    </span>
                   </div>
                   {app.notes && (
                     <div style={{ fontSize: '0.85rem', color: '#0d9488', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -1039,7 +1038,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   backgroundColor: '#0d9488',
                   color: '#ffffff',
                   border: 'none',
-                  padding: '0.75rem 1.5rem',
+                  padding: '0 1rem',
                   cursor: 'pointer',
                   transition: 'opacity 0.2s'
                 }}

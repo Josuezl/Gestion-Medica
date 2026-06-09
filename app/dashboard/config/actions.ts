@@ -204,3 +204,20 @@ export async function toggleLocationStatus(id: string, isActive: boolean) {
   revalidatePath('/dashboard/config')
   return { success: true }
 }
+
+export async function updateLocation(id: string, name: string, address: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('locations')
+    .update({ name, address })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+
+  if (error) return { error: 'Error al actualizar la sucursal: ' + error.message }
+  
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}

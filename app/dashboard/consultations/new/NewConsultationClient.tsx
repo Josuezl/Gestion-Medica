@@ -14,10 +14,14 @@ import {
   Save, 
   Loader2 
 } from 'lucide-react'
+import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 
 interface NewConsultationClientProps {
   patient: any
   appointmentId: string | null
+  consultations?: any[]
+  studies?: any[]
+  prescriptions?: any[]
 }
 
 interface MedicineItem {
@@ -29,7 +33,10 @@ interface MedicineItem {
 
 export default function NewConsultationClient({
   patient,
-  appointmentId
+  appointmentId,
+  consultations = [],
+  studies = [],
+  prescriptions = []
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -158,11 +165,11 @@ export default function NewConsultationClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Examen Físico</label>
+                <label className="form-label">Exámenes de laboratorio/ estudios médicos</label>
                 <textarea 
                   className="form-input" 
                   name="physical_exam" 
-                  placeholder="Notas sobre el examen físico general y segmentario..." 
+                  placeholder="Resultados o notas sobre estudios o exámenes médicos..." 
                   rows={2} 
                 />
               </div>
@@ -252,13 +259,13 @@ export default function NewConsultationClient({
                 </div>
 
                 <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  style={{ width: '100%', gap: '0.4rem', border: '1px solid var(--secondary)', color: 'var(--secondary)' }}
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={handleAddMedicine}
+                  style={{ width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', borderStyle: 'dashed' }}
                 >
-                  <Plus size={16} />
-                  Agregar a Receta
+                  <Plus size={18} />
+                  Agregar Medicamento
                 </button>
               </div>
 
@@ -323,6 +330,19 @@ export default function NewConsultationClient({
           </div>
         </div>
       </form>
+
+      {/* HISTORIAL MÉDICO DEL PACIENTE */}
+      <div style={{ marginTop: '2rem' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '1.5rem', paddingBottom: '0.5rem', borderBottom: '2px solid var(--border-color)' }}>
+          Expediente Médico de {patient.first_name}
+        </h2>
+        <PatientHistoryTabs 
+          patient={patient}
+          consultations={consultations}
+          studies={studies}
+          prescriptions={prescriptions}
+        />
+      </div>
 
       <style jsx global>{`
         @keyframes spin {
