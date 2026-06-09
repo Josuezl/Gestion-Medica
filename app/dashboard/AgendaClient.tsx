@@ -635,9 +635,9 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
                     {ageText}Tel: {app.patients?.phone || 'Sin teléfono'}
                   </div>
-                  {app.reason && (
+                  {app.notes && (
                     <div style={{ fontSize: '0.85rem', color: '#0d9488', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Clipboard size={14} /> {app.reason}
+                      <Clipboard size={14} /> {app.notes}
                     </div>
                   )}
                 </div>
