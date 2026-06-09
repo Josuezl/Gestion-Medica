@@ -15,15 +15,17 @@ function calculateAge(birthDateString: string) {
 }
 
 interface PageProps {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export default async function PatientsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams
-  const searchQuery = resolvedSearchParams.q || ''
+  const qParam = resolvedSearchParams.q
+  const searchQuery = (Array.isArray(qParam) ? qParam[0] : qParam) || ''
   
   const PAGE_SIZE = 10
-  const currentPage = parseInt(resolvedSearchParams.page || '1', 10) || 1
+  const pageParam = resolvedSearchParams.page
+  const currentPage = parseInt((Array.isArray(pageParam) ? pageParam[0] : pageParam) || '1', 10) || 1
   const from = (currentPage - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
   
