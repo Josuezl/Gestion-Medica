@@ -147,7 +147,12 @@ export default function PatientDetailsClient({
       setUploadError('Por favor completa el nombre del estudio y selecciona un archivo.')
       return
     }
-    
+
+    if (studyFile.size > 26214400) { // 25 MB
+      setUploadError('El archivo supera el límite de 25 MB. Comprime la imagen e intenta de nuevo.')
+      return
+    }
+
     setUploadError(null)
     setUploadLoading(true)
 
