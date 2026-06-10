@@ -56,7 +56,7 @@ export async function provisionTenant(formData: FormData) {
   const professionalId = (formData.get('professionalId') as string || '').trim()
 
   if (!clinicName || !ownerEmail || !ownerFirstName || !ownerLastName || !planCode) {
-    return { error: 'Nombre de clínica, datos del dueño y plan son obligatorios.' }
+    return { error: 'Nombre de la organización, datos del dueño y plan son obligatorios.' }
   }
 
   const admin = createAdminClient()
@@ -65,17 +65,17 @@ export async function provisionTenant(formData: FormData) {
   const { data: plan } = await admin.from('plans').select('code').eq('code', planCode).single()
   if (!plan) return { error: 'El plan seleccionado no es válido.' }
 
-  // 1. Crear la clínica.
+  // 1. Crear la organización (tenant).
   const { data: clinic, error: clinicError } = await admin
     .from('clinics')
     .insert([{ name: clinicName, plan_code: planCode }])
     .select()
     .single()
   if (clinicError || !clinic) {
-    return { error: `No se pudo crear la clínica: ${clinicError?.message}` }
+    return { error: `No se pudo crear la organización: ${clinicError?.message}` }
   }
 
-  // 2. Crear la sucursal principal por defecto.
+  // 2. Crear la clínica principal por defecto.
   const { data: location, error: locationError } = await admin
     .from('locations')
     .insert([{ clinic_id: clinic.id, name: 'Clínica Principal', is_active: true }])
@@ -83,7 +83,7 @@ export async function provisionTenant(formData: FormData) {
     .single()
   if (locationError || !location) {
     await admin.from('clinics').delete().eq('id', clinic.id)
-    return { error: `No se pudo crear la sucursal: ${locationError?.message}` }
+    return { error: `No se pudo crear la clínica: ${locationError?.message}` }
   }
 
   // 3. Crear y enlazar al dueño (org admin) + enviar enlace de fijar contraseña.
@@ -101,7 +101,7 @@ export async function provisionTenant(formData: FormData) {
   })
 
   if (result.error || !result.userId) {
-    // Revertir clínica + sucursal para no dejar tenants huérfanos.
+    // Revertir organización + clínica para no dejar tenants huérfanos.
     await admin.from('locations').delete().eq('clinic_id', clinic.id)
     await admin.from('clinics').delete().eq('id', clinic.id)
     return { error: result.error || 'No se pudo crear la cuenta del dueño.' }

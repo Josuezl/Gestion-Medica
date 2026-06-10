@@ -192,7 +192,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     return initialAppointments.filter(app => {
       // Filtrar doctor
       if (selectedDoctorId !== 'all' && app.doctor_id !== selectedDoctorId) return false
-      // Filtrar sucursal
+      // Filtrar clínica
       if (selectedLocationId !== 'all' && app.location_id !== selectedLocationId) return false
       return true
     })

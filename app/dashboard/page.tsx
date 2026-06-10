@@ -62,7 +62,7 @@ export default async function DashboardPage() {
     .in('role', ['ADMIN', 'DOCTOR'])
     .order('first_name', { ascending: true })
 
-  // 5. Obtener sucursales
+  // 5. Obtener clínicas
   const { data: locations } = await supabase
     .from('locations')
     .select('id, name, is_active')

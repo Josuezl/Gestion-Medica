@@ -96,7 +96,7 @@ export default function SuperAdminClient({
         <div style={S.cardHeader}><UserPlus size={20} color="#0d9488" /><h2 style={S.cardTitle}>Crear nuevo cliente</h2></div>
         <form onSubmit={handleCreate}>
           <div style={S.formGrid}>
-            <Field label="Nombre de la clínica *"><input name="clinicName" required style={S.input} placeholder="Clínica del Valle" /></Field>
+            <Field label="Nombre de la organización *"><input name="clinicName" required style={S.input} placeholder="Clínica del Valle" /></Field>
             <Field label="Plan / Licencia *">
               <select name="planCode" required style={S.input} defaultValue="">
                 <option value="" disabled>Selecciona un plan</option>
@@ -121,7 +121,7 @@ export default function SuperAdminClient({
         <table style={S.table}>
           <thead>
             <tr style={S.theadRow}>
-              <th style={S.th}>Clínica</th>
+              <th style={S.th}>Organización</th>
               <th style={S.th}>Licencia</th>
               <th style={S.th}>Médicos</th>
               <th style={S.th}>Asistentes</th>
