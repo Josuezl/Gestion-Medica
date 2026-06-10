@@ -19,6 +19,7 @@ import {
 export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isPediatric, setIsPediatric] = useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -67,7 +68,7 @@ export default function NewPatientPage() {
                   id="first_name"
                   name="first_name"
                   type="text"
-                  placeholder="Ej. Juan Orlando"
+                  placeholder="Ej. Carlos Roberto"
                   required
                 />
               </div>
@@ -81,7 +82,7 @@ export default function NewPatientPage() {
                   id="last_name"
                   name="last_name"
                   type="text"
-                  placeholder="Ej. Hernández"
+                  placeholder="Ej. Martínez"
                   required
                 />
               </div>
@@ -140,6 +141,48 @@ export default function NewPatientPage() {
                   <option value="AB-">AB Rh Negativo (AB-)</option>
                 </select>
               </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    name="is_pediatric"
+                    value="true"
+                    checked={isPediatric}
+                    onChange={(e) => setIsPediatric(e.target.checked)}
+                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
+                  />
+                  ¿Es paciente pediátrico?
+                </label>
+              </div>
+
+              {isPediatric && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="father_name">
+                      Nombre del Padre
+                    </label>
+                    <input
+                      className="form-input"
+                      id="father_name"
+                      name="father_name"
+                      type="text"
+                      placeholder="Ej. Carlos Hernández"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="mother_name">
+                      Nombre de la Madre
+                    </label>
+                    <input
+                      className="form-input"
+                      id="mother_name"
+                      name="mother_name"
+                      type="text"
+                      placeholder="Ej. María Vargas"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <h3 style={{ ...styles.sectionTitle, marginTop: '2rem' }}>

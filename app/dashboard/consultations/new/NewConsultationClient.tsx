@@ -130,7 +130,11 @@ export default function NewConsultationClient({
                   <input className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Ritmo Cardiaco (bpm)</label>
+                  <label className="form-label">Talla (cm)</label>
+                  <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ whiteSpace: 'nowrap' }}>Ritmo Cardiaco (bpm)</label>
                   <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" />
                 </div>
               </div>
@@ -422,7 +426,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   vitalsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
     gap: '0.75rem',
   },
   medAddForm: {

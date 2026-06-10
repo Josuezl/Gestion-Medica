@@ -28,8 +28,10 @@ import {
   ChevronUp,
   Save,
   X,
-  Trash2
+  Trash2,
+  Baby
 } from 'lucide-react'
+import PediatricGrowthChart from '../../components/PediatricGrowthChart'
 
 // Utilidad para calcular edad
 function calculateAge(birthDateString: string) {
@@ -58,7 +60,7 @@ export default function PatientDetailsClient({
   prescriptions,
   initialEdit = false
 }: PatientDetailsClientProps) {
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies'>('consultations')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies' | 'pediatrics'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [editingPrescription, setEditingPrescription] = useState<string | null>(null)
   const [editMedicines, setEditMedicines] = useState<{ name: string; dose: string; frequency: string; duration: string }[]>([])
@@ -66,6 +68,7 @@ export default function PatientDetailsClient({
   const [savingPrescription, setSavingPrescription] = useState(false)
   const [prescSaveMsg, setPrescSaveMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isEditing, setIsEditing] = useState(initialEdit)
+  const [isEditPediatric, setIsEditPediatric] = useState(patient.is_pediatric || false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
 
@@ -379,6 +382,32 @@ export default function PatientDetailsClient({
                   <option value="AB-">AB-</option>
                 </select>
               </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    name="is_pediatric"
+                    value="true"
+                    checked={isEditPediatric}
+                    onChange={(e) => setIsEditPediatric(e.target.checked)}
+                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
+                  />
+                  ¿Es paciente pediátrico?
+                </label>
+              </div>
+
+              {isEditPediatric && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Nombre del Padre</label>
+                    <input className="form-input" name="father_name" defaultValue={patient.father_name} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nombre de la Madre</label>
+                    <input className="form-input" name="mother_name" defaultValue={patient.mother_name} />
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="form-group">
@@ -445,6 +474,16 @@ export default function PatientDetailsClient({
             <FileSpreadsheet size={18} />
             <span>Estudios Médicos</span>
           </button>
+
+          {patient.is_pediatric && (
+            <button 
+              style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('pediatrics')}
+            >
+              <Baby size={18} />
+              <span>Pediatría</span>
+            </button>
+          )}
         </div>
 
         {/* Tab Contents */}
@@ -953,7 +992,42 @@ export default function PatientDetailsClient({
               )}
             </div>
           )}
-        </div>
+
+        {/* TAB 5: PEDIATRÍA */}
+        {activeTab === 'pediatrics' && patient.is_pediatric && (
+          <div style={styles.tabView}>
+            <div style={styles.tabHeader}>
+              <h3 style={styles.tabTitle}>Expediente Pediátrico</h3>
+            </div>
+            
+            <PediatricGrowthChart consultations={consultations} patient={patient} />
+            
+            <div style={styles.formGrid} className="grid-2">
+              <div className="card" style={styles.historyBlock}>
+                <h4 style={styles.historyBlockTitle}>Esquema de Vacunación (Notas)</h4>
+                <textarea 
+                  className="form-input" 
+                  disabled 
+                  value="Historial de vacunas. (Funcionalidad de guardado pendiente)." 
+                  rows={4} 
+                  style={{ opacity: 0.7 }}
+                />
+              </div>
+
+              <div className="card" style={styles.historyBlock}>
+                <h4 style={styles.historyBlockTitle}>Antecedentes Prenatales</h4>
+                <textarea 
+                  className="form-input" 
+                  disabled 
+                  value="Complicaciones en embarazo, semanas de gestación, etc. (Funcionalidad de guardado pendiente)." 
+                  rows={4} 
+                  style={{ opacity: 0.7 }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       </div>
     </div>
   )

@@ -31,10 +31,12 @@ export async function createConsultation(
   const bp = formData.get('blood_pressure') as string || null
   const tempVal = formData.get('temperature') as string
   const weightVal = formData.get('weight') as string
+  const heightVal = formData.get('height') as string
   const hrVal = formData.get('heart_rate') as string
 
   const temperature = tempVal ? parseFloat(tempVal) : null
   const weight = weightVal ? parseFloat(weightVal) : null
+  const height = heightVal ? parseFloat(heightVal) : null
   const heartRate = hrVal ? parseInt(hrVal, 10) : null
 
   // 3. Insertar la consulta
@@ -52,6 +54,7 @@ export async function createConsultation(
       blood_pressure: bp,
       temperature,
       weight,
+      height,
       heart_rate: heartRate
     }])
     .select()

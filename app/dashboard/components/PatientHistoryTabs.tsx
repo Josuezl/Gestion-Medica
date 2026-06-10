@@ -9,8 +9,10 @@ import {
   Pill, 
   ChevronDown, 
   ChevronUp, 
-  Download 
+  Download,
+  Baby
 } from 'lucide-react'
+import PediatricGrowthChart from './PediatricGrowthChart'
 
 interface PatientHistoryTabsProps {
   patient: any
@@ -25,7 +27,7 @@ export default function PatientHistoryTabs({
   studies,
   prescriptions
 }: PatientHistoryTabsProps) {
-  const [activeTab, setActiveTab] = useState<'consultations' | 'history' | 'prescriptions' | 'studies'>('consultations')
+  const [activeTab, setActiveTab] = useState<'consultations' | 'history' | 'prescriptions' | 'studies' | 'pediatrics'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
 
   return (
@@ -67,6 +69,17 @@ export default function PatientHistoryTabs({
           <FileSpreadsheet size={18} />
           <span>Estudios Médicos</span>
         </button>
+
+        {patient.is_pediatric && (
+          <button 
+            type="button"
+            style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('pediatrics')}
+          >
+            <Baby size={18} />
+            <span>Pediatría</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Contents */}
@@ -349,6 +362,41 @@ export default function PatientHistoryTabs({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 5: PEDIATRÍA */}
+        {activeTab === 'pediatrics' && patient.is_pediatric && (
+          <div style={styles.tabView}>
+            <div style={styles.tabHeader}>
+              <h3 style={styles.tabTitle}>Expediente Pediátrico</h3>
+            </div>
+            
+            <PediatricGrowthChart consultations={consultations} patient={patient} />
+            
+            <div style={styles.formGrid} className="grid-2">
+              <div className="card" style={styles.historyBlock}>
+                <h4 style={styles.historyBlockTitle}>Esquema de Vacunación (Notas)</h4>
+                <textarea 
+                  className="form-input" 
+                  disabled 
+                  value="Historial de vacunas. (Funcionalidad de guardado pendiente)." 
+                  rows={4} 
+                  style={{ opacity: 0.7 }}
+                />
+              </div>
+
+              <div className="card" style={styles.historyBlock}>
+                <h4 style={styles.historyBlockTitle}>Antecedentes Prenatales</h4>
+                <textarea 
+                  className="form-input" 
+                  disabled 
+                  value="Complicaciones en embarazo, semanas de gestación, etc. (Funcionalidad de guardado pendiente)." 
+                  rows={4} 
+                  style={{ opacity: 0.7 }}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
