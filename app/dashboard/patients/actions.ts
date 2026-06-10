@@ -123,7 +123,25 @@ export async function uploadMedicalStudy(patientId: string, name: string, file: 
 
   if (!profile?.clinic_id) return { error: 'Error de clínica' }
 
-  // 2. Subir archivo a Supabase Storage
+  // 2. Validar tamaño del archivo (defensa en profundidad; el bucket también lo limita a 25 MB)
+  const MAX_FILE_BYTES = 26214400 // 25 MB
+  if (file.size > MAX_FILE_BYTES) {
+    return { error: 'El archivo supera el límite de 25 MB. Comprime la imagen e intenta de nuevo.' }
+  }
+
+  // 3. Validar cuota de almacenamiento del plan de la clínica
+  const { data: clinicPlan } = await supabase
+    .from('clinics')
+    .select('plans(max_storage_mb)')
+    .eq('id', profile.clinic_id)
+    .single()
+  const maxStorageMb = (clinicPlan?.plans as any)?.max_storage_mb ?? 1024
+  const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
+  if ((usedBytes ?? 0) + file.size > maxStorageMb * 1024 * 1024) {
+    return { error: 'Límite de almacenamiento del plan alcanzado. Contacta para ampliar tu plan.' }
+  }
+
+  // 4. Subir archivo a Supabase Storage
   // Nota: Creamos la carpeta por clínica y paciente
   const fileExt = file.name.split('.').pop()
   const filePath = `${profile.clinic_id}/${patientId}/${Date.now()}.${fileExt}`

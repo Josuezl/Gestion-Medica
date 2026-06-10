@@ -58,6 +58,10 @@ export default async function ConfigPage() {
     .eq('clinic_id', ctx.clinicId)
     .order('created_at', { ascending: true })
 
+  // Uso de almacenamiento del tenant
+  const { data: storageUsedBytes } = await supabase.rpc('clinic_storage_bytes')
+  const maxStorageMb = planData?.max_storage_mb || 1024
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -75,6 +79,8 @@ export default async function ConfigPage() {
         maxAssistants={maxAssistants}
         planCode={ctx.planCode}
         maxLocations={planData?.max_locations || 1}
+        storageUsedBytes={storageUsedBytes || 0}
+        maxStorageMb={maxStorageMb}
       />
     </div>
   )

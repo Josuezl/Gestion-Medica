@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit } from 'lucide-react'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive } from 'lucide-react'
 
 interface ConfigClientProps {
   clinic: any
@@ -14,6 +14,8 @@ interface ConfigClientProps {
   maxAssistants: number
   planCode: string
   maxLocations: number
+  storageUsedBytes: number
+  maxStorageMb: number
 }
 
 export default function ConfigClient({
@@ -25,8 +27,15 @@ export default function ConfigClient({
   maxDoctors,
   maxAssistants,
   planCode,
-  maxLocations
+  maxLocations,
+  storageUsedBytes,
+  maxStorageMb
 }: ConfigClientProps) {
+  const usedMb = storageUsedBytes / (1024 * 1024)
+  const usedGb = usedMb / 1024
+  const maxGb = maxStorageMb / 1024
+  const storagePct = Math.min((usedMb / maxStorageMb) * 100, 100)
+  const storageNearLimit = storagePct >= 80
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [showLocationForm, setShowLocationForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -131,7 +140,28 @@ export default function ConfigClient({
 
   return (
     <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr' }}>
-      
+
+      {/* Almacenamiento */}
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <HardDrive size={20} color="var(--primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Almacenamiento</h3>
+          </div>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: storageNearLimit ? '#dc2626' : 'var(--text-muted)' }}>
+            {usedGb < 0.1 ? `${usedMb.toFixed(1)} MB` : `${usedGb.toFixed(2)} GB`} / {maxGb >= 1 ? `${maxGb.toFixed(0)} GB` : `${maxStorageMb} MB`}
+          </span>
+        </div>
+        <div style={{ height: '8px', borderRadius: '4px', background: '#e2e8f0', overflow: 'hidden' }}>
+          <div style={{ width: `${storagePct}%`, height: '100%', borderRadius: '4px', background: storageNearLimit ? '#dc2626' : '#0d9488', transition: 'width 0.3s' }} />
+        </div>
+        {storageNearLimit && (
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#dc2626' }}>
+            Estás cerca del límite de tu plan. Contacta para ampliar tu almacenamiento.
+          </p>
+        )}
+      </div>
+
       {/* Sección 1: Equipo Médico */}
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
