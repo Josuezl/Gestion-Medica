@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { login } from '../auth/actions'
-import Link from 'next/navigation'
 import { Stethoscope, Lock, Mail, Loader2, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
@@ -103,10 +102,7 @@ export default function LoginPage() {
         <div style={styles.divider}></div>
 
         <p style={styles.footerText}>
-          ¿Eres nuevo?{' '}
-          <a href="/register" style={styles.registerLink}>
-            Registra tu clínica aquí
-          </a>
+          ¿Problemas para acceder? Contacta al administrador de tu plataforma.
         </p>
       </div>
 

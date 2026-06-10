@@ -32,20 +32,32 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Rutas que requieren autenticación
-  const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard')
-  // Rutas de autenticación
-  const isAuthRoute = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register'
+  const pathname = request.nextUrl.pathname
 
-  // Redirigir a login si intenta entrar a dashboard sin estar autenticado
+  // Rutas que requieren autenticación
+  const isDashboardRoute = pathname.startsWith('/dashboard')
+  // Solo /login es ruta de entrada. El registro público está deshabilitado.
+  const isAuthRoute = pathname === '/login'
+  // El flujo de fijar contraseña llega desde el email SIN sesión previa: debe permitirse.
+  const isSetPasswordFlow = pathname.startsWith('/set-password') || pathname.startsWith('/auth/confirm')
+
+  // Redirigir a login si intenta entrar al dashboard sin estar autenticado
   if (!user && isDashboardRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirigir a dashboard si intenta entrar a login/register estando ya autenticado
-  if (user && isAuthRoute) {
+  // Defensa en profundidad: /superadmin exige sesión (la autorización real la valida el RPC en la página)
+  if (!user && pathname.startsWith('/superadmin')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Redirigir a dashboard si intenta entrar a login estando ya autenticado
+  // (no aplica al flujo de set-password, donde el usuario recién obtiene sesión para fijar su clave)
+  if (user && isAuthRoute && !isSetPasswordFlow) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

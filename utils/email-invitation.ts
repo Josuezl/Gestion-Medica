@@ -2,96 +2,87 @@ import { Resend } from 'resend'
 
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
 
-export async function sendInvitationEmail(
-  toEmail: string,
-  clinicName: string,
-  role: string,
-  specialty: string | null,
-  inviterName: string,
-  token: string
-) {
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Email de bienvenida con enlace seguro de un solo uso para fijar contraseña.
+ * Se usa tanto al provisionar el dueño de una clínica (desde /superadmin) como al
+ * invitar miembros de equipo (desde la configuración del org-admin).
+ */
+export async function sendSetPasswordEmail(params: {
+  toEmail: string
+  firstName: string
+  clinicName: string
+  role: string
+  inviteLink: string
+  inviterName?: string | null
+}): Promise<{ success?: boolean; error?: string }> {
+  const { toEmail, firstName, clinicName, role, inviteLink, inviterName } = params
   try {
     if (!process.env.RESEND_API_KEY) {
-      console.warn('⚠️ RESEND_API_KEY no está configurada. Simulando envío de correo en entorno local.')
-      return { success: true, data: { id: 'simulated_email_id' } }
+      console.warn('⚠️ RESEND_API_KEY no configurada. Enlace de acceso (solo local):', inviteLink)
+      return { success: true }
     }
-    
+
     const resend = new Resend(process.env.RESEND_API_KEY)
-    const roleEs = role === 'DOCTOR' ? 'Médico' : 'Asistente'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const inviteLink = `${appUrl}/register?invite=${token}`
+    const roleEs = role === 'DOCTOR' ? 'Médico' : role === 'ASSISTANT' ? 'Asistente' : 'Administrador'
+    const safeName = escapeHtml(firstName)
+    const safeClinic = escapeHtml(clinicName)
+    const invitedLine = inviterName
+      ? `<p><strong>${escapeHtml(inviterName)}</strong> te ha dado acceso a <strong>${safeClinic}</strong>.</p>`
+      : `<p>Se ha creado tu cuenta para <strong>${safeClinic}</strong>.</p>`
 
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
-          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
-          .header { background-color: #0d9488; color: #ffffff; padding: 30px 20px; text-align: center; }
-          .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-          .content { padding: 30px 20px; line-height: 1.6; }
-          .content p { margin: 0 0 15px; font-size: 16px; }
-          .button-container { text-align: center; margin: 30px 0; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #0d9488; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; }
-          .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; }
-          .footer p { margin: 0; }
-          .details-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin: 20px 0; }
-          .details-box ul { margin: 0; padding: 0; list-style: none; }
-          .details-box li { margin-bottom: 8px; font-size: 15px; }
-          .details-box li strong { color: #334155; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>MedConnect</h1>
+      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:20px;background-color:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#0f172a;">
+        <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
+          <div style="background:#0d9488;color:#fff;padding:30px 20px;text-align:center;">
+            <h1 style="margin:0;font-size:24px;font-weight:600;">CloudMedHN</h1>
           </div>
-          <div class="content">
-            <p>Hola,</p>
-            <p><strong>El Dr./a ${inviterName}</strong> te ha invitado a unirte a su equipo en la plataforma MedConnect.</p>
-            
-            <div class="details-box">
-              <ul>
-                <li><strong>Clínica:</strong> ${clinicName}</li>
-                <li><strong>Rol asignado:</strong> ${roleEs}</li>
-                ${specialty ? `<li><strong>Especialidad:</strong> ${specialty}</li>` : ''}
-              </ul>
+          <div style="padding:30px 20px;line-height:1.6;">
+            <p>Hola ${safeName},</p>
+            ${invitedLine}
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:15px;margin:20px 0;">
+              <p style="margin:0;font-size:15px;"><strong>Rol asignado:</strong> ${roleEs}</p>
             </div>
-            
-            <p>Para aceptar la invitación y configurar tu cuenta, haz clic en el siguiente botón:</p>
-            
-            <div class="button-container">
-              <a href="${inviteLink}" class="button">Crear mi cuenta</a>
+            <p>Para activar tu cuenta, define tu contraseña haciendo clic en el botón:</p>
+            <div style="text-align:center;margin:30px 0;">
+              <a href="${inviteLink}" style="display:inline-block;padding:12px 24px;background:#0d9488;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;">Activar mi cuenta</a>
             </div>
-            
-            <p>Si no esperabas esta invitación, puedes ignorar este correo.</p>
+            <p style="font-size:13px;color:#64748b;">Si no esperabas este correo, puedes ignorarlo. El enlace es de un solo uso y expira pronto.</p>
           </div>
-          <div class="footer">
-            <p>Esta invitación expirará en 7 días.</p>
-            <p>© ${new Date().getFullYear()} MedConnect. Todos los derechos reservados.</p>
+          <div style="background:#f1f5f9;padding:20px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;">© ${new Date().getFullYear()} CloudMedHN. Documento confidencial.</p>
           </div>
         </div>
       </body>
       </html>
     `
 
-    const { data, error } = await resend.emails.send({
-      from: `MedConnect <${fromEmail}>`,
+    const { error } = await resend.emails.send({
+      from: `CloudMedHN <${fromEmail}>`,
       to: [toEmail],
-      subject: `Invitación a unirte a ${clinicName} en MedConnect`,
+      subject: `Activa tu cuenta en ${clinicName} — CloudMedHN`,
       html: htmlContent,
     })
 
     if (error) {
-      console.error('Error enviando email:', error)
+      console.error('Error enviando email de acceso:', error)
       return { error: error.message }
     }
-
-    return { success: true, data }
+    return { success: true }
   } catch (error: any) {
-    console.error('Excepción enviando email:', error)
+    console.error('Excepción enviando email de acceso:', error)
     return { error: error.message }
   }
 }
+
