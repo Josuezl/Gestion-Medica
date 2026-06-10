@@ -338,11 +338,11 @@ export default function ConfigClient({
         )}
       </div>
 
-      {/* Sección 2: Información de la Clínica */}
+      {/* Sección 2: Información de la Organización */}
       <div className="card">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <Building2 size={20} color="var(--primary)" />
-          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Información de la Clínica</h3>
+          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Información de la Organización</h3>
         </div>
 
         <form onSubmit={handleUpdateClinic}>
@@ -353,7 +353,7 @@ export default function ConfigClient({
           )}
           <div className="grid-2">
             <div className="form-group">
-              <label className="form-label">Nombre de la Clínica</label>
+              <label className="form-label">Nombre de la Organización</label>
               <input type="text" name="name" className="form-input" defaultValue={clinic.name} required />
             </div>
             <div className="form-group">
@@ -380,7 +380,7 @@ export default function ConfigClient({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MapPin size={20} color="var(--primary)" />
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Clínicas / Consultorios</h3>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Clínicas</h3>
             </div>
             <button 
               className="btn btn-primary"
@@ -401,7 +401,7 @@ export default function ConfigClient({
               <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Nueva Clínica</h4>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Nombre de la Sucursal</label>
+                  <label className="form-label">Nombre de la Clínica</label>
                   <input type="text" name="name" className="form-input" required placeholder="Ej. Centro Médico San Juan" />
                 </div>
                 <div className="form-group">
@@ -411,7 +411,7 @@ export default function ConfigClient({
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Guardando...' : 'Crear Sucursal'}
+                  {loading ? 'Guardando...' : 'Crear Clínica'}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowLocationForm(false)}>
                   Cancelar
@@ -492,7 +492,7 @@ export default function ConfigClient({
                 {locations.length === 0 && (
                   <tr>
                     <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No tienes sucursales adicionales configuradas.
+                      No tienes clínicas adicionales configuradas.
                     </td>
                   </tr>
                 )}

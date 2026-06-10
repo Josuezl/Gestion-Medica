@@ -122,7 +122,7 @@ export async function createLocation(formData: FormData) {
   const name = formData.get('name') as string
   const address = formData.get('address') as string
 
-  if (!name) return { error: 'El nombre de la sucursal es requerido' }
+  if (!name) return { error: 'El nombre de la clínica es requerido' }
 
   const supabase = await createClient()
 
@@ -140,7 +140,7 @@ export async function createLocation(formData: FormData) {
       .eq('clinic_id', ctx.clinicId)
 
     if (currentLocations !== null && currentLocations >= planData.max_locations) {
-      return { error: `Límite alcanzado (${planData.max_locations} sucursales).` }
+      return { error: `Límite alcanzado (${planData.max_locations} clínicas).` }
     }
   }
 
@@ -152,7 +152,7 @@ export async function createLocation(formData: FormData) {
       address: address || null
     }])
 
-  if (error) return { error: 'Error al crear la sucursal: ' + error.message }
+  if (error) return { error: 'Error al crear la clínica: ' + error.message }
   
   revalidatePath('/dashboard/config')
   return { success: true }
@@ -186,7 +186,7 @@ export async function updateLocation(id: string, name: string, address: string) 
     .eq('id', id)
     .eq('clinic_id', ctx.clinicId)
 
-  if (error) return { error: 'Error al actualizar la sucursal: ' + error.message }
+  if (error) return { error: 'Error al actualizar la clínica: ' + error.message }
   
   revalidatePath('/dashboard/config')
   return { success: true }
