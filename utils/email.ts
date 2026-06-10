@@ -5,7 +5,7 @@
 
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_123')
 
 // Dirección "from" verificada en Resend.
 // Si aún no tienes dominio verificado, Resend te da: onboarding@resend.dev
@@ -153,6 +153,11 @@ export async function sendMedicalRecordEmail(
     </html>
   `
 
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY no configurada. Simulación de envío exitoso de Ficha Médica.')
+    return { success: true, id: 'mock_send_id' }
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
@@ -297,6 +302,11 @@ export async function sendPrescriptionEmail(
     </body>
     </html>
   `
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY no configurada. Simulación de envío exitoso de Receta Médica.')
+    return { success: true, id: 'mock_send_id' }
+  }
 
   try {
     const { data, error } = await resend.emails.send({

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { updatePatient, uploadMedicalStudy } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { 
@@ -9,7 +9,8 @@ import {
   Mail, 
   MapPin, 
   Calendar, 
-  Activity, 
+  Activity,
+  Beaker,
   AlertCircle,
   FileText,
   Loader2,
@@ -22,14 +23,19 @@ import {
   Plus,
   Printer,
   Share2,
-  MessageCircle,
+
   Pill,
   ChevronDown,
   ChevronUp,
   Save,
   X,
   Trash2,
-  Baby
+  Baby,
+  Copy,
+  Check,
+  Globe,
+  Lock,
+  Zap
 } from 'lucide-react'
 import PediatricGrowthChart from '../../components/PediatricGrowthChart'
 
@@ -60,7 +66,47 @@ export default function PatientDetailsClient({
   prescriptions,
   initialEdit = false
 }: PatientDetailsClientProps) {
+  const [appUrl, setAppUrl] = useState('')
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setAppUrl(window.location.origin)
+    }
+  }, [])
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies' | 'pediatrics'>('consultations')
+  const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
+  const [copiedFicha, setCopiedFicha] = useState(false)
+  const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
+  const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
+  const toggleConsultation = (id: string) => {
+    setExpandedConsultations(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
+  }
+
+  const handleCopyFicha = () => {
+    navigator.clipboard.writeText(generateFichaText())
+    setCopiedFicha(true)
+    setTimeout(() => {
+      setCopiedFicha(false)
+    }, 2000)
+  }
+  
+  const handleCopyPrescription = (presc: any) => {
+    const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+    const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
+    navigator.clipboard.writeText(text)
+    
+    setCopiedPrescId(presc.id)
+    setTimeout(() => {
+      setCopiedPrescId(null)
+    }, 2000)
+  }
+
+  const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: any) => {
+    e.preventDefault()
+    setWhatsappModalPresc(presc)
+  }
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [editingPrescription, setEditingPrescription] = useState<string | null>(null)
   const [editMedicines, setEditMedicines] = useState<{ name: string; dose: string; frequency: string; duration: string }[]>([])
@@ -118,66 +164,482 @@ export default function PatientDetailsClient({
   }
 
   const printMedicalRecord = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
+
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return 'N/A';
+      return new Date(dateStr).toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const consultationsHtml = consultations.length === 0
+      ? `<p style="color:#888;font-style:italic;">No hay consultas registradas.</p>`
+      : consultations.map((c: any, index: number) => {
+          const docName = c.user_profiles ? `Dr. ${c.user_profiles.first_name} ${c.user_profiles.last_name}` : 'Médico';
+          const consultDate = formatDate(c.created_at);
+
+          const vitalsHtml = [
+            c.blood_pressure ? `<span class="vital-tag">PA: ${c.blood_pressure}</span>` : '',
+            c.temperature ? `<span class="vital-tag">Temp: ${c.temperature}°C</span>` : '',
+            c.weight ? `<span class="vital-tag">Peso: ${c.weight} kg</span>` : '',
+            c.heart_rate ? `<span class="vital-tag">FC: ${c.heart_rate} bpm</span>` : '',
+          ].filter(Boolean).join('');
+
+          const medsHtml = (c.prescriptions && c.prescriptions.length > 0 && c.prescriptions[0].medicines && c.prescriptions[0].medicines.length > 0)
+            ? `<table class="med-table">
+                <thead><tr><th>#</th><th>Medicamento</th><th>Dosis</th><th>Frecuencia</th><th>Duración</th></tr></thead>
+                <tbody>
+                  ${c.prescriptions[0].medicines.map((m: any, i: number) =>
+                    `<tr>
+                      <td>${i + 1}</td>
+                      <td><strong>${m.name || 'N/A'}</strong></td>
+                      <td>${m.dose || 'N/A'}</td>
+                      <td>${m.frequency || 'N/A'}</td>
+                      <td>${m.duration || 'N/A'}</td>
+                    </tr>`
+                  ).join('')}
+                </tbody>
+              </table>`
+            : `<p class="empty-note">Sin medicamentos recetados en esta consulta.</p>`;
+
+          return `
+            <div class="consult-card ${index > 0 ? 'page-break-before' : ''}">
+              <div class="consult-header">
+                <div>
+                  <div class="consult-date">${consultDate}</div>
+                  <div class="consult-doctor">${docName}</div>
+                </div>
+                ${vitalsHtml ? `<div class="vitals">${vitalsHtml}</div>` : ''}
+              </div>
+
+              <div class="consult-grid">
+                <div class="field-card diagnosis-card">
+                  <div class="field-label">Diagnóstico Principal</div>
+                  <div class="field-value diagnosis-value">${c.diagnosis || '—'}</div>
+                </div>
+              </div>
+
+              <div class="consult-grid two-col">
+                <div class="field-card">
+                  <div class="field-label">Motivo de Consulta</div>
+                  <div class="field-value">${c.reason_for_visit || '—'}</div>
+                </div>
+                <div class="field-card">
+                  <div class="field-label">Síntomas / Anamnesis</div>
+                  <div class="field-value">${c.symptoms || 'Ninguno reportado'}</div>
+                </div>
+              </div>
+
+              <div class="consult-grid two-col">
+                <div class="field-card">
+                  <div class="field-label">Exámenes de laboratorio / estudios médicos</div>
+                  <div class="field-value">${c.physical_exam || 'Ninguno registrado'}</div>
+                </div>
+                <div class="field-card">
+                  <div class="field-label">Plan de Tratamiento</div>
+                  <div class="field-value">${c.treatment_plan || '—'}</div>
+                </div>
+              </div>
+
+              <div class="field-card" style="margin-top:12px;">
+                <div class="field-label" style="color:#0d9488;">Tratamiento Farmacológico</div>
+                ${medsHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+
     const html = `
-      <html>
+      <!DOCTYPE html>
+      <html lang="es">
         <head>
-          <title>Ficha Médica - ${patient.first_name} ${patient.last_name}</title>
+          <meta charset="UTF-8" />
+          <title>Expediente Clínico — ${patient.first_name} ${patient.last_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #333; line-height: 1.5; }
-            h1 { border-bottom: 2px solid #0d9488; padding-bottom: 10px; color: #0d9488; }
-            h2 { margin-top: 30px; color: #0d9488; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-            .row { display: flex; flex-wrap: wrap; margin-bottom: 15px; }
-            .col { flex: 1; min-width: 200px; margin-bottom: 10px; }
-            .label { font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; }
-            .value { font-size: 16px; margin-top: 4px; }
-            .alert { color: #d9534f; font-weight: bold; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              color: #1e293b;
+              background: #fff;
+              padding: 0;
+            }
+
+            /* ---- Cover header ---- */
+            .report-header {
+              background-color: #0d9488 !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              color: #ffffff !important;
+              padding: 32px 40px;
+            }
+            .report-header h1 {
+              font-size: 22px;
+              font-weight: 800;
+              letter-spacing: -0.5px;
+              color: #ffffff !important;
+            }
+            .report-header .subtitle {
+              font-size: 13px;
+              color: rgba(255,255,255,0.88) !important;
+              margin-top: 4px;
+            }
+            .report-header .print-date {
+              font-size: 12px;
+              color: rgba(255,255,255,0.72) !important;
+              margin-top: 12px;
+            }
+
+            /* ---- Main content ---- */
+            .report-body { padding: 32px 40px; }
+
+            /* ---- Section titles ---- */
+            .section-title {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              font-size: 13px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              color: #0d9488;
+              margin-bottom: 14px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #ccfbf1;
+            }
+
+            /* ---- Patient info grid ---- */
+            .info-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 14px;
+              margin-bottom: 14px;
+            }
+            .info-field label {
+              display: block;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              color: #64748b;
+              margin-bottom: 3px;
+            }
+            .info-field span {
+              font-size: 14px;
+              font-weight: 600;
+              color: #0f172a;
+            }
+
+            /* ---- Allergy box ---- */
+            .allergy-box {
+              background: #fff7ed;
+              border: 1px solid #fed7aa;
+              border-left: 4px solid #f97316;
+              border-radius: 8px;
+              padding: 14px 18px;
+              margin-bottom: 18px;
+            }
+            .allergy-box label {
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              color: #c2410c;
+            }
+            .allergy-box span {
+              display: block;
+              font-size: 14px;
+              font-weight: 700;
+              color: #9a3412;
+              margin-top: 4px;
+            }
+
+            /* ---- Background section ---- */
+            .bg-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 14px;
+              margin-bottom: 28px;
+            }
+            .bg-card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 12px 16px;
+            }
+            .bg-card label {
+              display: block;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              color: #64748b;
+              margin-bottom: 5px;
+            }
+            .bg-card p {
+              font-size: 13px;
+              color: #1e293b;
+              line-height: 1.5;
+              white-space: pre-line;
+            }
+
+            /* ---- Consultation cards ---- */
+            .consult-card {
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 20px;
+              margin-bottom: 22px;
+              background: #fff;
+            }
+            .page-break-before {
+              page-break-before: always;
+            }
+            .consult-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 16px;
+              padding-bottom: 14px;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .consult-date {
+              font-size: 15px;
+              font-weight: 800;
+              color: #0d9488;
+            }
+            .consult-doctor {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 2px;
+            }
+            .vitals {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 6px;
+              justify-content: flex-end;
+            }
+            .vital-tag {
+              background: #f0fdfa;
+              border: 1px solid #99f6e4;
+              border-radius: 20px;
+              padding: 3px 10px;
+              font-size: 11px;
+              font-weight: 600;
+              color: #0f766e;
+            }
+
+            /* ---- Field cards ---- */
+            .consult-grid { margin-bottom: 12px; }
+            .consult-grid.two-col {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+            }
+            .field-card {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 12px 14px;
+            }
+            .diagnosis-card {
+              background: rgba(13,148,136,0.04);
+              border: 1px solid rgba(13,148,136,0.22);
+              border-left: 4px solid #0d9488;
+            }
+            .field-label {
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              color: #64748b;
+              margin-bottom: 5px;
+            }
+            .diagnosis-card .field-label { color: #0d9488; }
+            .field-value {
+              font-size: 13px;
+              color: #1e293b;
+              line-height: 1.55;
+              white-space: pre-line;
+            }
+            .diagnosis-value {
+              font-size: 15px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+
+            /* ---- Medicines table ---- */
+            .med-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 8px;
+              font-size: 12px;
+            }
+            .med-table th {
+              background: #f1f5f9;
+              text-align: left;
+              padding: 6px 10px;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #475569;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .med-table td {
+              padding: 7px 10px;
+              border-bottom: 1px solid #f1f5f9;
+              color: #334155;
+            }
+            .med-table tr:last-child td { border-bottom: none; }
+            .empty-note {
+              font-size: 12px;
+              color: #94a3b8;
+              font-style: italic;
+              margin-top: 6px;
+            }
+
+            /* ---- Divider ---- */
+            .divider {
+              height: 1px;
+              background: #e2e8f0;
+              margin: 28px 0;
+            }
+
+            /* ---- Footer ---- */
+            .report-footer {
+              text-align: center;
+              font-size: 11px;
+              color: #94a3b8;
+              padding: 20px 40px;
+              border-top: 1px solid #e2e8f0;
+              margin-top: 10px;
+            }
+
+            /* ---- Print bar ---- */
+            .print-bar {
+              position: sticky;
+              top: 0;
+              z-index: 100;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              background: #1e293b;
+              padding: 12px 24px;
+              color: #fff;
+            }
+            .print-bar span {
+              font-size: 13px;
+              color: #94a3b8;
+            }
+            .print-bar button {
+              background: #0d9488;
+              color: #fff;
+              border: none;
+              border-radius: 8px;
+              padding: 9px 22px;
+              font-size: 14px;
+              font-weight: 700;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .print-bar button:hover { background: #0f766e; }
+
+            @media print {
+              body { padding: 0; }
+              .print-bar { display: none !important; }
+              .report-body { padding: 24px 32px; }
+              .report-header { padding: 24px 32px; }
+              .consult-card { break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
-          <h1>Ficha Médica Clínica</h1>
-          <div class="row">
-            <div class="col"><div class="label">Paciente</div><div class="value">${patient.first_name} ${patient.last_name}</div></div>
-            <div class="col"><div class="label">Identidad (DNI)</div><div class="value">${patient.id_card || 'N/A'}</div></div>
-            <div class="col"><div class="label">Edad / Sexo</div><div class="value">${calculateAge(patient.birth_date)} años / ${patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}</div></div>
+          <!-- ===== PRINT BAR ===== -->
+          <div class="print-bar">
+            <span>Vista previa · Expediente Clínico — ${patient.first_name} ${patient.last_name}</span>
+            <button onclick="window.print()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Imprimir / Guardar PDF
+            </button>
           </div>
-          <div class="row">
-            <div class="col"><div class="label">Teléfono</div><div class="value">${patient.phone || 'N/A'}</div></div>
-            <div class="col"><div class="label">Correo</div><div class="value">${patient.email || 'N/A'}</div></div>
-            <div class="col"><div class="label">Tipo de Sangre</div><div class="value">${patient.blood_type || 'N/A'}</div></div>
-          </div>
-          
-          <div style="margin-top: 20px; padding: 15px; border: 1px solid #ff9800; background: #fff3e0; border-radius: 5px;">
-            <div class="label" style="color: #e65100;">Alergias</div>
-            <div class="value alert">${patient.allergies || 'Ninguna conocida'}</div>
+          <!-- ===== HEADER ===== -->
+          <div class="report-header" style="background-color:#0d9488;color:#ffffff;padding:32px 40px;">
+            <h1 style="font-size:22px;font-weight:800;color:#ffffff;margin:0;">Expediente Clínico</h1>
+            <div class="subtitle" style="font-size:13px;color:rgba(255,255,255,0.88);margin-top:6px;">${patient.first_name} ${patient.last_name}</div>
+            <div class="print-date" style="font-size:12px;color:rgba(255,255,255,0.72);margin-top:10px;">Generado el ${new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
           </div>
 
-          <h2>Antecedentes Patológicos</h2>
-          <p>${patient.pathological_history || 'No declarados'}</p>
+          <div class="report-body">
+            <!-- ===== DATOS PERSONALES ===== -->
+            <div class="section-title">Datos Personales</div>
 
-          <h2>Antecedentes No Patológicos</h2>
-          <p>${patient.non_pathological_history || 'No declarados'}</p>
+            <div class="info-grid">
+              <div class="info-field"><label>Nombre completo</label><span>${patient.first_name} ${patient.last_name}</span></div>
+              <div class="info-field"><label>Identidad (DNI)</label><span>${patient.id_card || 'N/A'}</span></div>
+              <div class="info-field"><label>Fecha de nacimiento</label><span>${formatDate(patient.birth_date)}</span></div>
+              <div class="info-field"><label>Edad</label><span>${calculateAge(patient.birth_date)} años</span></div>
+              <div class="info-field"><label>Sexo</label><span>${patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}</span></div>
+              <div class="info-field"><label>Tipo de sangre</label><span>${patient.blood_type || 'N/A'}</span></div>
+              <div class="info-field"><label>Teléfono</label><span>${patient.phone || 'N/A'}</span></div>
+              <div class="info-field"><label>Correo electrónico</label><span>${patient.email || 'N/A'}</span></div>
+              <div class="info-field"><label>Dirección</label><span>${patient.address || 'N/A'}</span></div>
+            </div>
 
-          <h2>Antecedentes Heredofamiliares</h2>
-          <p>${patient.family_history || 'No declarados'}</p>
+            <!-- ===== ALERGIAS ===== -->
+            <div class="allergy-box">
+              <label>⚠ Alergias conocidas</label>
+              <span>${patient.allergies || 'Ninguna conocida'}</span>
+            </div>
+
+            <!-- ===== ANTECEDENTES ===== -->
+            <div class="section-title">Antecedentes Médicos</div>
+            <div class="bg-grid">
+              <div class="bg-card">
+                <label>Patológicos</label>
+                <p>${patient.pathological_history || 'No declarados'}</p>
+              </div>
+              <div class="bg-card">
+                <label>No Patológicos</label>
+                <p>${patient.non_pathological_history || 'No declarados'}</p>
+              </div>
+              <div class="bg-card">
+                <label>Heredofamiliares</label>
+                <p>${patient.family_history || 'No declarados'}</p>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- ===== HISTORIAL DE CONSULTAS ===== -->
+            <div class="section-title">
+              Historial de Consultas
+              <span style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:none;letter-spacing:0;">(${consultations.length} registro${consultations.length !== 1 ? 's' : ''})</span>
+            </div>
+
+            ${consultationsHtml}
+
+          </div>
+
+          <!-- ===== FOOTER ===== -->
+          <div class="report-footer">
+            Expediente Clínico · ${patient.first_name} ${patient.last_name} · Confidencial — solo para uso médico
+          </div>
         </body>
       </html>
     `;
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    // Abrir en una pestaña completamente independiente usando Blob URL
+    // (evita que la app principal se bloquee cuando el diálogo de impresión está abierto)
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    // Liberar el objeto URL después de un segundo
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const generateFichaText = () => {
     return `*Ficha Médica*\nPaciente: ${patient.first_name} ${patient.last_name}\nEdad: ${calculateAge(patient.birth_date)} años\nDNI: ${patient.id_card || 'N/A'}\nSangre: ${patient.blood_type || 'N/A'}\nAlergias: ${patient.allergies || 'Ninguna'}\n\n*Antecedentes:*\nPatológicos: ${patient.pathological_history || 'N/A'}\nNo Patológicos: ${patient.non_pathological_history || 'N/A'}\nFamiliares: ${patient.family_history || 'N/A'}`;
   }
 
-  const patientPhoneClean = patient.phone ? patient.phone.replace('+', '') : '';
+  const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : '';
 
   // Estados para envío de correo
   const [sendingFichaEmail, setSendingFichaEmail] = useState(false)
@@ -265,7 +727,7 @@ export default function PatientDetailsClient({
           <div style={styles.headerActions}>
             <button className="btn btn-secondary" style={{ gap: '0.4rem' }} onClick={() => setIsEditing(!isEditing)}>
               <Edit size={16} />
-              {isEditing ? 'Cancelar Edición' : 'Editar Ficha'}
+              {isEditing ? 'Cancelar' : 'Editar Paciente'}
             </button>
             <button onClick={printMedicalRecord} className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none' }}>
               <Printer size={16} />
@@ -273,14 +735,24 @@ export default function PatientDetailsClient({
             </button>
             <div style={{ display: 'flex', gap: '0.4rem' }}>
               <a 
-                href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(generateFichaText())}`} 
+                href={`https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(generateFichaText())}`} 
                 target="_blank" 
                 rel="noreferrer"
-                className="btn btn-secondary" 
-                style={{ padding: '0.5rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
-                title="Enviar Ficha por WhatsApp"
+                className="btn" 
+                style={{ 
+                  padding: '0.5rem', 
+                  backgroundColor: '#dcf8c6', 
+                  color: '#128C7E', 
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Enviar por WhatsApp"
               >
-                <MessageCircle size={16} />
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'block' }}>
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
+                </svg>
               </a>
               <button 
                 onClick={handleSendFichaEmail}
@@ -514,85 +986,191 @@ export default function PatientDetailsClient({
                       day: 'numeric'
                     })
                     const docName = consult.user_profiles ? `Dr. ${consult.user_profiles.first_name} ${consult.user_profiles.last_name}` : 'Médico'
+                    const isExpanded = !!expandedConsultations[consult.id]
                     
                     return (
                       <div key={consult.id} style={styles.timelineItem}>
                         <div style={styles.timelineBadge}></div>
-                        <div className="card" style={styles.timelineCard}>
-                          <div style={styles.timelineCardHeader}>
+                        <div 
+                          className="card" 
+                          style={{
+                            ...styles.timelineCard,
+                            cursor: 'pointer',
+                            padding: isExpanded ? '1.5rem' : '1rem 1.5rem',
+                            transition: 'all 0.2s ease-in-out'
+                          }}
+                          onClick={() => toggleConsultation(consult.id)}
+                        >
+                          <div style={{
+                            ...styles.timelineCardHeader,
+                            borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none',
+                            paddingBottom: isExpanded ? '0.75rem' : '0',
+                            marginBottom: isExpanded ? '1rem' : '0',
+                            alignItems: 'center'
+                          }}>
                             <div>
                               <p style={styles.consultDate}>{date}</p>
                               <p style={styles.consultDoctor}>{docName}</p>
                             </div>
                             
-                            {/* Signos Vitales Badge */}
-                            <div style={styles.vitalsRow}>
-                              {consult.blood_pressure && <span style={styles.vitalTag}>PA: {consult.blood_pressure}</span>}
-                              {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
-                              {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
-                              {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
-                            </div>
-                          </div>
-
-                          <div style={styles.consultField}>
-                            <p style={styles.fieldLabel}>Motivo de Consulta:</p>
-                            <p style={styles.fieldText}>{consult.reason_for_visit}</p>
-                          </div>
-
-                          {consult.symptoms && (
-                            <div style={styles.consultField}>
-                              <p style={styles.fieldLabel}>Síntomas:</p>
-                              <p style={styles.fieldText}>{consult.symptoms}</p>
-                            </div>
-                          )}
-
-                          <div style={{ ...styles.consultField, borderLeft: '3px solid var(--primary)', paddingLeft: '0.75rem' }}>
-                            <p style={styles.fieldLabel}>Diagnóstico:</p>
-                            <p style={{ ...styles.fieldText, fontWeight: '700' }}>{consult.diagnosis}</p>
-                          </div>
-
-                          <div style={styles.consultField}>
-                            <p style={styles.fieldLabel}>Plan de Tratamiento:</p>
-                            <p style={styles.fieldText}>{consult.treatment_plan}</p>
-                          </div>
-
-                          {/* Medicamentos recetados en esta consulta */}
-                          {consult.prescriptions && consult.prescriptions.length > 0 && (
-                            <div style={{
-                              marginTop: '0.75rem',
-                              padding: '1rem',
-                              backgroundColor: 'rgba(13, 148, 136, 0.06)',
-                              borderRadius: '8px',
-                              border: '1px solid rgba(13, 148, 136, 0.15)',
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                <Pill size={16} color="var(--primary)" />
-                                <p style={{ ...styles.fieldLabel, marginBottom: 0, color: 'var(--primary)' }}>Receta Médica ({consult.prescriptions[0].verification_code})</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                              {/* Signos Vitales Badge */}
+                              <div style={styles.vitalsRow}>
+                                {consult.blood_pressure && <span style={styles.vitalTag}>PA: {consult.blood_pressure}</span>}
+                                {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
+                                {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
+                                {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
                               </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                {(consult.prescriptions[0].medicines || []).map((med: any, idx: number) => (
-                                  <div key={idx} style={{
-                                    display: 'flex',
-                                    gap: '0.75rem',
-                                    padding: '0.4rem 0.6rem',
-                                    backgroundColor: 'var(--bg-card)',
-                                    borderRadius: '6px',
-                                    fontSize: '0.8rem',
-                                    alignItems: 'center',
-                                    border: '1px solid var(--border-color)',
-                                  }}>
-                                    <span style={{ fontWeight: '700', color: 'var(--text-main)', minWidth: '20px' }}>{idx + 1}.</span>
-                                    <span style={{ fontWeight: '600', color: 'var(--text-main)', flex: 1 }}>{med.name}</span>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.dose || ''}</span>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.frequency || ''}</span>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{med.duration || ''}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                              </div>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                              {/* Diagnóstico Principal (Ancho Completo) */}
+                              <div style={{
+                                backgroundColor: 'rgba(13, 148, 136, 0.04)',
+                                border: '1px solid rgba(13, 148, 136, 0.2)',
+                                borderLeft: '4px solid var(--primary)',
+                                borderRadius: '8px',
+                                padding: '12px 16px',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: 'var(--primary)' }}>
+                                  <Activity size={14} color="var(--primary)" />
+                                  <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Diagnóstico Principal</span>
+                                </div>
+                                <p style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '700' }}>{consult.diagnosis}</p>
+                              </div>
+
+                              {/* Grid de Motivo y Síntomas */}
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                gap: '1rem'
+                              }}>
+                                <div style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '12px 16px',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                    <ClipboardList size={14} />
+                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Motivo de Consulta</span>
                                   </div>
-                                ))}
+                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.reason_for_visit}</p>
+                                </div>
+
+                                <div style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '12px 16px',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                    <Activity size={14} color="#3b82f6" />
+                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Síntomas</span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.symptoms || 'Ninguno reportado'}</p>
+                                </div>
                               </div>
-                              {consult.prescriptions[0].notes && (
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
-                                  📝 {consult.prescriptions[0].notes}
-                                </p>
+
+                              {/* Grid de Estudios y Plan de Tratamiento */}
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                gap: '1rem'
+                              }}>
+                                <div style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '12px 16px',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                    <Beaker size={14} />
+                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exámenes de laboratorio/ estudios médicos</span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.physical_exam || 'Ninguno registrado'}</p>
+                                </div>
+
+                                <div style={{
+                                  backgroundColor: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '8px',
+                                  padding: '12px 16px',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                    <FileText size={14} />
+                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan de Tratamiento</span>
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.treatment_plan}</p>
+                                </div>
+                              </div>
+
+                              {/* Medicamentos recetados en esta consulta */}
+                              {consult.prescriptions && consult.prescriptions.length > 0 && (
+                                <div style={{
+                                  marginTop: '0.5rem',
+                                  padding: '1.25rem',
+                                  backgroundColor: 'rgba(13, 148, 136, 0.04)',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(13, 148, 136, 0.12)',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <Pill size={16} color="var(--primary)" />
+                                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tratamiento Farmacológico ({consult.prescriptions[0].verification_code})</span>
+                                  </div>
+                                  
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxWidth: '720px' }}>
+                                    {/* Cabecera de la tabla de medicamentos */}
+                                    <div style={{
+                                      display: 'flex',
+                                      gap: '0.75rem',
+                                      padding: '0.5rem 0.6rem',
+                                      backgroundColor: 'rgba(148, 163, 184, 0.08)',
+                                      borderRadius: '6px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: '700',
+                                      color: '#475569',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.05em',
+                                      border: '1px solid #e2e8f0',
+                                    }}>
+                                      <span style={{ width: '24px', flexShrink: 0 }}>#</span>
+                                      <span style={{ flex: 2.5 }}>Medicamento</span>
+                                      <span style={{ flex: 1 }}>Dosis</span>
+                                      <span style={{ flex: 1.2 }}>Frecuencia</span>
+                                      <span style={{ flex: 1.2 }}>Duración</span>
+                                    </div>
+
+                                    {(consult.prescriptions[0].medicines || []).map((med: any, idx: number) => (
+                                      <div key={idx} style={{
+                                        display: 'flex',
+                                        gap: '0.75rem',
+                                        padding: '0.5rem 0.6rem',
+                                        backgroundColor: 'var(--bg-card)',
+                                        borderRadius: '6px',
+                                        fontSize: '0.82rem',
+                                        alignItems: 'center',
+                                        border: '1px solid var(--border-color)',
+                                      }}>
+                                        <span style={{ fontWeight: '700', color: 'var(--text-main)', width: '24px', flexShrink: 0 }}>{idx + 1}</span>
+                                        <span style={{ fontWeight: '700', color: 'var(--text-main)', flex: 2.5 }}>{med.name}</span>
+                                        <span style={{ color: 'var(--text-muted)', flex: 1 }}>{med.dose || 'N/A'}</span>
+                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.frequency || 'N/A'}</span>
+                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.duration || 'N/A'}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {consult.prescriptions[0].notes && (
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem', fontStyle: 'italic', paddingLeft: '4px' }}>
+                                      📝 Notas: {consult.prescriptions[0].notes}
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
@@ -664,21 +1242,34 @@ export default function PatientDetailsClient({
                             {isExpanded ? <ChevronUp size={18} color="var(--text-muted)" /> : <ChevronDown size={18} color="var(--text-muted)" />}
                           </div>
                           <div style={styles.studyActions}>
-                            {presc.pdf_url && (
-                              <a href={presc.pdf_url} target="_blank" className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}>
-                                <Printer size={14} />
-                                Imprimir
-                              </a>
-                            )}
                             <a 
-                              href={`https://wa.me/${patientPhoneClean}?text=${encodeURIComponent(`Hola ${patient.first_name}, te comparto tu receta médica. Código: ${presc.verification_code}${presc.pdf_url ? `. Descárgala aquí: ${presc.pdf_url}` : ''}`)}`}
+                              href={`/prescriptions/${presc.id}/print`}
                               target="_blank"
                               rel="noreferrer"
                               className="btn btn-secondary" 
-                              style={{ padding: '0.4rem 0.6rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none' }}
-                              title="Enviar Receta por WhatsApp"
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: '#e2e8f0', color: '#475569', border: 'none' }}
+                              title="Imprimir Receta"
                             >
-                              <MessageCircle size={14} />
+                              <Printer size={14} />
+                            </a>
+                            <a 
+                              href="#"
+                              onClick={(e) => handleWhatsAppPrescriptionShare(e, presc)}
+                              className="btn" 
+                              style={{ 
+                                padding: '0.4rem 0.6rem', 
+                                backgroundColor: '#dcf8c6', 
+                                color: '#128C7E', 
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              title="Enviar por WhatsApp"
+                            >
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'block' }}>
+                                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
+                              </svg>
                             </a>
                             <button
                               onClick={() => handleSendPrescriptionEmail(presc.id)}
@@ -1029,6 +1620,157 @@ export default function PatientDetailsClient({
         )}
       </div>
       </div>
+
+      {whatsappModalPresc && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid #e2e8f0',
+            padding: '24px',
+            position: 'relative',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#25D366" style={{ display: 'block', flexShrink: 0 }}>
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
+                </svg>
+                Enviar por WhatsApp
+              </h3>
+              <button 
+                onClick={() => setWhatsappModalPresc(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ margin: '0 0 20px 0', fontSize: '0.9rem', color: '#475569', lineHeight: '1.5' }}>
+              Seleccione el nivel de seguridad para compartir la receta médica con el paciente:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Opción 1: Enlace Seguro */}
+              <button
+                onClick={() => {
+                  const presc = whatsappModalPresc
+                  const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                  const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
+                  const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
+                  window.open(whatsappUrl, '_blank', 'noreferrer')
+                  setWhatsappModalPresc(null)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  width: '100%'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f1f5f9'
+                  e.currentTarget.style.borderColor = '#cbd5e1'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc'
+                  e.currentTarget.style.borderColor = '#e2e8f0'
+                }}
+              >
+                <div style={{ backgroundColor: '#fee2e2', color: '#ef4444', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Lock size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem', color: '#0f172a', marginBottom: '2px' }}>🔒 Enlace Seguro (Pedir Código)</strong>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>El paciente deberá digitar el código de seguridad manualmente para poder ver la receta.</span>
+                </div>
+              </button>
+
+              {/* Opción 2: Enlace Directo */}
+              <button
+                onClick={() => {
+                  const presc = whatsappModalPresc
+                  const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                  const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}?code=${presc.verification_code}`
+                  const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
+                  window.open(whatsappUrl, '_blank', 'noreferrer')
+                  setWhatsappModalPresc(null)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  width: '100%'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dcfce7'
+                  e.currentTarget.style.borderColor = '#86efac'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f0fdf4'
+                  e.currentTarget.style.borderColor = '#bbf7d0'
+                }}
+              >
+                <div style={{ backgroundColor: '#dcfce7', color: '#22c55e', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Zap size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>⚡ Enlace Directo (Un Clic)</strong>
+                  <span style={{ fontSize: '0.8rem', color: '#15803d', lineHeight: '1.4' }}>La receta se abre automáticamente al hacer clic en el enlace, sin solicitar código de seguridad.</span>
+                </div>
+              </button>
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setWhatsappModalPresc(null)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  color: '#475569',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
