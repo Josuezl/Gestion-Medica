@@ -92,7 +92,7 @@ export default function NewConsultationClient({
   }
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container}>
       {/* Header */}
       <div style={styles.headerRow}>
         <a href={`/dashboard/patients/${patient.id}`} style={styles.backLink}>

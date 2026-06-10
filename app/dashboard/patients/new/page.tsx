@@ -36,7 +36,7 @@ export default function NewPatientPage() {
   }
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container}>
       {/* Navigation and Title */}
       <div style={styles.headerRow}>
         <a href="/dashboard/patients" style={styles.backLink}>

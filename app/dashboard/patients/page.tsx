@@ -60,7 +60,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container}>
       {/* Header Row */}
       <div style={styles.headerRow}>
         <div>

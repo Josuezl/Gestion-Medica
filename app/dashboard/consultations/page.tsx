@@ -74,7 +74,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   const paginatedConsultations = filteredConsultations.slice(from, to + 1)
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container}>
       {/* Header Row */}
       <div style={styles.headerRow}>
         <div>

@@ -220,7 +220,7 @@ export default function PatientDetailsClient({
   }
 
   return (
-    <div style={styles.container} className="animate-fade-in">
+    <div style={styles.container}>
       {/* Patient Profile Header Card */}
       <div className="card-glass" style={styles.headerCard}>
         <div style={styles.headerLayout}>
