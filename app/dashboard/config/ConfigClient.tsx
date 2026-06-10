@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, upgradeToClinicPlan, updateLocation } from './actions'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation } from './actions'
 import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit } from 'lucide-react'
 
 interface ConfigClientProps {
@@ -66,22 +66,13 @@ export default function ConfigClient({
       setError(res.error)
     } else {
       setShowInviteForm(false)
-      alert('Invitación enviada con éxito')
+      alert(res?.warning || 'Cuenta creada. Se envió un enlace de activación al correo del nuevo miembro.')
     }
   }
 
   async function handleRevoke(id: string) {
     if (!confirm('¿Estás seguro de revocar esta invitación?')) return
     await revokeInvitation(id)
-  }
-
-  async function handleUpgrade() {
-    if (!confirm('¿Simular actualización a licencia de HOSPITAL / CLÍNICA? Esto habilitará la opción de invitar más médicos a tu equipo.')) return
-    setLoading(true)
-    const res = await upgradeToClinicPlan()
-    setLoading(false)
-    if (res?.error) setError(res.error)
-    else alert('¡Licencia actualizada a HOSPITAL con éxito!')
   }
 
   async function handleUpdateClinic(e: React.FormEvent<HTMLFormElement>) {
@@ -214,6 +205,14 @@ export default function ConfigClient({
           <form onSubmit={handleInvite} style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Nueva Invitación</h4>
             <div className="grid-3" style={{ marginBottom: '1rem' }}>
+              <div className="form-group">
+                <label className="form-label">Nombre(s)</label>
+                <input type="text" name="firstName" className="form-input" required placeholder="Ej. Ana" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Apellido(s)</label>
+                <input type="text" name="lastName" className="form-input" required placeholder="Ej. López" />
+              </div>
               <div className="form-group">
                 <label className="form-label">Correo electrónico</label>
                 <input type="email" name="email" className="form-input" required placeholder="correo@ejemplo.com" />

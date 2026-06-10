@@ -2,14 +2,16 @@ import React from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle, AlertCircle, FileText, User, Calendar, Stethoscope } from 'lucide-react'
 
-// Usamos el cliente service_role porque esta ruta es PÚBLICA y RLS bloquea el acceso anónimo a recetas
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Usamos el cliente service_role porque esta ruta es PÚBLICA y RLS bloquea el acceso anónimo a recetas.
+// Se instancia DENTRO del componente (no a nivel de módulo) para no romper la recolección de datos
+// del build cuando las variables de entorno aún no están disponibles.
+export default async function VerifyPrescriptionPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params
 
-export default async function VerifyPrescriptionPage({ params }: { params: { code: string } }) {
-  const { code } = params
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { data: prescription, error } = await supabaseAdmin
     .from('prescriptions')
