@@ -78,7 +78,7 @@ export async function provisionTenant(formData: FormData) {
   // 2. Crear la sucursal principal por defecto.
   const { data: location, error: locationError } = await admin
     .from('locations')
-    .insert([{ clinic_id: clinic.id, name: 'Clínica Principal', is_active: true }])
+    .insert([{ clinic_id: clinic.id, name: 'Consultorio Principal', is_active: true }])
     .select()
     .single()
   if (locationError || !location) {
