@@ -139,6 +139,12 @@ export default function NewConsultationClient({
                   <label className="form-label">Talla (cm)</label>
                   <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" />
                 </div>
+                {patient.is_pediatric && (
+                  <div className="form-group">
+                    <label className="form-label" style={{ whiteSpace: 'nowrap' }}>Perímetro Cefálico (cm)</label>
+                    <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" />
+                  </div>
+                )}
                 <div className="form-group">
                   <label className="form-label" style={{ whiteSpace: 'nowrap' }}>Ritmo Cardiaco (bpm)</label>
                   <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" />
