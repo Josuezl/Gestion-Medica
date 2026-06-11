@@ -22,6 +22,9 @@ interface NewConsultationClientProps {
   consultations?: any[]
   studies?: any[]
   prescriptions?: any[]
+  currentUserId: string
+  currentUserRole: string
+  isOrgAdmin: boolean
 }
 
 interface MedicineItem {
@@ -36,7 +39,10 @@ export default function NewConsultationClient({
   appointmentId,
   consultations = [],
   studies = [],
-  prescriptions = []
+  prescriptions = [],
+  currentUserId,
+  currentUserRole,
+  isOrgAdmin
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -340,11 +346,14 @@ export default function NewConsultationClient({
         <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '1.5rem', paddingBottom: '0.5rem', borderBottom: '2px solid var(--border-color)' }}>
           Expediente Médico de {patient.first_name}
         </h2>
-        <PatientHistoryTabs 
+        <PatientHistoryTabs
           patient={patient}
           consultations={consultations}
           studies={studies}
           prescriptions={prescriptions}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          isOrgAdmin={isOrgAdmin}
         />
       </div>
 

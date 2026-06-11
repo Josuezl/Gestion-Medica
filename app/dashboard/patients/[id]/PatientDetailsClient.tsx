@@ -1,8 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useTransition } from 'react'
-import { updatePatient, uploadMedicalStudy } from '../actions'
+import { updatePatient } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
+import StudyUploader from '../../components/StudyUploader'
+import StudyList from '../../components/StudyList'
 import { 
   User, 
   Phone, 
@@ -15,11 +17,9 @@ import {
   FileText,
   Loader2,
   Edit,
-  Upload,
   ChevronRight,
   ClipboardList,
   FileSpreadsheet,
-  Download,
   Plus,
   Printer,
   Share2,
@@ -32,7 +32,6 @@ import {
   Trash2,
   Baby,
   Copy,
-  Check,
   Globe,
   Lock,
   Zap
@@ -57,6 +56,9 @@ interface PatientDetailsClientProps {
   studies: any[]
   prescriptions: any[]
   initialEdit?: boolean
+  currentUserId: string
+  currentUserRole: string
+  isOrgAdmin: boolean
 }
 
 export default function PatientDetailsClient({
@@ -64,7 +66,10 @@ export default function PatientDetailsClient({
   consultations,
   studies,
   prescriptions,
-  initialEdit = false
+  initialEdit = false,
+  currentUserId,
+  currentUserRole,
+  isOrgAdmin
 }: PatientDetailsClientProps) {
   const [appUrl, setAppUrl] = useState('')
   useEffect(() => {
@@ -118,11 +123,6 @@ export default function PatientDetailsClient({
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
 
-  // Estados para subir estudios
-  const [studyFile, setStudyFile] = useState<File | null>(null)
-  const [studyName, setStudyName] = useState('')
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploadLoading, setUploadLoading] = useState(false)
 
   // Manejar edición de ficha
   async function handleEditSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -141,33 +141,6 @@ export default function PatientDetailsClient({
   }
 
   // Manejar carga de archivos
-  async function handleUploadStudy(event: React.FormEvent) {
-    event.preventDefault()
-    if (!studyFile || !studyName.trim()) {
-      setUploadError('Por favor completa el nombre del estudio y selecciona un archivo.')
-      return
-    }
-
-    if (studyFile.size > 26214400) { // 25 MB
-      setUploadError('El archivo supera el límite de 25 MB. Comprime la imagen e intenta de nuevo.')
-      return
-    }
-
-    setUploadError(null)
-    setUploadLoading(true)
-
-    const result = await uploadMedicalStudy(patient.id, studyName, studyFile)
-    
-    setUploadLoading(false)
-    if (result.error) {
-      setUploadError(result.error)
-    } else {
-      setStudyFile(null)
-      setStudyName('')
-      alert('Estudio médico subido exitosamente.')
-    }
-  }
-
   const printMedicalRecord = () => {
 
     const formatDate = (dateStr: string) => {
@@ -1522,70 +1495,15 @@ export default function PatientDetailsClient({
               <h3 style={styles.tabTitle}>Estudios Médicos y Archivos</h3>
 
               {/* Formulario de subida de archivo */}
-              <div className="card" style={styles.uploadStudyCard}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '1rem' }}>Subir Nuevo Estudio</h4>
-                {uploadError && <div className="badge badge-danger" style={{ marginBottom: '1rem', padding: '0.5rem', width: '100%' }}>{uploadError}</div>}
-                <form onSubmit={handleUploadStudy} style={styles.uploadForm}>
-                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <input 
-                      className="form-input" 
-                      placeholder="Nombre del estudio (Ej. Radiografía Tórax)" 
-                      value={studyName}
-                      onChange={(e) => setStudyName(e.target.value)}
-                      required 
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <input 
-                      type="file" 
-                      className="form-input" 
-                      onChange={(e) => setStudyFile(e.target.files?.[0] || null)}
-                      required 
-                      accept=".pdf,.png,.jpg,.jpeg"
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ gap: '0.4rem' }} disabled={uploadLoading}>
-                    {uploadLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                    Subir Estudio
-                  </button>
-                </form>
-              </div>
+              <StudyUploader patientId={patient.id} />
 
               {/* Lista de archivos */}
-              {studies.length === 0 ? (
-                <div style={styles.tabEmptyState}>
-                  <FileSpreadsheet size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
-                  <p>No hay radiografías, ultrasonidos o resultados de laboratorio subidos para este paciente.</p>
-                </div>
-              ) : (
-                <div style={styles.studiesList}>
-                  {studies.map((study) => {
-                    const date = new Date(study.created_at).toLocaleDateString('es-HN')
-                    return (
-                      <div key={study.id} className="card" style={styles.studyRow}>
-                        <div style={styles.studyInfo}>
-                          <FileSpreadsheet size={22} color="var(--secondary)" />
-                          <div>
-                            <p style={styles.studyNameText}>{study.name}</p>
-                            <p style={styles.studyMeta}>Subido el {date}</p>
-                          </div>
-                        </div>
-                        <div style={styles.studyActions}>
-                          <a 
-                            href={study.signedUrl} 
-                            target="_blank" 
-                            className="btn btn-secondary" 
-                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}
-                          >
-                            <Download size={14} />
-                            Ver / Descargar
-                          </a>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <StudyList
+                studies={studies}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+                isOrgAdmin={isOrgAdmin}
+              />
             </div>
           )}
 

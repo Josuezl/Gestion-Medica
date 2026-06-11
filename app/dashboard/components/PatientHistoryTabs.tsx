@@ -22,19 +22,27 @@ import {
   X
 } from 'lucide-react'
 import PediatricGrowthChart from './PediatricGrowthChart'
+import StudyUploader from './StudyUploader'
+import StudyList from './StudyList'
 
 interface PatientHistoryTabsProps {
   patient: any
   consultations: any[]
   studies: any[]
   prescriptions: any[]
+  currentUserId: string
+  currentUserRole: string
+  isOrgAdmin: boolean
 }
 
 export default function PatientHistoryTabs({
   patient,
   consultations,
   studies,
-  prescriptions
+  prescriptions,
+  currentUserId,
+  currentUserRole,
+  isOrgAdmin
 }: PatientHistoryTabsProps) {
   const [appUrl, setAppUrl] = useState('')
   useEffect(() => {
@@ -507,40 +515,14 @@ export default function PatientHistoryTabs({
           <div style={styles.tabView}>
             <h3 style={styles.tabTitle}>Estudios Médicos y Archivos</h3>
 
-            {studies.length === 0 ? (
-              <div style={styles.tabEmptyState}>
-                <FileSpreadsheet size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
-                <p>No hay radiografías, ultrasonidos o resultados de laboratorio subidos para este paciente.</p>
-              </div>
-            ) : (
-              <div style={styles.studiesList}>
-                {studies.map((study) => {
-                  const date = new Date(study.created_at).toLocaleDateString('es-HN')
-                  return (
-                    <div key={study.id} className="card" style={styles.studyRow}>
-                      <div style={styles.studyInfo}>
-                        <FileSpreadsheet size={22} color="var(--secondary)" />
-                        <div>
-                          <p style={styles.studyNameText}>{study.name}</p>
-                          <p style={styles.studyMeta}>Subido el {date}</p>
-                        </div>
-                      </div>
-                      <div style={styles.studyActions}>
-                        <a 
-                          href={study.signedUrl} 
-                          target="_blank" 
-                          className="btn btn-secondary" 
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}
-                        >
-                          <Download size={14} />
-                          Ver / Descargar
-                        </a>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <StudyUploader patientId={patient.id} />
+
+            <StudyList
+              studies={studies}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              isOrgAdmin={isOrgAdmin}
+            />
           </div>
         )}
 
