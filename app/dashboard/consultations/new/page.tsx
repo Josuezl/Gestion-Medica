@@ -22,6 +22,13 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Rol y permisos del usuario (para el borrado de estudios)
+  const { data: currentProfile } = await supabase
+    .from('user_profiles')
+    .select('role, is_org_admin')
+    .eq('id', user.id)
+    .single()
+
   // 2. Obtener paciente
   const { data: patient, error } = await supabase
     .from('patients')
@@ -40,12 +47,27 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 
-  // 4. Cargar estudios médicos
+  // 4. Cargar estudios médicos y generar URLs firmadas temporales
   const { data: studies } = await supabase
     .from('studies')
     .select('*')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
+
+  const studiesWithSignedUrls = await Promise.all(
+    (studies || []).map(async (study) => {
+      let signedUrl = '#'
+      try {
+        const { data } = await supabase.storage
+          .from('medical-studies')
+          .createSignedUrl(study.file_url, 900)
+        signedUrl = data?.signedUrl || '#'
+      } catch {
+        // se ignora; el enlace queda como '#'
+      }
+      return { ...study, signedUrl }
+    })
+  )
 
   // 5. Cargar recetas
   const { data: prescriptions } = await supabase
@@ -59,8 +81,11 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
       patient={patient}
       appointmentId={appointmentId}
       consultations={consultations || []}
-      studies={studies || []}
+      studies={studiesWithSignedUrls}
       prescriptions={prescriptions || []}
+      currentUserId={user.id}
+      currentUserRole={currentProfile?.role || ''}
+      isOrgAdmin={!!currentProfile?.is_org_admin}
     />
   )
 }

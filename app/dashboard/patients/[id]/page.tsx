@@ -21,6 +21,13 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Rol y permisos del usuario actual (para controlar el borrado de estudios)
+  const { data: currentProfile } = await supabase
+    .from('user_profiles')
+    .select('role, is_org_admin')
+    .eq('id', user.id)
+    .single()
+
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase
     .from('patients')
@@ -109,6 +116,9 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       studies={studiesWithSignedUrls}
       prescriptions={prescriptionsWithSignedUrls}
       initialEdit={isEditing}
+      currentUserId={user.id}
+      currentUserRole={currentProfile?.role || ''}
+      isOrgAdmin={!!currentProfile?.is_org_admin}
     />
   )
 }

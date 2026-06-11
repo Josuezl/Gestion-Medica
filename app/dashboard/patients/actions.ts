@@ -108,10 +108,17 @@ export async function updatePatient(id: string, formData: FormData) {
   return { success: true }
 }
 
-export async function uploadMedicalStudy(patientId: string, name: string, file: File) {
+const MAX_FILE_BYTES = 26214400 // 25 MB
+
+/**
+ * Pre-chequeo (antes de subir): valida tamaño y cuota del plan de la clínica.
+ * Devuelve el clinic_id (derivado del servidor) para construir la ruta del archivo.
+ * La subida real la hace el navegador directo a Supabase Storage (evita los límites
+ * de body de Server Actions / Vercel y no satura el servidor).
+ */
+export async function checkStudyQuota(fileSize: number) {
   const supabase = await createClient()
 
-  // 1. Obtener la clínica
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
@@ -120,16 +127,12 @@ export async function uploadMedicalStudy(patientId: string, name: string, file: 
     .select('clinic_id')
     .eq('id', user.id)
     .single()
-
   if (!profile?.clinic_id) return { error: 'Error de clínica' }
 
-  // 2. Validar tamaño del archivo (defensa en profundidad; el bucket también lo limita a 25 MB)
-  const MAX_FILE_BYTES = 26214400 // 25 MB
-  if (file.size > MAX_FILE_BYTES) {
+  if (fileSize > MAX_FILE_BYTES) {
     return { error: 'El archivo supera el límite de 25 MB. Comprime la imagen e intenta de nuevo.' }
   }
 
-  // 3. Validar cuota de almacenamiento del plan de la clínica
   const { data: clinicPlan } = await supabase
     .from('clinics')
     .select('plans(max_storage_mb)')
@@ -137,46 +140,113 @@ export async function uploadMedicalStudy(patientId: string, name: string, file: 
     .single()
   const maxStorageMb = (clinicPlan?.plans as any)?.max_storage_mb ?? 1024
   const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
-  if ((usedBytes ?? 0) + file.size > maxStorageMb * 1024 * 1024) {
+  if ((usedBytes ?? 0) + fileSize > maxStorageMb * 1024 * 1024) {
     return { error: 'Límite de almacenamiento del plan alcanzado. Contacta para ampliar tu plan.' }
   }
 
-  // 4. Subir archivo a Supabase Storage
-  // Nota: Creamos la carpeta por clínica y paciente
-  const fileExt = file.name.split('.').pop()
-  const filePath = `${profile.clinic_id}/${patientId}/${Date.now()}.${fileExt}`
+  return { clinicId: profile.clinic_id as string }
+}
 
-  // Convertir File a ArrayBuffer para subir vía Deno/Next.js Server Actions
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
+/**
+ * Registra los metadatos del estudio en la tabla `studies` DESPUÉS de que el navegador
+ * subió el archivo directo a Storage. Verifica que la ruta pertenezca a la clínica del
+ * usuario y reconfirma la cuota (autoritativo); si algo falla, borra el archivo subido.
+ */
+export async function recordMedicalStudy(patientId: string, name: string, filePath: string) {
+  const supabase = await createClient()
 
-  const { error: uploadError } = await supabase.storage
-    .from('medical-studies')
-    .upload(filePath, buffer, {
-      contentType: file.type,
-      upsert: true
-    })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
 
-  if (uploadError) {
-    return { error: `Error al subir archivo: ${uploadError.message}` }
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error de clínica' }
+
+  // Defensa: la ruta debe estar dentro de la carpeta de su clínica (RLS ya lo enforce al subir).
+  if (!filePath.startsWith(`${profile.clinic_id}/`)) {
+    await supabase.storage.from('medical-studies').remove([filePath])
+    return { error: 'Ruta de archivo inválida.' }
   }
 
-  // 3. Registrar en la base de datos
+  // Cuota autoritativa: el archivo ya está subido y contado; si excede, lo borramos.
+  const { data: clinicPlan } = await supabase
+    .from('clinics')
+    .select('plans(max_storage_mb)')
+    .eq('id', profile.clinic_id)
+    .single()
+  const maxStorageMb = (clinicPlan?.plans as any)?.max_storage_mb ?? 1024
+  const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
+  if ((usedBytes ?? 0) > maxStorageMb * 1024 * 1024) {
+    await supabase.storage.from('medical-studies').remove([filePath])
+    return { error: 'Límite de almacenamiento del plan alcanzado. Contacta para ampliar tu plan.' }
+  }
+
   const { error: dbError } = await supabase
     .from('studies')
     .insert([{
       clinic_id: profile.clinic_id,
       patient_id: patientId,
-      name: name,
-      file_url: filePath
+      name,
+      file_url: filePath,
+      uploaded_by: user.id
     }])
 
   if (dbError) {
-    // Limpiar archivo si la inserción falló
     await supabase.storage.from('medical-studies').remove([filePath])
     return { error: `Error al registrar estudio: ${dbError.message}` }
   }
 
   revalidatePath(`/dashboard/patients/${patientId}`)
+  return { success: true }
+}
+
+/**
+ * Elimina un estudio (fila + archivo). RLS solo permite al médico que lo subió o al
+ * org-admin; los asistentes quedan bloqueados. Si el borrado de la fila no afecta nada
+ * (no autorizado), no se toca el archivo.
+ */
+export async function deleteMedicalStudy(studyId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error de clínica' }
+
+  // Borrar la fila (RLS gobierna el permiso). .select() devuelve lo realmente borrado.
+  const { data: deleted, error: delError } = await supabase
+    .from('studies')
+    .delete()
+    .eq('id', studyId)
+    .select('id, file_url, patient_id')
+
+  if (delError) return { error: `Error al eliminar: ${delError.message}` }
+  if (!deleted || deleted.length === 0) {
+    return { error: 'No tienes permiso para eliminar este estudio.' }
+  }
+
+  const study = deleted[0]
+
+  // Borrar el archivo de Storage
+  if (study.file_url) {
+    await supabase.storage.from('medical-studies').remove([study.file_url])
+  }
+
+  // Auditoría (vía función SECURITY DEFINER)
+  await supabase.rpc('log_audit_event', {
+    p_action: 'DELETE_STUDY',
+    p_record_id: studyId,
+    p_table_name: 'studies'
+  })
+
+  revalidatePath(`/dashboard/patients/${study.patient_id}`)
   return { success: true }
 }
