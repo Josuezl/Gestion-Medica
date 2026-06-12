@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 
-const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+// Debe venir en formato "Nombre <correo>" (igual que utils/email.ts)
+const fromEmail = process.env.RESEND_FROM_EMAIL || 'CloudMedHN <onboarding@resend.dev>'
 
 function escapeHtml(value: string): string {
   return value
@@ -55,7 +56,7 @@ export async function sendPasswordResetEmail(params: {
     `
 
     const { error } = await resend.emails.send({
-      from: `CloudMedHN <${fromEmail}>`,
+      from: fromEmail,
       to: [toEmail],
       subject: 'Restablece tu contraseña — CloudMedHN',
       html: htmlContent,
@@ -130,7 +131,7 @@ export async function sendSetPasswordEmail(params: {
     `
 
     const { error } = await resend.emails.send({
-      from: `CloudMedHN <${fromEmail}>`,
+      from: fromEmail,
       to: [toEmail],
       subject: `Activa tu cuenta en ${clinicName} — CloudMedHN`,
       html: htmlContent,
