@@ -198,6 +198,18 @@ export default function PatientHistoryTabs({
 
                           {isExpanded && (
                             <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <a
+                                  href={`/consultations/${consult.id}/print`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.4rem 0.9rem', fontSize: '0.78rem', gap: '0.4rem', textDecoration: 'none' }}
+                                >
+                                  <Printer size={14} /> Imprimir resumen
+                                </a>
+                              </div>
+
                               {/* Diagnóstico Principal (Ancho Completo) */}
                               <div style={{
                                 backgroundColor: 'rgba(13, 148, 136, 0.04)',
