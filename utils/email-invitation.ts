@@ -12,6 +12,67 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * Email con enlace de un solo uso para restablecer la contraseña.
+ */
+export async function sendPasswordResetEmail(params: {
+  toEmail: string
+  firstName: string
+  resetLink: string
+}): Promise<{ success?: boolean; error?: string }> {
+  const { toEmail, firstName, resetLink } = params
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('⚠️ RESEND_API_KEY no configurada. Enlace de reinicio (solo local):', resetLink)
+      return { success: true }
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const safeName = escapeHtml(firstName)
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:20px;background-color:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#0f172a;">
+        <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
+          <div style="background:#0d9488;color:#fff;padding:30px 20px;text-align:center;">
+            <h1 style="margin:0;font-size:24px;font-weight:600;">CloudMedHN</h1>
+          </div>
+          <div style="padding:30px 20px;line-height:1.6;">
+            <p>Hola ${safeName},</p>
+            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+            <div style="text-align:center;margin:30px 0;">
+              <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#0d9488;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;">Restablecer mi contraseña</a>
+            </div>
+            <p style="font-size:13px;color:#64748b;">Si no solicitaste este cambio, ignora este correo: tu contraseña actual seguirá funcionando. El enlace es de un solo uso y expira pronto.</p>
+          </div>
+          <div style="background:#f1f5f9;padding:20px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+            <p style="margin:0;">© ${new Date().getFullYear()} CloudMedHN. Documento confidencial.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+
+    const { error } = await resend.emails.send({
+      from: `CloudMedHN <${fromEmail}>`,
+      to: [toEmail],
+      subject: 'Restablece tu contraseña — CloudMedHN',
+      html: htmlContent,
+    })
+
+    if (error) {
+      console.error('Error enviando email de reinicio:', error)
+      return { error: error.message }
+    }
+    return { success: true }
+  } catch (error: any) {
+    console.error('Excepción enviando email de reinicio:', error)
+    return { error: error.message }
+  }
+}
+
+/**
  * Email de bienvenida con enlace seguro de un solo uso para fijar contraseña.
  * Se usa tanto al provisionar el dueño de una clínica (desde /superadmin) como al
  * invitar miembros de equipo (desde la configuración del org-admin).
