@@ -174,7 +174,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
             </div>
           </div>
 
-          <p className="doc-title">Resumen de Consulta Médica</p>
+          <p className="doc-title">Incapacidad Médica</p>
           <div className="divider" />
 
           {/* Paciente */}
@@ -220,6 +220,13 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
                 <p className="section-body">{s.value}</p>
               </div>
             ))}
+
+            {c.medical_leave && String(c.medical_leave).trim() !== '' && (
+              <div className="section">
+                <h3 className="section-title">Incapacidad Médica</h3>
+                <p className="section-body">{c.medical_leave}</p>
+              </div>
+            )}
           </div>
 
           {/* Firma */}

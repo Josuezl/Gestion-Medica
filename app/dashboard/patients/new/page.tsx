@@ -19,7 +19,22 @@ import {
 export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Se detecta automáticamente por la fecha de nacimiento (menor de 18 años).
   const [isPediatric, setIsPediatric] = useState(false)
+
+  function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    if (!value) {
+      setIsPediatric(false)
+      return
+    }
+    const today = new Date()
+    const birth = new Date(value)
+    let age = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+    setIsPediatric(age >= 0 && age < 18)
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -110,6 +125,7 @@ export default function NewPatientPage() {
                   name="birth_date"
                   type="date"
                   required
+                  onChange={handleBirthDateChange}
                 />
               </div>
 
@@ -141,22 +157,28 @@ export default function NewPatientPage() {
                   <option value="AB-">AB Rh Negativo (AB-)</option>
                 </select>
               </div>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    name="is_pediatric"
-                    value="true"
-                    checked={isPediatric}
-                    onChange={(e) => setIsPediatric(e.target.checked)}
-                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
-                  />
-                  ¿Es paciente pediátrico?
-                </label>
-              </div>
+              {/* El sistema marca pediátrico automáticamente según la fecha de nacimiento */}
+              <input type="hidden" name="is_pediatric" value={isPediatric ? 'true' : 'false'} />
 
               {isPediatric && (
                 <>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      padding: '0.75rem 1rem',
+                      backgroundColor: 'rgba(13, 148, 136, 0.08)',
+                      border: '1px solid rgba(13, 148, 136, 0.25)',
+                      borderRadius: '8px',
+                      color: '#0f766e',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                    }}>
+                      <Activity size={16} color="#0d9488" />
+                      Se identificó un paciente pediátrico — completa los datos de los padres.
+                    </div>
+                  </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="father_name">
                       Nombre del Padre

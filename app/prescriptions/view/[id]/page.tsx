@@ -144,17 +144,15 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
   }
 
   // 4. Si el código coincide, cargar el resto de la información
-  const [patientRes, doctorRes, clinicRes, consultRes] = await Promise.all([
+  const [patientRes, doctorRes, clinicRes] = await Promise.all([
     supabaseAdmin.from('patients').select('*').eq('id', prescription.patient_id).single(),
     supabaseAdmin.from('user_profiles').select('*').eq('id', prescription.doctor_id).single(),
     supabaseAdmin.from('clinics').select('*').eq('id', prescription.clinic_id).single(),
-    supabaseAdmin.from('consultations').select('*').eq('id', prescription.consultation_id).single()
   ])
 
   const patient = patientRes.data
   const doctor = doctorRes.data
   const clinic = clinicRes.data
-  const consultation = consultRes.data
 
   if (!patient || !doctor || !clinic) {
     return notFound()
@@ -660,50 +658,6 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 </div>
               )}
 
-              {patient.allergies && patient.allergies !== 'Ninguna' && patient.allergies !== 'Ninguna conocida' && (
-                <div className="info-item" style={{ gridColumn: 'span 2', marginTop: '4px' }}>
-                  <span className="info-label" style={{ color: '#e11d48' }}>Alergias</span>
-                  <span className="info-val" style={{ color: '#e11d48', fontWeight: 700 }}>{patient.allergies}</span>
-                </div>
-              )}
-
-              {/* Fila de Constantes Vitales (Si están disponibles en la consulta) */}
-              {consultation && (
-                consultation.weight || consultation.blood_pressure || consultation.temperature || consultation.heart_rate || (consultation as any).height
-              ) && (
-                <div className="vitals-row">
-                  {consultation.weight && (
-                    <div className="vital-badge">
-                      <svg className="vital-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2v20"/><path d="M2 12h20"/></svg>
-                      <span>Peso: <strong>{consultation.weight} kg</strong></span>
-                    </div>
-                  )}
-                  {(consultation as any).height && (
-                    <div className="vital-badge">
-                      <svg className="vital-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
-                      <span>Talla: <strong>{(consultation as any).height} cm</strong></span>
-                    </div>
-                  )}
-                  {consultation.blood_pressure && (
-                    <div className="vital-badge">
-                      <svg className="vital-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                      <span>P. Arterial: <strong>{consultation.blood_pressure}</strong></span>
-                    </div>
-                  )}
-                  {consultation.temperature && (
-                    <div className="vital-badge">
-                      <svg className="vital-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
-                      <span>Temp: <strong>{consultation.temperature} °C</strong></span>
-                    </div>
-                  )}
-                  {consultation.heart_rate && (
-                    <div className="vital-badge">
-                      <svg className="vital-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                      <span>F. Cardíaca: <strong>{consultation.heart_rate} bpm</strong></span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

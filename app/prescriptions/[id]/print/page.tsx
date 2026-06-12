@@ -49,17 +49,15 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   if (prescription.clinic_id !== profile.clinic_id) return notFound()
 
   // 5. Datos relacionados
-  const [patientRes, doctorRes, clinicRes, consultRes] = await Promise.all([
+  const [patientRes, doctorRes, clinicRes] = await Promise.all([
     supabase.from('patients').select('*').eq('id', prescription.patient_id).single(),
     supabase.from('user_profiles').select('*').eq('id', prescription.doctor_id).single(),
     supabase.from('clinics').select('*').eq('id', prescription.clinic_id).single(),
-    supabase.from('consultations').select('*').eq('id', prescription.consultation_id).single(),
   ])
 
   const patient = patientRes.data
   const doctor = doctorRes.data
   const clinic = clinicRes.data
-  const consultation = consultRes.data
   if (!patient || !doctor || !clinic) return notFound()
 
   const patientAge = calculateAge(patient.birth_date)
@@ -74,10 +72,6 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   // QR -> página pública de verificación de la receta
   const verifyUrl = `${SITE_URL}/verificar/${prescription.verification_code}`
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
-
-  const hasAllergies = patient.allergies && patient.allergies !== 'Ninguna' && patient.allergies !== 'Ninguna conocida'
-  const hc = (consultation as any)?.head_circumference
-  const height = (consultation as any)?.height
 
   return (
     <>
@@ -233,24 +227,6 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
                 </div>
               )}
             </div>
-            {hasAllergies && (
-              <div className="prow">
-                <div>
-                  <span className="plabel allergy">⚠ Alergias</span>
-                  <span className="pval allergy" style={{ fontSize: '11px' }}>{patient.allergies}</span>
-                </div>
-              </div>
-            )}
-            {consultation && (consultation.weight || height || consultation.blood_pressure || consultation.temperature || consultation.heart_rate || hc) && (
-              <div className="vitals">
-                {consultation.weight && <span className="vital">Peso: <strong>{consultation.weight} kg</strong></span>}
-                {height && <span className="vital">Talla: <strong>{height} cm</strong></span>}
-                {patient.is_pediatric && hc && <span className="vital">P. cefálico: <strong>{hc} cm</strong></span>}
-                {consultation.blood_pressure && <span className="vital">P. Arterial: <strong>{consultation.blood_pressure}</strong></span>}
-                {consultation.temperature && <span className="vital">Temp: <strong>{consultation.temperature} °C</strong></span>}
-                {consultation.heart_rate && <span className="vital">F. Cardíaca: <strong>{consultation.heart_rate} bpm</strong></span>}
-              </div>
-            )}
           </div>
 
           {/* Rp */}
