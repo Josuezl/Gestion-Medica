@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { provisionUserAccount, resendUserInvite } from '@/utils/provisioning'
+import { provisionUserWithPassword } from '@/utils/provisioning-credentials'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -200,4 +201,132 @@ export async function resendOwnerInvite(clinicId: string) {
   })
 
   return { success: true }
+}
+
+export interface TeamMemberInput {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  role: 'DOCTOR' | 'ASSISTANT' | 'ADMIN'
+  specialty?: string
+  professionalId?: string
+  isOrgAdmin: boolean
+}
+
+/**
+ * Crea una clínica con su equipo completo usando contraseñas predefinidas.
+ * Cada miembro recibe un correo con sus credenciales listas para usar.
+ * Útil para clientes institucionales que prefieren no gestionar el onboarding ellos mismos.
+ */
+export async function provisionTenantWithTeam(formData: FormData) {
+  let actorUserId: string
+  try {
+    actorUserId = await assertPlatformAdmin()
+  } catch {
+    return { error: 'No autorizado.' }
+  }
+
+  const clinicName = (formData.get('clinicName') as string || '').trim()
+  const clinicPhone = (formData.get('clinicPhone') as string || '').trim()
+  const clinicAddress = (formData.get('clinicAddress') as string || '').trim()
+  const planCode = (formData.get('planCode') as string || '').trim()
+  const teamJson = (formData.get('teamMembers') as string || '').trim()
+
+  if (!clinicName || !planCode || !teamJson) {
+    return { error: 'Nombre de la organización, plan y al menos un miembro del equipo son obligatorios.' }
+  }
+
+  let teamMembers: TeamMemberInput[]
+  try {
+    teamMembers = JSON.parse(teamJson)
+    if (!Array.isArray(teamMembers) || teamMembers.length === 0) throw new Error()
+  } catch {
+    return { error: 'El equipo no tiene el formato correcto.' }
+  }
+
+  const admin = createAdminClient()
+
+  const { data: plan } = await admin.from('plans').select('code').eq('code', planCode).single()
+  if (!plan) return { error: 'El plan seleccionado no es válido.' }
+
+  // 1. Crear la organización con teléfono y dirección.
+  const { data: clinic, error: clinicError } = await admin
+    .from('clinics')
+    .insert([{ name: clinicName, plan_code: planCode, phone: clinicPhone || null, address: clinicAddress || null }])
+    .select()
+    .single()
+  if (clinicError || !clinic) {
+    return { error: `No se pudo crear la organización: ${clinicError?.message}` }
+  }
+
+  // 2. Crear la sede principal.
+  const { data: location, error: locationError } = await admin
+    .from('locations')
+    .insert([{ clinic_id: clinic.id, name: 'Consultorio Principal', is_active: true }])
+    .select()
+    .single()
+  if (locationError || !location) {
+    await admin.from('clinics').delete().eq('id', clinic.id)
+    return { error: `No se pudo crear la sede: ${locationError?.message}` }
+  }
+
+  // 3. Crear cada miembro del equipo.
+  const results: { name: string; email: string; error?: string; emailError?: string }[] = []
+  let ownerUserId: string | undefined
+
+  for (const member of teamMembers) {
+    const result = await provisionUserWithPassword({
+      email: member.email.trim().toLowerCase(),
+      password: member.password,
+      firstName: member.firstName.trim(),
+      lastName: member.lastName.trim(),
+      clinicId: clinic.id,
+      clinicName,
+      role: member.role,
+      isOrgAdmin: !!member.isOrgAdmin,
+      specialty: member.specialty || null,
+      professionalId: member.professionalId || null,
+      defaultLocationId: location.id,
+    })
+
+    results.push({
+      name: `${member.firstName} ${member.lastName}`,
+      email: member.email,
+      error: result.error,
+      emailError: result.emailError,
+    })
+
+    if (!ownerUserId && member.isOrgAdmin && result.userId) {
+      ownerUserId = result.userId
+    }
+  }
+
+  // 4. Fijar el dueño (primer miembro con isOrgAdmin).
+  if (ownerUserId) {
+    await admin.from('clinics').update({ owner_user_id: ownerUserId }).eq('id', clinic.id)
+  }
+
+  // 5. Auditoría.
+  await logPlatformEvent(actorUserId, 'PROVISION_TENANT_WITH_TEAM', {
+    targetClinicId: clinic.id,
+    targetUserId: ownerUserId,
+    metadata: { clinicName, planCode, members: results.map(r => r.email) },
+  })
+
+  revalidatePath('/superadmin')
+
+  const errors = results.filter(r => r.error)
+  const emailErrors = results.filter(r => !r.error && r.emailError)
+
+  if (errors.length > 0) {
+    return { error: `Algunos usuarios no pudieron crearse: ${errors.map(r => `${r.name} (${r.error})`).join('; ')}` }
+  }
+
+  return {
+    success: true,
+    warning: emailErrors.length > 0
+      ? `Equipo creado, pero algunos correos fallaron: ${emailErrors.map(r => r.name).join(', ')}`
+      : undefined,
+  }
 }

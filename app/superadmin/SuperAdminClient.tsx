@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { provisionTenant, setClinicPlan, resendOwnerInvite } from './actions'
+import { provisionTenant, setClinicPlan, resendOwnerInvite, provisionTenantWithTeam, type TeamMemberInput } from './actions'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Loader2, Send, CheckCircle, AlertCircle } from 'lucide-react'
+import { UserPlus, Loader2, Send, CheckCircle, AlertCircle, Users, Plus, Trash2 } from 'lucide-react'
 
 interface Plan { code: string; name: string }
 interface Tenant {
@@ -31,6 +31,45 @@ export default function SuperAdminClient({
   const [creating, setCreating] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [rowBusy, setRowBusy] = useState<string | null>(null)
+
+  // — Aprovisionamiento con equipo completo —
+  const [showTeamForm, setShowTeamForm] = useState(false)
+  const [teamCreating, setTeamCreating] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<TeamMemberInput[]>([
+    { firstName: '', lastName: '', email: '', password: '', role: 'DOCTOR', specialty: '', professionalId: '', isOrgAdmin: true },
+  ])
+
+  function addMember() {
+    setTeamMembers(prev => [...prev, { firstName: '', lastName: '', email: '', password: '', role: 'DOCTOR', specialty: '', professionalId: '', isOrgAdmin: false }])
+  }
+
+  function removeMember(i: number) {
+    setTeamMembers(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function updateMember(i: number, field: keyof TeamMemberInput, value: string | boolean) {
+    setTeamMembers(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: value } : m))
+  }
+
+  async function handleTeamCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setMsg(null)
+    setTeamCreating(true)
+    const form = e.currentTarget
+    const fd = new FormData(form)
+    fd.set('teamMembers', JSON.stringify(teamMembers))
+    const result = await provisionTenantWithTeam(fd)
+    setTeamCreating(false)
+    if (result?.error) {
+      setMsg({ type: 'err', text: result.error })
+    } else {
+      setMsg({ type: 'ok', text: result?.warning || 'Equipo creado. Se enviaron los correos con credenciales.' })
+      form.reset()
+      setTeamMembers([{ firstName: '', lastName: '', email: '', password: '', role: 'DOCTOR', specialty: '', professionalId: '', isOrgAdmin: true }])
+      setShowTeamForm(false)
+      router.refresh()
+    }
+  }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -113,6 +152,102 @@ export default function SuperAdminClient({
             {creating ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Creando...</> : <><UserPlus size={16} /> Crear cliente y enviar acceso</>}
           </button>
         </form>
+      </div>
+
+      {/* Provisionar equipo completo con credenciales */}
+      <div style={S.card}>
+        <div style={{ ...S.cardHeader, justifyContent: 'space-between' }}>
+          <div style={S.cardHeader}>
+            <Users size={20} color="#0d9488" />
+            <h2 style={S.cardTitle}>Provisionar equipo completo (con credenciales)</h2>
+          </div>
+          <button type="button" onClick={() => setShowTeamForm(v => !v)} style={S.toggleBtn}>
+            {showTeamForm ? 'Ocultar' : 'Expandir'}
+          </button>
+        </div>
+
+        {showTeamForm && (
+          <form onSubmit={handleTeamCreate}>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 1.25rem' }}>
+              Crea la organización y todos sus usuarios con contraseñas ya fijadas. Cada miembro recibirá un correo con sus credenciales.
+            </p>
+
+            {/* Datos de la clínica */}
+            <div style={{ ...S.sectionLabel }}>Organización</div>
+            <div style={{ ...S.formGrid, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '1.5rem' }}>
+              <Field label="Nombre *"><input name="clinicName" required style={S.input} placeholder="Centro Médico del Valle" /></Field>
+              <Field label="Plan / Licencia *">
+                <select name="planCode" required style={S.input} defaultValue="">
+                  <option value="" disabled>Selecciona un plan</option>
+                  {plans.map(p => <option key={p.code} value={p.code}>{p.name} ({p.code})</option>)}
+                </select>
+              </Field>
+              <Field label="Teléfono"><input name="clinicPhone" style={S.input} placeholder="+504 9999-0000" /></Field>
+              <Field label="Dirección" ><input name="clinicAddress" style={S.input} placeholder="Dirección completa" /></Field>
+            </div>
+
+            {/* Miembros del equipo */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <div style={S.sectionLabel}>Equipo</div>
+              <button type="button" onClick={addMember} style={S.addMemberBtn}>
+                <Plus size={14} /> Agregar miembro
+              </button>
+            </div>
+
+            {teamMembers.map((m, i) => (
+              <div key={i} style={S.memberRow}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <span style={S.memberIndex}>{i + 1}</span>
+                  {teamMembers.length > 1 && (
+                    <button type="button" onClick={() => removeMember(i)} style={S.removeBtn} title="Quitar miembro">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto' }}>
+                    <input
+                      type="checkbox"
+                      checked={m.isOrgAdmin}
+                      onChange={e => updateMember(i, 'isOrgAdmin', e.target.checked)}
+                    />
+                    Admin de organización
+                  </label>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                  <Field label="Nombre(s) *">
+                    <input value={m.firstName} onChange={e => updateMember(i, 'firstName', e.target.value)} required style={S.input} placeholder="Carlos" />
+                  </Field>
+                  <Field label="Apellido(s) *">
+                    <input value={m.lastName} onChange={e => updateMember(i, 'lastName', e.target.value)} required style={S.input} placeholder="Rivera" />
+                  </Field>
+                  <Field label="Correo *">
+                    <input type="email" value={m.email} onChange={e => updateMember(i, 'email', e.target.value)} required style={S.input} placeholder="doctor@clinica.com" />
+                  </Field>
+                  <Field label="Contraseña *">
+                    <input value={m.password} onChange={e => updateMember(i, 'password', e.target.value)} required style={S.input} placeholder="clave2026" />
+                  </Field>
+                  <Field label="Rol *">
+                    <select value={m.role} onChange={e => updateMember(i, 'role', e.target.value)} required style={S.input}>
+                      <option value="DOCTOR">Médico</option>
+                      <option value="ASSISTANT">Asistente</option>
+                    </select>
+                  </Field>
+                  <Field label="Especialidad">
+                    <input value={m.specialty} onChange={e => updateMember(i, 'specialty', e.target.value)} style={S.input} placeholder="Medicina General" />
+                  </Field>
+                  <Field label="N° Colegiación">
+                    <input value={m.professionalId} onChange={e => updateMember(i, 'professionalId', e.target.value)} style={S.input} placeholder="CMH-0000" />
+                  </Field>
+                </div>
+              </div>
+            ))}
+
+            <button type="submit" disabled={teamCreating} style={{ ...S.primaryBtn, marginTop: '1.25rem' }}>
+              {teamCreating
+                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Creando equipo...</>
+                : <><Users size={16} /> Crear organización y enviar credenciales</>}
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Tenants */}
@@ -211,4 +346,10 @@ const S: Record<string, React.CSSProperties> = {
   td: { padding: '0.75rem 1rem', color: '#334155' },
   planSelect: { padding: '0.35rem 0.5rem', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, background: '#f8fafc', color: '#0f172a', cursor: 'pointer' },
   linkBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.7rem', background: 'transparent', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' },
+  toggleBtn: { padding: '0.4rem 0.9rem', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 600, color: '#475569', cursor: 'pointer' },
+  sectionLabel: { fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '0.75rem' },
+  memberRow: { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem', marginBottom: '0.75rem' },
+  memberIndex: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#0d9488', color: '#fff', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 },
+  addMemberBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.75rem', background: 'transparent', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' },
+  removeBtn: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.3rem', background: 'transparent', border: '1px solid #fecaca', color: '#ef4444', borderRadius: '5px', cursor: 'pointer' },
 }
