@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
+import { canEditPrescription } from '@/utils/permissions'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -173,12 +174,17 @@ export async function updatePrescription(
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('clinic_id')
+    .select('clinic_id, role')
     .eq('id', user.id)
     .single()
 
   if (!profile?.clinic_id || profile.clinic_id !== prescription.clinic_id) {
     return { error: 'No tienes permiso para editar esta receta.' }
+  }
+
+  // Los asistentes pueden ver/imprimir/enviar recetas, pero no modificarlas.
+  if (!canEditPrescription(profile.role)) {
+    return { error: 'No tienes permiso para editar recetas.' }
   }
 
   // Actualizar medicamentos e indicaciones

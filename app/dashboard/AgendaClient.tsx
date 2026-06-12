@@ -73,7 +73,7 @@ interface AgendaClientProps {
   doctors: Doctor[]
   locations: Location[]
   defaultLocationId?: string
-  currentDoctor: { id: string; role: string }
+  currentDoctor: { id: string; role: string; isOrgAdmin?: boolean }
 }
 
 // ============================================================================
@@ -173,7 +173,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(currentDoctor.role === 'ASSISTANT' ? 'all' : currentDoctor.id)
+  const isAssistant = currentDoctor.role === 'ASSISTANT'
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isAssistant ? 'all' : currentDoctor.id)
   const [selectedLocationId, setSelectedLocationId] = useState<string>(defaultLocationId)
   
   const [showForm, setShowForm] = useState(false)
@@ -655,7 +656,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     </button>
                   )}
 
-                  {['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
+                  {!isAssistant && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
                     <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
                       <Clipboard size={14} /> Iniciar Consulta
                     </button>
@@ -1008,29 +1009,33 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
             </div>
           </Link>
 
-          <Link href="/dashboard/consultations" style={{ textDecoration: 'none' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-              <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '10px', color: '#d97706' }}>
-                <FileText size={24} />
+          {!isAssistant && (
+            <Link href="/dashboard/consultations" style={{ textDecoration: 'none' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
+                <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '10px', color: '#d97706' }}>
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Historial</h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Consultas previas</p>
+                </div>
               </div>
-              <div>
-                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Historial</h4>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Consultas previas</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
-          <Link href="/dashboard/config" style={{ textDecoration: 'none' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-              <div style={{ backgroundColor: '#f3e8ff', padding: '0.75rem', borderRadius: '10px', color: '#a855f7' }}>
-                <Settings size={24} />
+          {currentDoctor.isOrgAdmin && (
+            <Link href="/dashboard/config" style={{ textDecoration: 'none' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
+                <div style={{ backgroundColor: '#f3e8ff', padding: '0.75rem', borderRadius: '10px', color: '#a855f7' }}>
+                  <Settings size={24} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Administración</h4>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Ajustes y personal</p>
+                </div>
               </div>
-              <div>
-                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Administración</h4>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Ajustes y personal</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           <style>{`
             .quick-action-card:hover {

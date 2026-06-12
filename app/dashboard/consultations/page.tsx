@@ -1,5 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import { isAssistant } from '@/utils/permissions'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
@@ -25,9 +27,14 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('clinic_id')
+    .select('clinic_id, role')
     .eq('id', user.id)
     .single()
+
+  // El historial clínico es trabajo médico: los asistentes no pueden verlo.
+  if (isAssistant(profile?.role)) {
+    redirect('/dashboard')
+  }
 
   const clinicId = profile?.clinic_id
 
