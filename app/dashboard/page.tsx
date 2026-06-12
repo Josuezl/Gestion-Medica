@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('id, clinic_id, first_name, last_name, role')
+    .select('id, clinic_id, first_name, last_name, role, is_org_admin')
     .eq('id', user.id)
     .single()
 
@@ -79,7 +79,8 @@ export default async function DashboardPage() {
       defaultLocationId={defaultLocationId}
       currentDoctor={{
         id: profile?.id || '',
-        role: profile?.role || 'DOCTOR'
+        role: profile?.role || 'DOCTOR',
+        isOrgAdmin: !!profile?.is_org_admin
       }}
     />
   )

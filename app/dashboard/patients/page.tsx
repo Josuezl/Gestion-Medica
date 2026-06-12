@@ -1,5 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
+import { isAssistant } from '@/utils/permissions'
 import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
 
 // Calcular edad
@@ -37,11 +38,13 @@ export default async function PatientsPage({ searchParams }: PageProps) {
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('clinic_id')
+    .select('clinic_id, role')
     .eq('id', user.id)
     .single()
 
   const clinicId = profile?.clinic_id
+  // Los asistentes no inician consultas: se oculta el botón por fila.
+  const assistant = isAssistant(profile?.role)
 
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
@@ -191,15 +194,17 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                             <Eye size={15} />
                             <span>Expediente</span>
                           </a>
-                          <a
-                            href={`/dashboard/consultations/new?patientId=${patient.id}`}
-                            className="btn btn-primary"
-                            style={styles.consultBtn}
-                            title="Iniciar Nueva Consulta"
-                          >
-                            <Clipboard size={15} />
-                            <span>Consulta</span>
-                          </a>
+                          {!assistant && (
+                            <a
+                              href={`/dashboard/consultations/new?patientId=${patient.id}`}
+                              className="btn btn-primary"
+                              style={styles.consultBtn}
+                              title="Iniciar Nueva Consulta"
+                            >
+                              <Clipboard size={15} />
+                              <span>Consulta</span>
+                            </a>
+                          )}
                         </div>
                       </td>
                     </tr>

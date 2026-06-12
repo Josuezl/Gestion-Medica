@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { updatePatient } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
+import { isAssistant, canEditPrescription } from '@/utils/permissions'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import { 
@@ -77,7 +78,10 @@ export default function PatientDetailsClient({
       setAppUrl(window.location.origin)
     }
   }, [])
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies' | 'pediatrics'>('consultations')
+  // El asistente solo gestiona datos del paciente y recetas (sin trabajo clínico).
+  const assistant = isAssistant(currentUserRole)
+  const canEditPresc = canEditPrescription(currentUserRole)
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies' | 'pediatrics'>(assistant ? 'prescriptions' : 'consultations')
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
@@ -742,14 +746,16 @@ export default function PatientDetailsClient({
                 {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               </button>
             </div>
-            <a 
-              href={`/dashboard/consultations/new?patientId=${patient.id}`} 
-              className="btn btn-primary" 
-              style={{ gap: '0.4rem' }}
-            >
-              <Plus size={16} />
-              Nueva Consulta
-            </a>
+            {!assistant && (
+              <a
+                href={`/dashboard/consultations/new?patientId=${patient.id}`}
+                className="btn btn-primary"
+                style={{ gap: '0.4rem' }}
+              >
+                <Plus size={16} />
+                Nueva Consulta
+              </a>
+            )}
           </div>
         </div>
 
@@ -893,23 +899,27 @@ export default function PatientDetailsClient({
       <div style={styles.expedienteContent}>
         {/* Navigation Tabs */}
         <div style={styles.tabsRow}>
-          <button 
-            style={activeTab === 'consultations' ? styles.tabActive : styles.tab}
-            onClick={() => setActiveTab('consultations')}
-          >
-            <Activity size={18} />
-            <span>Consultas (Evolución)</span>
-          </button>
-          
-          <button 
-            style={activeTab === 'history' ? styles.tabActive : styles.tab}
-            onClick={() => setActiveTab('history')}
-          >
-            <ClipboardList size={18} />
-            <span>Antecedentes</span>
-          </button>
+          {!assistant && (
+            <button
+              style={activeTab === 'consultations' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('consultations')}
+            >
+              <Activity size={18} />
+              <span>Consultas (Evolución)</span>
+            </button>
+          )}
 
-          <button 
+          {!assistant && (
+            <button
+              style={activeTab === 'history' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('history')}
+            >
+              <ClipboardList size={18} />
+              <span>Antecedentes</span>
+            </button>
+          )}
+
+          <button
             style={activeTab === 'prescriptions' ? styles.tabActive : styles.tab}
             onClick={() => setActiveTab('prescriptions')}
           >
@@ -917,16 +927,18 @@ export default function PatientDetailsClient({
             <span>Recetas Emitidas</span>
           </button>
 
-          <button 
-            style={activeTab === 'studies' ? styles.tabActive : styles.tab}
-            onClick={() => setActiveTab('studies')}
-          >
-            <FileSpreadsheet size={18} />
-            <span>Estudios Médicos</span>
-          </button>
+          {!assistant && (
+            <button
+              style={activeTab === 'studies' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('studies')}
+            >
+              <FileSpreadsheet size={18} />
+              <span>Estudios Médicos</span>
+            </button>
+          )}
 
-          {patient.is_pediatric && (
-            <button 
+          {!assistant && patient.is_pediatric && (
+            <button
               style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('pediatrics')}
             >
@@ -1288,19 +1300,21 @@ export default function PatientDetailsClient({
                                 <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
                               </div>
                               {editingPrescription !== presc.id ? (
-                                <button
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
-                                  onClick={() => {
-                                    setEditingPrescription(presc.id)
-                                    setEditMedicines((presc.medicines || []).map((m: any) => ({ name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', duration: m.duration || '' })))
-                                    setEditNotes(presc.notes || '')
-                                    setPrescSaveMsg(null)
-                                  }}
-                                >
-                                  <Edit size={12} />
-                                  Editar Receta
-                                </button>
+                                canEditPresc ? (
+                                  <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
+                                    onClick={() => {
+                                      setEditingPrescription(presc.id)
+                                      setEditMedicines((presc.medicines || []).map((m: any) => ({ name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', duration: m.duration || '' })))
+                                      setEditNotes(presc.notes || '')
+                                      setPrescSaveMsg(null)
+                                    }}
+                                  >
+                                    <Edit size={12} />
+                                    Editar Receta
+                                  </button>
+                                ) : null
                               ) : (
                                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                                   <button

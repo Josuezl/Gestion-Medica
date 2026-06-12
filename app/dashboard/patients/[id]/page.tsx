@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
+import { isAssistant } from '@/utils/permissions'
 import PatientDetailsClient from './PatientDetailsClient'
 
 interface PageProps {
@@ -46,19 +47,27 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     p_table_name: 'patients'
   })
 
+  // Los asistentes solo gestionan datos del paciente y recetas: no cargamos
+  // datos clínicos (consultas/estudios) para no enviarlos al cliente.
+  const assistant = isAssistant(currentProfile?.role)
+
   // 3. Cargar consultas de evolución (con recetas asociadas)
-  const { data: consultations } = await supabase
-    .from('consultations')
-    .select('*, user_profiles(first_name, last_name), prescriptions(id, medicines, notes, verification_code, pdf_url)')
-    .eq('patient_id', patientId)
-    .order('created_at', { ascending: false })
+  const { data: consultations } = assistant
+    ? { data: [] as any[] }
+    : await supabase
+        .from('consultations')
+        .select('*, user_profiles(first_name, last_name), prescriptions(id, medicines, notes, verification_code, pdf_url)')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
 
   // 4. Cargar estudios médicos y generar URLs firmadas temporales
-  const { data: studies } = await supabase
-    .from('studies')
-    .select('*')
-    .eq('patient_id', patientId)
-    .order('created_at', { ascending: false })
+  const { data: studies } = assistant
+    ? { data: [] as any[] }
+    : await supabase
+        .from('studies')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false })
 
   const studiesWithSignedUrls = await Promise.all(
     (studies || []).map(async (study) => {

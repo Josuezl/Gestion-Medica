@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
+import { isAssistant } from '@/utils/permissions'
 import NewConsultationClient from './NewConsultationClient'
 
 interface PageProps {
@@ -28,6 +29,11 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .select('role, is_org_admin')
     .eq('id', user.id)
     .single()
+
+  // Crear consultas es trabajo médico: los asistentes no tienen acceso.
+  if (isAssistant(currentProfile?.role)) {
+    redirect('/dashboard')
+  }
 
   // 2. Obtener paciente
   const { data: patient, error } = await supabase
