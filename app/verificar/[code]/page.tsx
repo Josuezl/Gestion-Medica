@@ -28,8 +28,7 @@ export default async function VerifyPrescriptionPage({ params }: { params: Promi
       ),
       patients (
         first_name,
-        last_name,
-        id_card
+        last_name
       ),
       user_profiles!doctor_id (
         first_name,
@@ -79,7 +78,6 @@ export default async function VerifyPrescriptionPage({ params }: { params: Promi
                     <User size={16} /> Paciente
                   </h3>
                   <p style={{ margin: '0', fontWeight: 500, color: '#0f172a' }}>{(prescription.patients as any).first_name} {(prescription.patients as any).last_name}</p>
-                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>ID/DNI: {(prescription.patients as any).id_card || 'No registrado'}</p>
                 </div>
                 
                 <div>
