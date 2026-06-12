@@ -546,30 +546,6 @@ export default function PatientHistoryTabs({
             </div>
             
             <PediatricGrowthChart consultations={consultations} patient={patient} />
-            
-            <div style={styles.formGrid} className="grid-2">
-              <div className="card" style={styles.historyBlock}>
-                <h4 style={styles.historyBlockTitle}>Esquema de Vacunación (Notas)</h4>
-                <textarea 
-                  className="form-input" 
-                  disabled 
-                  value="Historial de vacunas. (Funcionalidad de guardado pendiente)." 
-                  rows={4} 
-                  style={{ opacity: 0.7 }}
-                />
-              </div>
-
-              <div className="card" style={styles.historyBlock}>
-                <h4 style={styles.historyBlockTitle}>Antecedentes Prenatales</h4>
-                <textarea 
-                  className="form-input" 
-                  disabled 
-                  value="Complicaciones en embarazo, semanas de gestación, etc. (Funcionalidad de guardado pendiente)." 
-                  rows={4} 
-                  style={{ opacity: 0.7 }}
-                />
-              </div>
-            </div>
           </div>
         )}
       </div>
