@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { sendPrescriptionNotification } from '@/utils/whatsapp'
 import { requireRole } from '@/utils/auth-guard'
@@ -25,6 +24,7 @@ export async function createConsultation(
   const reasonForVisit = formData.get('reason_for_visit') as string
   const symptoms = formData.get('symptoms') as string || null
   const physicalExam = formData.get('physical_exam') as string || null
+  const medicalLeave = formData.get('medical_leave') as string || null
   const diagnosis = formData.get('diagnosis') as string
   const treatmentPlan = formData.get('treatment_plan') as string
 
@@ -51,6 +51,7 @@ export async function createConsultation(
       reason_for_visit: reasonForVisit,
       symptoms,
       physical_exam: physicalExam,
+      medical_leave: medicalLeave,
       diagnosis,
       treatment_plan: treatmentPlan,
       blood_pressure: bp,
@@ -180,7 +181,12 @@ export async function createConsultation(
     }
   }
 
-  // 6. Revalidar y redirigir
+  // 6. Revalidar. La navegación la maneja el cliente (para ofrecer imprimir
+  // la incapacidad médica en un modal si se llenó ese campo).
   revalidatePath(`/dashboard/patients/${patientId}`)
-  redirect(`/dashboard/patients/${patientId}`)
+  return {
+    success: true,
+    consultationId: consultation.id,
+    hasMedicalLeave: !!(medicalLeave && medicalLeave.trim()),
+  }
 }

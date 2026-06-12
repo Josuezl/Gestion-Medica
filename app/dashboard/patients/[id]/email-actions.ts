@@ -124,17 +124,39 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
   const doctorName = `Dr. ${profile.first_name} ${profile.last_name}`
   const patientName = `${patient.first_name} ${patient.last_name}`
 
-  // 6. Enviar correo con Resend
-  const result = await sendPrescriptionEmail(
-    patient.email,
-    patientName,
-    doctorName,
+  const calculateAge = (birthDateString: string) => {
+    const today = new Date()
+    const birthDate = new Date(birthDateString)
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const m = today.getMonth() - birthDate.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
+    return age
+  }
+
+  const emissionDate = new Date(prescription.created_at).toLocaleDateString('es-HN', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
+  })
+
+  // 6. Enviar correo con Resend (mismo formato que la receta impresa)
+  const result = await sendPrescriptionEmail({
+    toEmail: patient.email,
     clinicName,
-    prescription.verification_code,
+    clinicPhone: profile.clinics?.phone,
+    clinicAddress: profile.clinics?.address,
+    doctorName,
+    doctorSpecialty: profile.specialty,
+    doctorProfessionalId: profile.professional_id,
+    patientName,
+    patientAge: patient.birth_date ? calculateAge(patient.birth_date) : 0,
+    patientGender: patient.gender,
+    patientDni: patient.id_card,
+    isPediatric: !!patient.is_pediatric,
+    date: emissionDate,
+    verificationCode: prescription.verification_code,
     pdfUrl,
-    prescription.medicines || [],
-    prescription.notes
-  )
+    medicines: prescription.medicines || [],
+    notes: prescription.notes,
+  })
 
   if (!result.success) {
     return { error: result.error || 'Error al enviar correo.' }

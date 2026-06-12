@@ -81,6 +81,9 @@ export default function PatientDetailsClient({
   // El asistente solo gestiona datos del paciente y recetas (sin trabajo clínico).
   const assistant = isAssistant(currentUserRole)
   const canEditPresc = canEditPrescription(currentUserRole)
+  // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
+  const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
+  const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'studies' | 'pediatrics'>(assistant ? 'prescriptions' : 'consultations')
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
@@ -715,6 +718,18 @@ export default function PatientDetailsClient({
               <Printer size={16} />
               Imprimir Ficha
             </button>
+            {canPrintLeave && (
+              <a
+                href={`/consultations/${lastConsult.id}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }}
+              >
+                <Printer size={16} />
+                Imprimir Incapacidad
+              </a>
+            )}
             <div style={{ display: 'flex', gap: '0.4rem' }}>
               <a 
                 href={`https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(generateFichaText())}`} 
@@ -1019,18 +1034,6 @@ export default function PatientDetailsClient({
 
                           {isExpanded && (
                             <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <a
-                                  href={`/consultations/${consult.id}/print`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.4rem 0.9rem', fontSize: '0.78rem', gap: '0.4rem', textDecoration: 'none' }}
-                                >
-                                  <Printer size={14} /> Imprimir resumen
-                                </a>
-                              </div>
-
                               {/* Diagnóstico Principal (Ancho Completo) */}
                               <div style={{
                                 backgroundColor: 'rgba(13, 148, 136, 0.04)',

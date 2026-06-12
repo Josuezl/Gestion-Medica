@@ -10,9 +10,10 @@ import {
   Pill, 
   Plus, 
   Trash2, 
-  ChevronLeft, 
-  Save, 
-  Loader2 
+  ChevronLeft,
+  Save,
+  Loader2,
+  Printer
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 
@@ -46,6 +47,8 @@ export default function NewConsultationClient({
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
+  const [leaveModalId, setLeaveModalId] = useState<string | null>(null)
 
   // Estado para la lista de medicamentos de la receta
   const [medicines, setMedicines] = useState<MedicineItem[]>([])
@@ -91,14 +94,59 @@ export default function NewConsultationClient({
     const formData = new FormData(event.currentTarget)
     const result = await createConsultation(patient.id, appointmentId, medicines, formData)
 
-    if (result && result.error) {
-      setError(result.error)
+    if (result && (result as any).error) {
+      setError((result as any).error)
       setLoading(false)
+      return
     }
+
+    // Si se registró una incapacidad médica, ofrecer imprimirla antes de salir.
+    if (result && (result as any).hasMedicalLeave) {
+      setLeaveModalId((result as any).consultationId)
+      return
+    }
+
+    // Sin incapacidad: navegar directo al expediente del paciente.
+    window.location.href = `/dashboard/patients/${patient.id}`
   }
 
   return (
     <div style={styles.container}>
+      {/* Modal: ofrecer imprimir la incapacidad médica al finalizar */}
+      {leaveModalId && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCard}>
+            <h3 style={styles.modalTitle}>Consulta registrada</h3>
+            <p style={styles.modalText}>
+              Se registró una <strong>incapacidad médica</strong> para este paciente.
+              ¿Deseas imprimirla ahora?
+            </p>
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => { window.location.href = `/dashboard/patients/${patient.id}` }}
+              >
+                Ir al Expediente
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1, gap: '0.4rem' }}
+                onClick={() => {
+                  window.open(`/consultations/${leaveModalId}/print`, '_blank')
+                  window.location.href = `/dashboard/patients/${patient.id}`
+                }}
+              >
+                <Printer size={16} />
+                Imprimir Incapacidad
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={styles.headerRow}>
         <a href={`/dashboard/patients/${patient.id}`} style={styles.backLink}>
@@ -181,12 +229,22 @@ export default function NewConsultationClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Exámenes de laboratorio/ estudios médicos</label>
-                <textarea 
-                  className="form-input" 
-                  name="physical_exam" 
-                  placeholder="Resultados o notas sobre estudios o exámenes médicos..." 
-                  rows={2} 
+                <label className="form-label">Resultados de exámenes de laboratorios/estudios</label>
+                <textarea
+                  className="form-input"
+                  name="physical_exam"
+                  placeholder="Resultados o notas sobre estudios o exámenes médicos..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Incapacidad Médica</label>
+                <textarea
+                  className="form-input"
+                  name="medical_leave"
+                  placeholder="Días de incapacidad y motivo (si aplica)..."
+                  rows={2}
                 />
               </div>
             </div>
@@ -498,5 +556,39 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
     padding: '0.25rem',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '1rem',
+  },
+  modalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: '14px',
+    padding: '1.75rem',
+    maxWidth: '440px',
+    width: '100%',
+    boxShadow: '0 20px 50px rgba(15,23,42,0.3)',
+  },
+  modalTitle: {
+    fontSize: '1.15rem',
+    fontWeight: 700,
+    margin: '0 0 0.5rem',
+    color: '#0f172a',
+  },
+  modalText: {
+    fontSize: '0.9rem',
+    color: '#475569',
+    lineHeight: 1.55,
+    margin: '0 0 1.5rem',
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '0.75rem',
   },
 }
