@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { analyzePatientMessage } from '@/utils/gemini'
+
+const isValidDate = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
+const isValidTime = (t?: string) => !!t && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)
 
 // Utilidad para enviar mensaje de WhatsApp mediante Meta Graph API
 async function sendWhatsAppMessage(to: string, text: string) {
@@ -62,16 +66,32 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const appSecret = process.env.WHATSAPP_APP_SECRET
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.warn('Advertencia: Variables de entorno de Supabase no configuradas durante la compilación.')
     return NextResponse.json({ success: false, error: 'Credenciales de Supabase no configuradas.' }, { status: 200 })
   }
 
+  // Verificación de firma HMAC de Meta (fail-closed): este endpoint usa service_role,
+  // así que solo procesamos peticiones realmente firmadas por Meta.
+  const rawBody = await request.text()
+  const signature = request.headers.get('x-hub-signature-256') || ''
+  if (!appSecret) {
+    console.error('WHATSAPP_APP_SECRET no configurado; se rechaza el webhook.')
+    return new NextResponse('Webhook no configurado', { status: 401 })
+  }
+  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  const sigBuf = Buffer.from(signature)
+  const expBuf = Buffer.from(expected)
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return new NextResponse('Firma inválida', { status: 401 })
+  }
+
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
-    const body = await request.json()
+    const body = JSON.parse(rawBody)
 
     // Validar estructura de Meta Webhook
     const entry = body.entry?.[0]
@@ -90,30 +110,30 @@ export async function POST(request: NextRequest) {
 
     console.log(`[WhatsApp Webhook] Mensaje recibido de ${patientPhone}: "${messageText}"`)
 
-    // 1. Buscar si el paciente ya está registrado en Honduras (+504)
+    // 1. Resolver la clínica por el NÚMERO DE WHATSAPP DE DESTINO (sin fallback a "primera clínica").
+    const phoneNumberId = value?.metadata?.phone_number_id
+    if (!phoneNumberId) {
+      return NextResponse.json({ status: 'no_phone_number_id' }, { status: 200 })
+    }
+    const { data: clinic } = await supabaseAdmin
+      .from('clinics')
+      .select('id')
+      .eq('whatsapp_phone_number_id', phoneNumberId)
+      .maybeSingle()
+    const clinicId = clinic?.id
+    if (!clinicId) {
+      await sendWhatsAppMessage(patientPhone, 'Hola. Este número aún no está vinculado a un consultorio en el sistema.')
+      return NextResponse.json({ status: 'clinic_not_mapped' }, { status: 200 })
+    }
+
+    // 2. Buscar al paciente DENTRO de la clínica resuelta (no a nivel global).
     let { data: patient } = await supabaseAdmin
       .from('patients')
       .select('*')
       .eq('phone', patientPhone)
+      .eq('clinic_id', clinicId)
       .limit(1)
       .maybeSingle()
-
-    // 2. Si no hay clínica, obtener la primera clínica registrada de la DB por defecto
-    let clinicId = patient?.clinic_id
-    if (!clinicId) {
-      const { data: firstClinic } = await supabaseAdmin
-        .from('clinics')
-        .select('id')
-        .limit(1)
-        .single()
-      clinicId = firstClinic?.id
-    }
-
-    if (!clinicId) {
-      // Si no hay ninguna clínica configurada en la plataforma, responder error
-      await sendWhatsAppMessage(patientPhone, 'Hola. El consultorio aún no está configurado en el sistema. Por favor intenta más tarde.')
-      return NextResponse.json({ status: 'no_clinics' }, { status: 200 })
-    }
 
     // 3. Obtener el listado de médicos de la clínica para contextualizar a la IA
     const { data: doctors } = await supabaseAdmin
@@ -155,8 +175,8 @@ export async function POST(request: NextRequest) {
     const aiResult = await analyzePatientMessage(messageText, chatHistory, contextData)
     console.log('[Gemini Bot Result]:', JSON.stringify(aiResult, null, 2))
 
-    // 7. Si la intención es agendar cita y tenemos los datos estructurados
-    if (aiResult.intent === 'BOOK_APPOINTMENT' && aiResult.extracted_date && aiResult.extracted_time) {
+    // 7. Si la intención es agendar cita y la fecha/hora extraídas por la IA son válidas
+    if (aiResult.intent === 'BOOK_APPOINTMENT' && isValidDate(aiResult.extracted_date) && isValidTime(aiResult.extracted_time)) {
       
       // 7.1 Si el paciente no está registrado, crearlo automáticamente con ficha básica
       if (!patient) {
@@ -197,9 +217,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (patient && doctorId) {
-        const appointmentDate = new Date(`${aiResult.extracted_date}T${aiResult.extracted_time}:00`).toISOString()
-        
+      // La cita debe tener fecha futura válida (zona horaria de Honduras, GMT-6)
+      const apptDateObj = new Date(`${aiResult.extracted_date}T${aiResult.extracted_time}:00-06:00`)
+      if (patient && doctorId && !isNaN(apptDateObj.getTime()) && apptDateObj.getTime() > Date.now()) {
+        const appointmentDate = apptDateObj.toISOString()
+
         // Registrar la cita
         const { error: apptError } = await supabaseAdmin
           .from('appointments')

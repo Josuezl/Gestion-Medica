@@ -13,9 +13,10 @@ export async function GET(request: NextRequest) {
 
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-  // Opcional: Proteger el endpoint con un token de autorización en el header
+  // Proteger el endpoint con un token de autorización OBLIGATORIO (fail-closed):
+  // si CRON_SECRET no está configurado, o el header no coincide, se rechaza.
   const authHeader = request.headers.get('authorization')
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new NextResponse('No autorizado', { status: 401 })
   }
 

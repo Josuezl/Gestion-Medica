@@ -62,13 +62,11 @@ export async function sendMedicalRecordByEmail(patientId: string) {
   }
 
   // 5. Registrar en bitácora de auditoría
-  await supabase.from('audit_logs').insert([{
-    clinic_id: profile.clinic_id,
-    performed_by: user.id,
-    action: 'SEND_MEDICAL_RECORD_EMAIL',
-    record_id: patientId,
-    table_name: 'patients'
-  }])
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_MEDICAL_RECORD_EMAIL',
+    p_record_id: patientId,
+    p_table_name: 'patients'
+  })
 
   return { success: true }
 }
@@ -142,13 +140,11 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
   }
 
   // 7. Registrar en bitácora de auditoría
-  await supabase.from('audit_logs').insert([{
-    clinic_id: profile.clinic_id,
-    performed_by: user.id,
-    action: 'SEND_PRESCRIPTION_EMAIL',
-    record_id: prescriptionId,
-    table_name: 'prescriptions'
-  }])
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_PRESCRIPTION_EMAIL',
+    p_record_id: prescriptionId,
+    p_table_name: 'prescriptions'
+  })
 
   return { success: true }
 }
@@ -196,13 +192,11 @@ export async function updatePrescription(
   }
 
   // Registrar en bitácora de auditoría
-  await supabase.from('audit_logs').insert([{
-    clinic_id: profile.clinic_id,
-    performed_by: user.id,
-    action: 'UPDATE_PRESCRIPTION',
-    record_id: prescriptionId,
-    table_name: 'prescriptions'
-  }])
+  await supabase.rpc('log_audit_event', {
+    p_action: 'UPDATE_PRESCRIPTION',
+    p_record_id: prescriptionId,
+    p_table_name: 'prescriptions'
+  })
 
   // Revalidar la página del paciente
   const { revalidatePath } = await import('next/cache')

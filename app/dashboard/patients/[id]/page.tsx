@@ -40,15 +40,11 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   }
 
   // Registrar acceso de lectura al expediente en la bitácora de auditoría
-  await supabase
-    .from('audit_logs')
-    .insert([{
-      clinic_id: patient.clinic_id,
-      performed_by: user.id,
-      action: 'READ_PATIENT_EHR',
-      record_id: patientId,
-      table_name: 'patients'
-    }])
+  await supabase.rpc('log_audit_event', {
+    p_action: 'READ_PATIENT_EHR',
+    p_record_id: patientId,
+    p_table_name: 'patients'
+  })
 
   // 3. Cargar consultas de evolución (con recetas asociadas)
   const { data: consultations } = await supabase

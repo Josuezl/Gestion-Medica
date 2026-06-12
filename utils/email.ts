@@ -17,6 +17,17 @@ interface SendEmailResult {
   error?: string
 }
 
+// Escapa datos del usuario antes de interpolarlos en el HTML del correo (anti-XSS/phishing).
+function escapeHtml(value: string | null | undefined): string {
+  if (value == null) return ''
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 /**
  * Envía la ficha médica completa del paciente por correo electrónico
  */
@@ -41,6 +52,26 @@ export async function sendMedicalRecordEmail(
 ): Promise<SendEmailResult> {
   const age = calculateAge(patientData.birthDate)
   const genderText = patientData.gender === 'M' ? 'Masculino' : patientData.gender === 'F' ? 'Femenino' : 'Otro'
+
+  // Valores crudos para el subject (texto plano); el cuerpo HTML usa versiones escapadas.
+  const subjectName = `${patientData.firstName} ${patientData.lastName}`
+  const subjectClinic = clinicName
+
+  clinicName = escapeHtml(clinicName)
+  doctorName = escapeHtml(doctorName)
+  patientData = {
+    ...patientData,
+    firstName: escapeHtml(patientData.firstName),
+    lastName: escapeHtml(patientData.lastName),
+    idCard: patientData.idCard ? escapeHtml(patientData.idCard) : patientData.idCard,
+    phone: escapeHtml(patientData.phone),
+    email: patientData.email ? escapeHtml(patientData.email) : patientData.email,
+    bloodType: patientData.bloodType ? escapeHtml(patientData.bloodType) : patientData.bloodType,
+    allergies: patientData.allergies ? escapeHtml(patientData.allergies) : patientData.allergies,
+    pathologicalHistory: patientData.pathologicalHistory ? escapeHtml(patientData.pathologicalHistory) : patientData.pathologicalHistory,
+    nonPathologicalHistory: patientData.nonPathologicalHistory ? escapeHtml(patientData.nonPathologicalHistory) : patientData.nonPathologicalHistory,
+    familyHistory: patientData.familyHistory ? escapeHtml(patientData.familyHistory) : patientData.familyHistory,
+  }
 
   const html = `
     <!DOCTYPE html>
@@ -162,7 +193,7 @@ export async function sendMedicalRecordEmail(
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: [toEmail],
-      subject: `Ficha Médica - ${patientData.firstName} ${patientData.lastName} | ${clinicName}`,
+      subject: `Ficha Médica - ${subjectName} | ${subjectClinic}`,
       html,
     })
 
@@ -191,6 +222,18 @@ export async function sendPrescriptionEmail(
   medicines: { name: string; dose?: string; frequency?: string; duration?: string }[],
   notes?: string
 ): Promise<SendEmailResult> {
+  const subjectClinic = clinicName
+  patientName = escapeHtml(patientName)
+  doctorName = escapeHtml(doctorName)
+  clinicName = escapeHtml(clinicName)
+  notes = notes ? escapeHtml(notes) : notes
+  medicines = medicines.map((m) => ({
+    name: escapeHtml(m.name),
+    dose: m.dose ? escapeHtml(m.dose) : m.dose,
+    frequency: m.frequency ? escapeHtml(m.frequency) : m.frequency,
+    duration: m.duration ? escapeHtml(m.duration) : m.duration,
+  }))
+
   const medsHtml = medicines.map((med, i) => `
     <tr>
       <td style="padding:10px 16px; border-bottom:1px solid #e2e8f0; font-size:14px; color:#0f172a; font-weight:600;">${i + 1}. ${med.name}</td>
@@ -312,7 +355,7 @@ export async function sendPrescriptionEmail(
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: [toEmail],
-      subject: `Receta Médica - ${verificationCode} | ${clinicName}`,
+      subject: `Receta Médica - ${verificationCode} | ${subjectClinic}`,
       html,
     })
 
