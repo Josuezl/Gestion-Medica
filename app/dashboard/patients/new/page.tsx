@@ -65,7 +65,7 @@ export default function NewPatientPage() {
       {error && <div style={styles.errorAlert}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.grid}>
+        <div className="responsive-main-side">
           {/* Main Card: Demographic Info */}
           <div className="card" style={styles.formCard}>
             <h3 style={styles.sectionTitle}>
@@ -73,7 +73,7 @@ export default function NewPatientPage() {
               Datos Personales y Demográficos
             </h3>
 
-            <div style={styles.formGrid}>
+            <div className="responsive-2col">
               <div className="form-group">
                 <label className="form-label" htmlFor="first_name">
                   Nombre(s) *
@@ -212,7 +212,7 @@ export default function NewPatientPage() {
               Contacto y Ubicación
             </h3>
 
-            <div style={styles.formGrid}>
+            <div className="responsive-2col">
               <div className="form-group">
                 <label className="form-label" htmlFor="phone">
                   Teléfono Celular (WhatsApp) *

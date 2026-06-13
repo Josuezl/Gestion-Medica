@@ -184,7 +184,7 @@ export default function PatientHistoryTabs({
                             
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                               {/* Signos Vitales Badge */}
-                              <div style={styles.vitalsRow}>
+                              <div className="vitals-row" style={styles.vitalsRow}>
                                 {consult.blood_pressure && <span style={styles.vitalTag}>PA: {consult.blood_pressure}</span>}
                                 {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
                                 {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
@@ -451,7 +451,8 @@ export default function PatientHistoryTabs({
                           borderRadius: '8px',
                           border: '1px solid rgba(13, 148, 136, 0.12)',
                         }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <div className="scroll-x">
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '440px' }}>
                             <div style={{
                               display: 'grid',
                               gridTemplateColumns: '2fr 1fr 1fr 1fr',
@@ -485,6 +486,7 @@ export default function PatientHistoryTabs({
                                 <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
                               </div>
                             ))}
+                           </div>
                           </div>
 
                           {presc.notes && (
@@ -812,7 +814,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.5rem',
     flexWrap: 'wrap',
     justifyContent: 'flex-end',
-    maxWidth: '50%',
   },
   vitalTag: {
     backgroundColor: 'rgba(13, 148, 136, 0.1)',

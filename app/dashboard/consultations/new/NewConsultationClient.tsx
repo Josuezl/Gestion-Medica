@@ -160,7 +160,7 @@ export default function NewConsultationClient({
       {error && <div style={styles.errorAlert}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.layoutGrid}>
+        <div className="responsive-main-side">
           {/* Left Column: Signos Vitales & Notas Clínicas */}
           <div style={styles.mainColumn}>
             
@@ -189,12 +189,12 @@ export default function NewConsultationClient({
                 </div>
                 {patient.is_pediatric && (
                   <div className="form-group">
-                    <label className="form-label" style={{ whiteSpace: 'nowrap' }}>Perímetro Cefálico (cm)</label>
+                    <label className="form-label">Perímetro Cefálico (cm)</label>
                     <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" />
                   </div>
                 )}
                 <div className="form-group">
-                  <label className="form-label" style={{ whiteSpace: 'nowrap' }}>Ritmo Cardiaco (bpm)</label>
+                  <label className="form-label">Ritmo Cardiaco (bpm)</label>
                   <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" />
                 </div>
               </div>

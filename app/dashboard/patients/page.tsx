@@ -138,7 +138,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                   
                   return (
                     <tr key={patient.id}>
-                      <td>
+                      <td data-label="Paciente">
                         <div style={styles.patientAvatarWrapper}>
                           <div style={styles.patientAvatar}>
                             {patient.first_name.charAt(0)}{patient.last_name.charAt(0)}
@@ -149,10 +149,10 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           </div>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Identidad">
                         <span style={styles.idCardText}>{patient.id_card || 'No Registrado'}</span>
                       </td>
-                      <td>
+                      <td data-label="Edad / Género">
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={styles.ageText}>{age} años</span>
                           <span style={styles.genderSub}>
@@ -160,13 +160,13 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Teléfono">
                         <div style={styles.phoneWrapper}>
                           <Phone size={14} color="var(--text-muted)" />
                           <span style={styles.phoneText}>{patient.phone}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Tipo Sangre">
                         {patient.blood_type ? (
                           <span className="badge badge-danger" style={{ fontWeight: '700' }}>
                             {patient.blood_type}
@@ -175,7 +175,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           <span style={styles.mutedText}>-</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td data-label="Acciones" style={{ textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
                           <a
                             href={`/dashboard/patients/${patient.id}?edit=true`}

@@ -245,14 +245,88 @@ h1, h2, h3, h4, h5, h6 {
 /* Responsive grid system */
 .grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
 
 .grid-3 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
+}
+
+/* Two-column layouts that collapse to one column on tablets/phones.
+   Used to replace fixed inline gridTemplateColumns (e.g. '2fr 1fr'). */
+.responsive-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.responsive-main-side {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Horizontal action button rows that wrap, then stack on small phones. */
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Centered modal card constrained to the viewport on any device. */
+.modal-card {
+  width: min(500px, 100% - 2rem);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Generic horizontal-scroll wrapper for wide inner content (med tables, etc.). */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Vitals badges: capped beside the date on desktop, full width on mobile. */
+.vitals-row {
+  max-width: 50%;
+}
+
+@media (max-width: 768px) {
+  .vitals-row {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Agenda filter groups grow to fill available width and wrap on small screens. */
+.filter-group {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+/* Editable prescription rows: 5-col grid on desktop, stacked on phones. */
+.med-edit-head,
+.med-edit-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .med-edit-head {
+    display: none;
+  }
+  .med-edit-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Responsive Dashboard Layout */
@@ -285,6 +359,8 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   min-height: 100vh;
   width: calc(100% - 280px);
+  max-width: calc(100% - 280px);
+  min-width: 0;
   transition: all 0.25s ease;
 }
 
@@ -304,6 +380,9 @@ h1, h2, h3, h4, h5, h6 {
 .dashboard-content {
   flex: 1;
   padding: 2rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Sidebar Toggle components */
@@ -1111,5 +1190,121 @@ h1, h2, h3, h4, h5, h6 {
   .time-grid-labels {
     width: 50px;
     min-width: 50px;
+  }
+
+  /* Collapse two-column layouts to a single column */
+  .responsive-2col,
+  .responsive-main-side {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- Tables become stacked cards on mobile ----
+     Requires each <td> to carry a data-label attribute. */
+  .table-modern thead {
+    display: none;
+  }
+
+  .table-modern,
+  .table-modern tbody,
+  .table-modern tr,
+  .table-modern td {
+    display: block;
+    width: 100%;
+  }
+
+  .table-modern tr {
+    margin-bottom: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: var(--bg-card);
+    padding: 0.5rem 0.25rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .table-modern td {
+    border-bottom: 1px solid #f1f5f9;
+    padding: 0.6rem 1rem;
+    text-align: left !important;
+    font-size: 0.9rem;
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table-modern td:last-child {
+    border-bottom: none;
+  }
+
+  .table-modern td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.2rem;
+  }
+
+  /* Action cell: hide the label and let buttons fill the width */
+  .table-modern td[data-label="Acciones"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-modern td[data-label="Acciones"]::before {
+    display: none;
+  }
+
+  .table-modern td[data-label="Acciones"] > div {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .table-modern td[data-label="Acciones"] .btn,
+  .table-modern td[data-label="Acciones"] a.btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =====================================================
+   RESPONSIVE: SMALL PHONES
+   ===================================================== */
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 1rem 0.75rem;
+  }
+
+  /* Stack action button rows full-width */
+  .action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-row > .btn,
+  .action-row > a.btn,
+  .action-row > * {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tighten card padding on tiny screens */
+  .card {
+    padding: 1.1rem;
+  }
+
+  /* Smaller tab + filter footprint */
+  .view-tab {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .grid-2,
+  .grid-3 {
+    gap: 1rem;
   }
 }
