@@ -1123,11 +1123,11 @@ h1, h2, h3, h4, h5, h6 {
     overflow: visible;
   }
 
-  /* Day/Week grids expand with their content instead of scrolling inside
-     a fixed-height box (which had no height on mobile and clipped). */
+  /* Day/Week time grid: viewport acotado con scroll interno propio, para que
+     el auto-scroll a la primera cita funcione y la página no crezca 24h. */
   .time-grid {
-    overflow-y: visible;
-    min-height: 60vh;
+    height: 70vh;
+    overflow: auto;
   }
 
   .agenda-sidebar {
@@ -1257,6 +1257,29 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: flex-start;
     margin-top: 0.5rem;
     gap: 0.5rem;
+  }
+
+  /* El menú de estado abre hacia la derecha (el disparador queda a la
+     izquierda de la fila) y nunca excede el ancho de pantalla. */
+  .status-dropdown-menu {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 2rem);
+  }
+
+  /* Vistas de calendario Mes: scroll horizontal en vez de recortar columnas. */
+  .month-view {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .month-weekdays,
+  .month-grid {
+    min-width: 640px;
+  }
+
+  .month-day-cell {
+    min-height: 76px;
   }
 
   /* View tabs (Agenda/Día/Semana/Mes) share the full width evenly */

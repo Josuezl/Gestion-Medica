@@ -557,8 +557,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     }
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+      <div className="month-view" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <div className="month-weekdays" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
           {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d => (
             <div key={d} className="month-day-header">{d}</div>
           ))}
