@@ -277,7 +277,7 @@ export default function ConfigClient({
         {/* Tabla de Miembros */}
         <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', color: 'var(--text-muted)' }}>Miembros Activos</h4>
         <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          <table className="cfg-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                 <th style={{ padding: '0.75rem 1rem' }}>Nombre</th>
@@ -289,7 +289,7 @@ export default function ConfigClient({
             <tbody>
               {teamMembers.map((member) => (
                 <tr key={member.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '0.75rem 1rem' }}>
+                  <td data-label="Nombre" style={{ padding: '0.75rem 1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>
                         {member.first_name[0]}{member.last_name[0]}
@@ -300,17 +300,17 @@ export default function ConfigClient({
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
+                  <td data-label="Rol" style={{ padding: '0.75rem 1rem' }}>
                     <span className={`badge ${member.role === 'ADMIN' ? 'badge-info' : member.role === 'DOCTOR' ? 'badge-success' : 'badge-warning'}`}>
                       {member.role === 'ADMIN' && <Shield size={12} style={{ marginRight: '4px' }} />}
                       {member.role === 'DOCTOR' && <User size={12} style={{ marginRight: '4px' }} />}
                       {member.role}
                     </span>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                  <td data-label="Especialidad" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                     {member.specialty || '—'}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
+                  <td data-label="Estado" style={{ padding: '0.75rem 1rem' }}>
                     <span className="badge badge-success">Activo</span>
                   </td>
                 </tr>
@@ -324,7 +324,7 @@ export default function ConfigClient({
           <>
             <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', color: 'var(--text-muted)' }}>Invitaciones Pendientes</h4>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <table className="cfg-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                     <th style={{ padding: '0.75rem 1rem' }}>Correo</th>
@@ -337,21 +337,21 @@ export default function ConfigClient({
                 <tbody>
                   {invitations.map((inv) => (
                     <tr key={inv.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '0.75rem 1rem' }}>
+                      <td data-label="Correo" style={{ padding: '0.75rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <Mail size={14} color="var(--text-muted)" />
                           {inv.email}
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 1rem' }}>{inv.role}</td>
-                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                      <td data-label="Rol" style={{ padding: '0.75rem 1rem' }}>{inv.role}</td>
+                      <td data-label="Enviado por" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                         {inv.invited_by_user?.first_name} {inv.invited_by_user?.last_name}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                      <td data-label="Expiración" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
                         {new Date(inv.expires_at).toLocaleDateString('es-HN')}
                       </td>
-                      <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                        <button 
+                      <td data-label="Acciones" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                        <button
                           onClick={() => handleRevoke(inv.id)}
                           style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
                         >
@@ -451,7 +451,7 @@ export default function ConfigClient({
           )}
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <table className="cfg-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Nombre</th>
@@ -468,18 +468,18 @@ export default function ConfigClient({
                     <tr key={loc.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: loc.is_active ? 1 : 0.6 }}>
                       {isEditing ? (
                         <>
-                          <td style={{ padding: '0.75rem 1rem' }}>
+                          <td data-label="Nombre" style={{ padding: '0.75rem 1rem' }}>
                             <input type="text" className="form-input" value={editLocName} onChange={e => setEditLocName(e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
                           </td>
-                          <td style={{ padding: '0.75rem 1rem' }}>
+                          <td data-label="Dirección" style={{ padding: '0.75rem 1rem' }}>
                             <input type="text" className="form-input" value={editLocAddress} onChange={e => setEditLocAddress(e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
                           </td>
-                          <td style={{ padding: '0.75rem 1rem' }}>
+                          <td data-label="Estado" style={{ padding: '0.75rem 1rem' }}>
                             <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
                               {loc.is_active ? 'Activa' : 'Inactiva'}
                             </span>
                           </td>
-                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                          <td data-label="Acciones" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                               <button onClick={() => handleUpdateLocation(loc.id)} className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>Guardar</button>
                               <button onClick={() => setEditingLocationId(null)} className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>Cancelar</button>
@@ -488,15 +488,15 @@ export default function ConfigClient({
                         </>
                       ) : (
                         <>
-                          <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{loc.name}</td>
-                          <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{loc.address || '—'}</td>
-                          <td style={{ padding: '0.75rem 1rem' }}>
+                          <td data-label="Nombre" style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{loc.name}</td>
+                          <td data-label="Dirección" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>{loc.address || '—'}</td>
+                          <td data-label="Estado" style={{ padding: '0.75rem 1rem' }}>
                             <span className={`badge ${loc.is_active ? 'badge-success' : 'badge-danger'}`}>
                               {loc.is_active ? 'Activa' : 'Inactiva'}
                             </span>
                           </td>
-                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                            <button 
+                          <td data-label="Acciones" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                            <button
                               onClick={() => {
                                 setEditingLocationId(loc.id)
                                 setEditLocName(loc.name)

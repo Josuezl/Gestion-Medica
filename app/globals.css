@@ -1199,7 +1199,35 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
+  /* On phones the agenda sidebar stacks vertically (calendar, filters,
+     statuses) at full width instead of sitting in a cramped row. */
+  .agenda-sidebar {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .mini-calendar {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Reset the marginTop:auto that pushes "Estados" to the bottom on desktop */
+  .agenda-sidebar > div:last-child {
+    margin-top: 0 !important;
+  }
+
+  /* View tabs (Agenda/Día/Semana/Mes) share the full width evenly */
+  .view-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .view-tab {
+    flex: 1;
+    text-align: center;
+  }
+
   .time-grid-header-label,
   .time-grid-labels {
     width: 50px;
@@ -1213,20 +1241,21 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   /* ---- Tables become stacked cards on mobile ----
-     Requires each <td> to carry a data-label attribute. */
-  .table-modern thead {
+     Applies to .table-modern (patients/consultations) and .cfg-table
+     (configuración). Each <td> should carry a data-label attribute. */
+  :is(.table-modern, .cfg-table) thead {
     display: none;
   }
 
-  .table-modern,
-  .table-modern tbody,
-  .table-modern tr,
-  .table-modern td {
+  :is(.table-modern, .cfg-table),
+  :is(.table-modern, .cfg-table) tbody,
+  :is(.table-modern, .cfg-table) tr,
+  :is(.table-modern, .cfg-table) td {
     display: block;
     width: 100%;
   }
 
-  .table-modern tr {
+  :is(.table-modern, .cfg-table) tr {
     margin-bottom: 1rem;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
@@ -1235,7 +1264,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   }
 
-  .table-modern td {
+  :is(.table-modern, .cfg-table) td {
     border-bottom: 1px solid #f1f5f9;
     padding: 0.6rem 1rem;
     text-align: left !important;
@@ -1245,11 +1274,11 @@ h1, h2, h3, h4, h5, h6 {
     overflow-wrap: anywhere;
   }
 
-  .table-modern td:last-child {
+  :is(.table-modern, .cfg-table) td:last-child {
     border-bottom: none;
   }
 
-  .table-modern td::before {
+  :is(.table-modern, .cfg-table) td::before {
     content: attr(data-label);
     display: block;
     font-size: 0.7rem;
@@ -1260,17 +1289,22 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 0.2rem;
   }
 
+  /* Cells with no label (data-label absent) don't render an empty line */
+  :is(.table-modern, .cfg-table) td:not([data-label])::before {
+    content: none;
+  }
+
   /* Action cell: hide the label and let buttons fill the width */
-  .table-modern td[data-label="Acciones"] {
+  :is(.table-modern, .cfg-table) td[data-label="Acciones"] {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .table-modern td[data-label="Acciones"]::before {
+  :is(.table-modern, .cfg-table) td[data-label="Acciones"]::before {
     display: none;
   }
 
-  .table-modern td[data-label="Acciones"] > div {
+  :is(.table-modern, .cfg-table) td[data-label="Acciones"] > div {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -1278,8 +1312,8 @@ h1, h2, h3, h4, h5, h6 {
     gap: 0.5rem;
   }
 
-  .table-modern td[data-label="Acciones"] .btn,
-  .table-modern td[data-label="Acciones"] a.btn {
+  :is(.table-modern, .cfg-table) td[data-label="Acciones"] .btn,
+  :is(.table-modern, .cfg-table) td[data-label="Acciones"] a.btn {
     width: 100%;
     justify-content: center;
   }
