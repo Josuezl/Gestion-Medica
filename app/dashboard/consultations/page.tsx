@@ -162,35 +162,35 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
 
                   return (
                     <tr key={consultation.id}>
-                      <td>
+                      <td data-label="Fecha">
                         <div style={styles.dateWrapper}>
                           <Calendar size={14} color="var(--text-muted)" />
                           <span style={styles.dateText}>{date}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Paciente">
                         <div style={styles.patientWrapper}>
                           <User size={14} color="var(--primary)" />
                           <span style={styles.patientText}>{patientName}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Motivo">
                         <span style={styles.reasonText} title={consultation.reason_for_visit}>
-                          {consultation.reason_for_visit && consultation.reason_for_visit.length > 30 
-                            ? `${consultation.reason_for_visit.substring(0, 30)}...` 
+                          {consultation.reason_for_visit && consultation.reason_for_visit.length > 30
+                            ? `${consultation.reason_for_visit.substring(0, 30)}...`
                             : (consultation.reason_for_visit || '-')}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Diagnóstico">
                         <div style={styles.diagnosisWrapper}>
                           <Activity size={14} color="var(--primary)" />
                           <span style={styles.diagnosisText}>{consultation.diagnosis}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Atendido Por">
                         <span style={styles.doctorText}>{doctorName}</span>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td data-label="Acciones" style={{ textAlign: 'right' }}>
                         {consultation.patients && (
                           <a
                             href={`/dashboard/patients/${consultation.patients.id}`}

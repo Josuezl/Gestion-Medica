@@ -709,7 +709,7 @@ export default function PatientDetailsClient({
             </div>
           </div>
 
-          <div style={styles.headerActions}>
+          <div className="action-row" style={styles.headerActions}>
             <button className="btn btn-secondary" style={{ gap: '0.4rem' }} onClick={() => setIsEditing(!isEditing)}>
               <Edit size={16} />
               {isEditing ? 'Cancelar' : 'Editar Paciente'}
@@ -1129,7 +1129,8 @@ export default function PatientDetailsClient({
                                     <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tratamiento Farmacológico ({consult.prescriptions[0].verification_code})</span>
                                   </div>
                                   
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxWidth: '720px' }}>
+                                  <div className="scroll-x">
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '480px', maxWidth: '720px' }}>
                                     {/* Cabecera de la tabla de medicamentos */}
                                     <div style={{
                                       display: 'flex',
@@ -1169,6 +1170,7 @@ export default function PatientDetailsClient({
                                         <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.duration || 'N/A'}</span>
                                       </div>
                                     ))}
+                                   </div>
                                   </div>
                                   {consult.prescriptions[0].notes && (
                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem', fontStyle: 'italic', paddingLeft: '4px' }}>
@@ -1361,10 +1363,7 @@ export default function PatientDetailsClient({
                               /* EDIT MODE */
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                                 {/* Table Header */}
-                                <div style={{
-                                  display: 'grid',
-                                  gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
-                                  gap: '0.5rem',
+                                <div className="med-edit-head" style={{
                                   padding: '0.4rem 0.6rem',
                                   fontSize: '0.7rem',
                                   fontWeight: '700',
@@ -1379,15 +1378,11 @@ export default function PatientDetailsClient({
                                   <span></span>
                                 </div>
                                 {editMedicines.map((med, idx) => (
-                                  <div key={idx} style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
-                                    gap: '0.5rem',
+                                  <div key={idx} className="med-edit-row" style={{
                                     padding: '0.35rem 0.5rem',
                                     backgroundColor: 'var(--bg-card)',
                                     borderRadius: '6px',
                                     border: '1px solid var(--border-color)',
-                                    alignItems: 'center',
                                   }}>
                                     <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.name} placeholder="Medicamento" onChange={(e) => { const n = [...editMedicines]; n[idx].name = e.target.value; setEditMedicines(n) }} />
                                     <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.dose} placeholder="Ej. 500mg" onChange={(e) => { const n = [...editMedicines]; n[idx].dose = e.target.value; setEditMedicines(n) }} />
@@ -1783,6 +1778,7 @@ const styles: Record<string, React.CSSProperties> = {
   headerActions: {
     display: 'flex',
     gap: '0.75rem',
+    flexWrap: 'wrap',
   },
   allergiesRibbon: {
     marginTop: '1.5rem',
@@ -1834,6 +1830,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '1px',
     overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
   tab: {
     display: 'flex',
@@ -1848,6 +1845,8 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     borderBottom: '2px solid transparent',
     transition: 'all var(--transition-fast)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   tabActive: {
     display: 'flex',
@@ -1857,6 +1856,8 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'transparent',
     border: 'none',
     color: 'var(--primary)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
     fontSize: '0.875rem',
     fontWeight: '700',
     cursor: 'pointer',

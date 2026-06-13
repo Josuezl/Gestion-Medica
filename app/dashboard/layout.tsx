@@ -184,7 +184,7 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '180px',
+    maxWidth: '210px',
   },
   navigation: {
     display: 'flex',
@@ -244,9 +244,7 @@ const styles: Record<string, React.CSSProperties> = {
   doctorSpecialtyText: {
     fontSize: '0.7rem',
     color: '#94a3b8',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    lineHeight: '1.3',
   },
   logoutButton: {
     display: 'flex',

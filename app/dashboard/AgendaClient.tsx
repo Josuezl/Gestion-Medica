@@ -777,7 +777,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
 
     return (
       <div className="sidebar-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease-out forwards' }}>
-        <div className="card" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards', transition: 'box-shadow 0.2s, border-color 0.2s' }}>
+        <div className="card modal-card" style={{ animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards', transition: 'box-shadow 0.2s, border-color 0.2s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h3 style={{ margin: 0 }}>{isEdit ? 'Editar Cita' : 'Nueva Cita'}</h3>
             <button onClick={() => { setShowForm(false); setFormError(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -857,7 +857,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-2col">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Fecha</label>
                 <input type="date" name="date" className="form-input" required defaultValue={defaultDate} />
@@ -868,7 +868,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="responsive-2col">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Duración</label>
                 <select name="duration_minutes" className="form-input" required defaultValue={editAppointment?.duration_minutes || 15}>
@@ -923,9 +923,9 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               <div className="filter-group">
                 <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem', display: 'block', fontWeight: 500 }}>Doctor</label>
                 <div style={{ position: 'relative' }}>
-                  <select 
-                    className="form-input" 
-                    style={{ minWidth: '200px', paddingLeft: '2.5rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                  <select
+                    className="form-input"
+                    style={{ minWidth: '160px', width: '100%', paddingLeft: '2.5rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
                   >
@@ -942,9 +942,9 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                 <div className="filter-group">
                   <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem', display: 'block', fontWeight: 500 }}>Clínica</label>
                   <div style={{ position: 'relative' }}>
-                    <select 
-                      className="form-input" 
-                      style={{ minWidth: '200px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                    <select
+                      className="form-input"
+                      style={{ minWidth: '160px', width: '100%', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
                       value={selectedLocationId}
                       onChange={(e) => setSelectedLocationId(e.target.value)}
                     >
