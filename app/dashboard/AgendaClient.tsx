@@ -611,12 +611,12 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
             }
 
             return (
-              <div key={app.id} style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                backgroundColor: '#f8fafc', 
-                borderRadius: '12px', 
-                padding: '0.75rem 1rem', 
+              <div key={app.id} className="appt-card" style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.75rem 1rem',
                 borderLeft: `4px solid ${statusColor}`,
                 boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                 borderTop: '1px solid #e2e8f0',
@@ -627,7 +627,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   <div style={{ fontWeight: 700, color: statusColor, fontSize: '1rem', whiteSpace: 'nowrap' }}>{time}</div>
                 </div>
                 
-                <div style={{ flex: 1 }}>
+                <div className="appt-info" style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
                     <span>{app.patients?.first_name?.split(' ')[0]} {app.patients?.last_name?.split(' ')[0]}</span>
                     <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem' }}>
@@ -641,7 +641,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   )}
                 </div>
                 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <StatusDropdown status={app.status} onChange={(s) => handleStatusChange(app.id, s)} />
                   
                   {app.status === 'PENDING' && (

@@ -1110,7 +1110,9 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .agenda-layout {
-    grid-template-columns: 1fr;
+    /* minmax(0,…) evita que un hijo ancho (p.ej. una tarjeta de cita)
+       expanda la columna más allá del viewport. */
+    grid-template-columns: minmax(0, 1fr);
     /* Drop the fixed desktop height so the whole agenda flows and the
        page scrolls naturally instead of clipping content on mobile. */
     height: auto;
@@ -1235,6 +1237,26 @@ h1, h2, h3, h4, h5, h6 {
   /* Reset the marginTop:auto that pushes "Estados" to the bottom on desktop */
   .agenda-sidebar > div:last-child {
     margin-top: 0 !important;
+  }
+
+  /* Tarjetas de cita: en móvil la botonera baja a su propia línea con wrap,
+     para que la tarjeta no se ensanche más que la pantalla (lo que arrastraba
+     y descuadraba el calendario al seleccionar un día con citas). */
+  .appt-card {
+    flex-wrap: wrap;
+  }
+
+  .appt-card .appt-info {
+    min-width: 0;
+    flex-basis: 0;
+  }
+
+  .appt-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 0.5rem;
+    gap: 0.5rem;
   }
 
   /* View tabs (Agenda/Día/Semana/Mes) share the full width evenly */
