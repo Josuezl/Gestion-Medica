@@ -78,6 +78,13 @@
   padding: 0;
 }
 
+html {
+  /* Evita el auto-inflado de texto de Chrome en Android, que agranda
+     tipografía y rompe layouts dependientes del tamaño (p.ej. el calendario). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--bg-main);
   color: var(--text-main);
@@ -1210,6 +1217,19 @@ h1, h2, h3, h4, h5, h6 {
   .mini-calendar {
     width: 100%;
     min-width: 0;
+  }
+
+  /* El calendario a ancho completo: las columnas deben poder encogerse
+     (minmax 0) y las celdas no ser cuadrados gigantes (sin aspect-ratio).
+     Esto evita que la grilla desborde y crezca de más en móvil. */
+  .mini-calendar-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .mini-calendar-day {
+    aspect-ratio: auto;
+    min-width: 0;
+    padding: 0.55rem 0;
   }
 
   /* Reset the marginTop:auto that pushes "Estados" to the bottom on desktop */
