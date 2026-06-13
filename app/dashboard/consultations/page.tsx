@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAssistant } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
+import { doctorShortName } from '@/utils/doctorName'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
@@ -156,9 +157,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                   const patientName = consultation.patients 
                     ? `${consultation.patients.first_name} ${consultation.patients.last_name}` 
                     : 'Paciente Desconocido'
-                  const doctorName = consultation.user_profiles
-                    ? `Dr. ${consultation.user_profiles.first_name} ${consultation.user_profiles.last_name}`
-                    : 'Médico'
+                  const doctorName = doctorShortName(consultation.user_profiles?.first_name, consultation.user_profiles?.last_name)
 
                   return (
                     <tr key={consultation.id}>

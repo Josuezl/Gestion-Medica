@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { sendPrescriptionNotification } from '@/utils/whatsapp'
 import { requireRole } from '@/utils/auth-guard'
+import { doctorShortName } from '@/utils/doctorName'
 
 export async function createConsultation(
   patientId: string,
@@ -116,7 +117,7 @@ export async function createConsultation(
           clinicName: clinic?.name || 'Consultorio Médico',
           clinicPhone: clinic?.phone || 'N/A',
           clinicAddress: clinic?.address || 'Honduras',
-          doctorName: `Dr. ${docProfile?.first_name} ${docProfile?.last_name}`,
+          doctorName: doctorShortName(docProfile?.first_name, docProfile?.last_name),
           doctorSpecialty: docProfile?.specialty || 'Medicina General',
           doctorProfessionalId: docProfile?.professional_id || 'N/A',
           patientName: `${patient?.first_name} ${patient?.last_name}`,
@@ -152,7 +153,7 @@ export async function createConsultation(
             .createSignedUrl(filePath, 86400) // 24 horas
 
           if (signedData?.signedUrl && patient?.phone) {
-            const docName = `Dr. ${docProfile?.first_name} ${docProfile?.last_name}`
+            const docName = doctorShortName(docProfile?.first_name, docProfile?.last_name)
             const patientName = `${patient.first_name} ${patient.last_name}`
             await sendPrescriptionNotification(
               patient.phone,

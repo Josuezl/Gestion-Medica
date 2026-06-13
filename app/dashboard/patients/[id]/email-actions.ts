@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
 import { canEditPrescription } from '@/utils/permissions'
+import { doctorShortName } from '@/utils/doctorName'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -35,7 +36,7 @@ export async function sendMedicalRecordByEmail(patientId: string) {
   if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado. Edita su ficha para agregarlo.' }
 
   const clinicName = profile.clinics?.name || 'Consultorio Médico'
-  const doctorName = `Dr. ${profile.first_name} ${profile.last_name}`
+  const doctorName = doctorShortName(profile.first_name, profile.last_name)
 
   // 4. Enviar correo con Resend
   const result = await sendMedicalRecordEmail(
@@ -121,7 +122,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
   }
 
   const clinicName = profile.clinics?.name || 'Consultorio Médico'
-  const doctorName = `Dr. ${profile.first_name} ${profile.last_name}`
+  const doctorName = doctorShortName(profile.first_name, profile.last_name)
   const patientName = `${patient.first_name} ${patient.last_name}`
 
   const calculateAge = (birthDateString: string) => {

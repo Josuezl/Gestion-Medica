@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react'
 import { updatePatient } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { isAssistant, canEditPrescription } from '@/utils/permissions'
+import { doctorShortName } from '@/utils/doctorName'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import { 
@@ -105,7 +106,7 @@ export default function PatientDetailsClient({
   }
   
   const handleCopyPrescription = (presc: any) => {
-    const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
     const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
     navigator.clipboard.writeText(text)
     
@@ -158,7 +159,7 @@ export default function PatientDetailsClient({
     const consultationsHtml = consultations.length === 0
       ? `<p style="color:#888;font-style:italic;">No hay consultas registradas.</p>`
       : consultations.map((c: any, index: number) => {
-          const docName = c.user_profiles ? `Dr. ${c.user_profiles.first_name} ${c.user_profiles.last_name}` : 'Médico';
+          const docName = doctorShortName(c.user_profiles?.first_name, c.user_profiles?.last_name);
           const consultDate = formatDate(c.created_at);
 
           const vitalsHtml = [
@@ -990,7 +991,7 @@ export default function PatientDetailsClient({
                       month: 'long',
                       day: 'numeric'
                     })
-                    const docName = consult.user_profiles ? `Dr. ${consult.user_profiles.first_name} ${consult.user_profiles.last_name}` : 'Médico'
+                    const docName = doctorShortName(consult.user_profiles?.first_name, consult.user_profiles?.last_name)
                     const isExpanded = !!expandedConsultations[consult.id]
                     
                     return (
@@ -1230,7 +1231,7 @@ export default function PatientDetailsClient({
                 <div style={styles.studiesList}>
                   {prescriptions.map((presc) => {
                     const date = new Date(presc.created_at).toLocaleDateString('es-HN')
-                    const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
                     const isExpanded = expandedPrescription === presc.id
                     
                     return (
@@ -1595,7 +1596,7 @@ export default function PatientDetailsClient({
               <button
                 onClick={() => {
                   const presc = whatsappModalPresc
-                  const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
                   const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
                   const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
                   window.open(whatsappUrl, '_blank', 'noreferrer')
@@ -1636,7 +1637,7 @@ export default function PatientDetailsClient({
               <button
                 onClick={() => {
                   const presc = whatsappModalPresc
-                  const docName = presc.user_profiles ? `Dr. ${presc.user_profiles.first_name} ${presc.user_profiles.last_name}` : 'Médico'
+                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
                   const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}?code=${presc.verification_code}`
                   const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
                   window.open(whatsappUrl, '_blank', 'noreferrer')

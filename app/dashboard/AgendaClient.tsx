@@ -27,6 +27,7 @@ import {
   UserPlus
 } from 'lucide-react'
 import Link from 'next/link'
+import { doctorShortName } from '@/utils/doctorName'
 
 // ============================================================================
 // TYPES
@@ -669,7 +670,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   <button 
                     onClick={() => {
                       const doctor = doctors.find(d => d.id === app.doctor_id)
-                      const docName = doctor ? `Dr. ${doctor.first_name} ${doctor.last_name}` : 'Médico'
+                      const docName = doctorShortName(doctor?.first_name, doctor?.last_name)
                       const dateStr = new Date(app.scheduled_at).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long' })
                       const text = `Hola ${app.patients?.first_name || ''} ${app.patients?.last_name || ''}, te recordamos tu cita programada:\n\n📅 Fecha: ${dateStr}\n⏰ Hora: ${time}\n🩺 Médico: ${docName}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
                       const patientPhoneClean = app.patients?.phone ? app.patients.phone.replace(/\D/g, '') : ''
@@ -840,7 +841,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               <label className="form-label">Doctor *</label>
               <select name="doctor_id" className="form-input" required defaultValue={editAppointment?.doctor_id || (selectedDoctorId !== 'all' ? selectedDoctorId : currentDoctor.id)}>
                 {doctors.map(d => (
-                  <option key={d.id} value={d.id}>Dr. {d.first_name} {d.last_name}</option>
+                  <option key={d.id} value={d.id}>{doctorShortName(d.first_name, d.last_name)}</option>
                 ))}
               </select>
             </div>
@@ -931,7 +932,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   >
                     {currentDoctor.role === 'ASSISTANT' && <option value="all">Todos los doctores</option>}
                     {doctors.map(d => (
-                      <option key={d.id} value={d.id}>Dr. {d.first_name} {d.last_name}</option>
+                      <option key={d.id} value={d.id}>{doctorShortName(d.first_name, d.last_name)}</option>
                     ))}
                   </select>
                   <Stethoscope size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import CodeForm from './CodeForm'
 import PatientControlBar from './PatientControlBar'
+import { doctorShortName } from '@/utils/doctorName'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -168,7 +169,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
     hour12: true
   })
 
-  const docName = `Dr. ${doctor.first_name} ${doctor.last_name}`
+  const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const docProfessionalId = doctor.professional_id || 'N/A'
 

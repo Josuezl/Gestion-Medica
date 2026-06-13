@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendAppointmentReminder } from '@/utils/whatsapp'
+import { personShortName } from '@/utils/doctorName'
 
 export async function GET(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
             hour12: true
           })
 
-          const docName = doctor ? `Dr. ${doctor.first_name} ${doctor.last_name}` : 'tu consultorio'
+          const docName = doctor ? `Dr. ${personShortName(doctor.first_name, doctor.last_name)}` : 'tu consultorio'
           const patientName = `${patient.first_name} ${patient.last_name}`
           
           await sendAppointmentReminder(patient.phone, patientName, docName, formattedDate)
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest) {
             hour12: true
           })}`
 
-          const docName = doctor ? `Dr. ${doctor.first_name} ${doctor.last_name}` : 'tu consultorio'
+          const docName = doctor ? `Dr. ${personShortName(doctor.first_name, doctor.last_name)}` : 'tu consultorio'
           const patientName = `${patient.first_name} ${patient.last_name}`
           
           await sendAppointmentReminder(patient.phone, patientName, docName, formattedDate)

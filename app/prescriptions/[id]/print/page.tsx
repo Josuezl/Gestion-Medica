@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
+import { doctorShortName } from '@/utils/doctorName'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -64,7 +65,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   const formattedDate = new Date(prescription.created_at).toLocaleDateString('es-HN', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
   })
-  const docName = `Dr. ${doctor.first_name} ${doctor.last_name}`
+  const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const docProfessionalId = doctor.professional_id || 'N/A'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')

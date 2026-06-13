@@ -2,6 +2,7 @@ import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { logout } from '../auth/actions'
+import { personShortName, firstWord } from '@/utils/doctorName'
 import { 
   LayoutDashboard, 
   Users, 
@@ -60,7 +61,7 @@ export default async function DashboardLayout({
     .single()
 
   const clinicName = (profile?.clinics as any)?.name || 'Mi Consultorio'
-  const doctorName = profile ? `${profile.first_name} ${profile.last_name}` : 'Médico'
+  const doctorName = profile ? personShortName(profile.first_name, profile.last_name) : 'Médico'
   const specialty = profile?.specialty || 'General'
 
   // Derived UI Role
