@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# respaldos Access con datos de pacientes (nunca commitear)
+/Migracion*
+
+# dependencias del script de migración
+scripts/migracion-access/node_modules/
