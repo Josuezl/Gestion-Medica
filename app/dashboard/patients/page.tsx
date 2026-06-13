@@ -54,7 +54,12 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
-    dbQuery = dbQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,id_card.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+    // Dividir la búsqueda en palabras para soportar nombre completo
+    // Ej: "Juan Carlos Vaquedano" → busca cada palabra en todos los campos (AND entre palabras, OR entre campos)
+    const words = searchQuery.trim().split(/\s+/).filter(Boolean)
+    words.forEach(word => {
+      dbQuery = dbQuery.or(`first_name.ilike.%${word}%,last_name.ilike.%${word}%,id_card.ilike.%${word}%,phone.ilike.%${word}%`)
+    })
   }
 
   const { data: patients, count, error } = await dbQuery
