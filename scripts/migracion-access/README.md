@@ -47,3 +47,33 @@ está en `.gitignore` porque contiene datos de pacientes).
   `Imagenes` se descartan.
 
 El script solo imprime conteos y estadísticas agregadas — nunca datos de pacientes.
+
+## Segunda clínica de Manuel — CNA (`migrate-cna.mjs`)
+
+Manuel atendía además en una segunda clínica, **CNA**, cuya base llegó en
+`Migracion /BD Manuel 2/Consulta/CONSULV4.MDB`. Sus pacientes y consultas se
+incorporan al **mismo tenant** de Manuel, **deduplicando** contra lo ya migrado.
+
+**Ejecutada el 2026-06-13 con éxito:** 520 pacientes de CNA (32 ya existían y se
+reutilizaron, 488 nuevos) y 924 consultas. Tenant: 4,525 pacientes y 8,491
+consultas en total. Verificación completa en verde e idempotente.
+
+```bash
+node migrate-cna.mjs            # dry-run
+node migrate-cna.mjs --execute  # migra (idempotente)
+node verify-cna.mjs             # verificación
+```
+
+Diferencias respecto a `migrate.mjs`:
+
+- **Deduplicación nombre + fecha de nacimiento:** antes de crear un paciente se
+  busca en el tenant uno con el mismo nombre normalizado (sin acentos, minúsculas)
+  **y** la misma `birth_date`. Si coincide, las consultas de CNA se asocian a ese
+  expediente existente (no se crea paciente ni se modifica). El teléfono no se usa
+  para deduplicar porque está vacío en el 99.8% de CNA. Los casos de nombre igual
+  pero fecha distinta se tratan como pacientes nuevos (evita fusiones erróneas).
+- **Motivo de consulta:** `reason_for_visit = "Migrados de CNA"`.
+- **IDs determinísticos** con prefijo `cna:` (`cna:pac:<IDPac>`, `cna:his:<IDHistoria>`)
+  sobre el mismo namespace. Para garantizar idempotencia, los pacientes ya creados
+  por CNA se excluyen del índice de deduplicación al re-ejecutar.
+- Las consultas se fijan a `doctor_id` = Manuel. El resto del mapeo es idéntico.
