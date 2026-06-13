@@ -77,3 +77,31 @@ Diferencias respecto a `migrate.mjs`:
   sobre el mismo namespace. Para garantizar idempotencia, los pacientes ya creados
   por CNA se excluyen del índice de deduplicación al re-ejecutar.
 - Las consultas se fijan a `doctor_id` = Manuel. El resto del mapeo es idéntico.
+
+## Fusión de pacientes duplicados (`merge-patients.mjs`)
+
+Herramienta de limpieza para unir dos expedientes que son la misma persona pero
+quedaron separados (la deduplicación automática no los detecta cuando el nombre
+difiere, p. ej. un apellido de más). Reasigna todas las consultas/recetas/estudios/
+citas del duplicado al principal, completa los campos vacíos del principal y borra
+el duplicado.
+
+```bash
+# El PRIMER id es el que se conserva; el SEGUNDO el que se elimina.
+# Acepta id completo o el id corto que muestra la app (ej. 167dd143).
+node merge-patients.mjs <idConservar> <idEliminar>            # dry-run
+node merge-patients.mjs <idConservar> <idEliminar> --execute  # fusiona
+```
+
+- **Validaciones:** ambos pacientes existen, son distintos y del **mismo tenant**
+  (no fusiona entre clínicas). Antes de borrar, reconfirma que el duplicado quedó
+  sin registros hijos.
+- **Enriquecimiento:** rellena solo los campos vacíos del principal con los del
+  duplicado (dirección, sexo, identidad, etc.) y fija `created_at` a la fecha más
+  antigua de ambos. No concatena textos.
+- **Idempotente:** si el id a eliminar ya no existe, no hace nada.
+- Los archivos en Storage no se mueven (la RLS valida por `clinic_id`, no por
+  `patient_id`, así que siguen accesibles).
+
+Ejemplo ejecutado el 2026-06-13: se unió "Juan Carlos Vaquedano" en "Juan Carlos
+Vaquedano Flores" (15 consultas en un solo expediente).
