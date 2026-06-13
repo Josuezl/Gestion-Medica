@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { isAssistant } from '@/utils/permissions'
+import Pagination from '@/app/dashboard/components/Pagination'
 import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
 
 // Calcular edad
@@ -213,20 +214,12 @@ export default async function PatientsPage({ searchParams }: PageProps) {
               </tbody>
             </table>
             
-            {totalPages > 1 && (
-              <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <a
-                    key={page}
-                    href={`/dashboard/patients?page=${page}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-                    className={`btn ${currentPage === page ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '0.5rem 1rem', minWidth: '40px' }}
-                  >
-                    {page}
-                  </a>
-                ))}
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              basePath="/dashboard/patients"
+              searchQuery={searchQuery}
+            />
           </div>
         )}
       </div>
