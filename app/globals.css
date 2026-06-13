@@ -1101,11 +1101,26 @@ h1, h2, h3, h4, h5, h6 {
   .responsive-split-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .agenda-layout {
     grid-template-columns: 1fr;
+    /* Drop the fixed desktop height so the whole agenda flows and the
+       page scrolls naturally instead of clipping content on mobile. */
+    height: auto;
+    overflow: visible;
   }
-  
+
+  .agenda-main {
+    overflow: visible;
+  }
+
+  /* Day/Week grids expand with their content instead of scrolling inside
+     a fixed-height box (which had no height on mobile and clipped). */
+  .time-grid {
+    overflow-y: visible;
+    min-height: 60vh;
+  }
+
   .agenda-sidebar {
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
@@ -1114,7 +1129,7 @@ h1, h2, h3, h4, h5, h6 {
     gap: 1rem;
     padding: 1rem;
   }
-  
+
   .mini-calendar {
     flex: 1;
     min-width: 200px;
