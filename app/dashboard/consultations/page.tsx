@@ -40,8 +40,8 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
 
   const clinicId = profile?.clinic_id
 
-  // 2. Cargar consultas con joins a patients y user_profiles
-  const { data: consultations, error } = await supabase
+  // 2. Construir query de consultas con filtrado en el servidor
+  let dbQuery = supabase
     .from('consultations')
     .select(`
       id,
@@ -57,30 +57,45 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
         first_name,
         last_name
       )
-    `)
+    `, { count: 'exact' })
     .eq('clinic_id', clinicId || '')
-    .order('created_at', { ascending: false })
 
-  // 3. Filtrar en memoria por búsqueda si existe (para buscar por paciente, diagnóstico o motivo)
-  let filteredConsultations = consultations || []
   if (searchQuery) {
-    const query = searchQuery.toLowerCase()
-    filteredConsultations = (consultations || []).filter((c: any) => {
-      const patientName = c.patients ? `${c.patients.first_name} ${c.patients.last_name}`.toLowerCase() : ''
-      const doctorName = c.user_profiles ? `${c.user_profiles.first_name} ${c.user_profiles.last_name}`.toLowerCase() : ''
-      const diagnosis = c.diagnosis ? c.diagnosis.toLowerCase() : ''
-      const reason = c.reason_for_visit ? c.reason_for_visit.toLowerCase() : ''
-      return (
-        patientName.includes(query) ||
-        doctorName.includes(query) ||
-        diagnosis.includes(query) ||
-        reason.includes(query)
+    const words = searchQuery.trim().split(/\s+/).filter(Boolean)
+
+    // Paso 1: buscar patient_ids que coincidan con el nombre (igual que la página de Pacientes)
+    let patientQuery = supabase
+      .from('patients')
+      .select('id')
+      .eq('clinic_id', clinicId || '')
+    words.forEach(word => {
+      patientQuery = patientQuery.or(
+        `first_name.ilike.%${word}%,last_name.ilike.%${word}%`
       )
     })
+    const { data: matchingPatients } = await patientQuery.limit(200)
+    const patientIds = (matchingPatients || []).map((p: any) => p.id)
+
+    // Paso 2: filtrar consultas — por patient_id O por diagnóstico/motivo
+    if (patientIds.length > 0) {
+      dbQuery = dbQuery.or(
+        `patient_id.in.(${patientIds.join(',')}),diagnosis.ilike.%${searchQuery}%,reason_for_visit.ilike.%${searchQuery}%`
+      )
+    } else {
+      // No hubo coincidencias de paciente — buscar solo en diagnóstico/motivo
+      dbQuery = dbQuery.or(
+        `diagnosis.ilike.%${searchQuery}%,reason_for_visit.ilike.%${searchQuery}%`
+      )
+    }
   }
 
-  const totalPages = Math.ceil(filteredConsultations.length / PAGE_SIZE) || 1
-  const paginatedConsultations = filteredConsultations.slice(from, to + 1)
+  // Paginación en el servidor — solo trae la página actual, no todo el historial
+  const { data: consultations, count, error } = await dbQuery
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1
+  const paginatedConsultations = consultations || []
 
   return (
     <div style={styles.container}>
