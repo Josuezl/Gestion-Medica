@@ -220,7 +220,7 @@ export default function NewConsultationClient({
           }}>
             {patientAge} años
           </span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>• Registro de evolución y receta</span>
+
         </div>
       </div>
 
