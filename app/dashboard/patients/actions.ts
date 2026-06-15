@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
+import { isPediatric } from '@/utils/age'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -52,7 +53,7 @@ export async function createPatient(formData: FormData) {
     family_history: formData.get('family_history') as string || null,
     pathological_history: formData.get('pathological_history') as string || null,
     non_pathological_history: formData.get('non_pathological_history') as string || null,
-    is_pediatric: formData.get('is_pediatric') === 'true',
+    is_pediatric: isPediatric(formData.get('birth_date') as string),
     father_name: formData.get('father_name') as string || null,
     mother_name: formData.get('mother_name') as string || null,
   }
@@ -91,7 +92,7 @@ export async function updatePatient(id: string, formData: FormData) {
     family_history: formData.get('family_history') as string || null,
     pathological_history: formData.get('pathological_history') as string || null,
     non_pathological_history: formData.get('non_pathological_history') as string || null,
-    is_pediatric: formData.get('is_pediatric') === 'true',
+    is_pediatric: isPediatric(formData.get('birth_date') as string),
     father_name: formData.get('father_name') as string || null,
     mother_name: formData.get('mother_name') as string || null,
   }

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { createPatient } from '../actions'
+import { isPediatric as isPediatricAge } from '@/utils/age'
 import { 
   User, 
   Phone, 
@@ -19,21 +20,11 @@ import {
 export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  // Se detecta automáticamente por la fecha de nacimiento (menor de 18 años).
+  // Se detecta automáticamente por la fecha de nacimiento (menor de 19 años).
   const [isPediatric, setIsPediatric] = useState(false)
 
   function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value
-    if (!value) {
-      setIsPediatric(false)
-      return
-    }
-    const today = new Date()
-    const birth = new Date(value)
-    let age = today.getFullYear() - birth.getFullYear()
-    const m = today.getMonth() - birth.getMonth()
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-    setIsPediatric(age >= 0 && age < 18)
+    setIsPediatric(isPediatricAge(e.target.value))
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -157,8 +148,8 @@ export default function NewPatientPage() {
                   <option value="AB-">AB Rh Negativo (AB-)</option>
                 </select>
               </div>
-              {/* El sistema marca pediátrico automáticamente según la fecha de nacimiento */}
-              <input type="hidden" name="is_pediatric" value={isPediatric ? 'true' : 'false'} />
+              {/* El servidor deriva is_pediatric de la fecha de nacimiento (menor de 19 años);
+                  este estado solo controla la vista de los campos de padres. */}
 
               {isPediatric && (
                 <>
