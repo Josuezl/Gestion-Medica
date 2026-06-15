@@ -59,7 +59,6 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   })
   const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const docProfessionalId = doctor.professional_id || 'N/A'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   const c: any = consultation
@@ -171,7 +170,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
             <p className="clinic-detail">Tel: {clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{clinic.address || 'Honduras'}</p>
             <div className="doc-block">
               <h2 className="doctor-name">{docName}</h2>
-              <p className="doctor-specialty">{docSpecialty}&nbsp;&nbsp;•&nbsp;&nbsp;Col. Médico: {docProfessionalId}</p>
+              <p className="doctor-specialty">{docSpecialty}</p>
             </div>
           </div>
 
@@ -243,7 +242,6 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
               <div className="sign-line">
                 <p className="sign-name">{docName}</p>
                 <p className="sign-spec">{docSpecialty}</p>
-                <p className="sign-id">Col. Médico: {docProfessionalId}</p>
               </div>
             </div>
           </div>

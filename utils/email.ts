@@ -243,7 +243,6 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
   const clinicAddress = escapeHtml(data.clinicAddress) || 'Honduras'
   const doctorName = escapeHtml(data.doctorName)
   const doctorSpecialty = escapeHtml(data.doctorSpecialty) || 'Medicina General'
-  const doctorProfessionalId = escapeHtml(data.doctorProfessionalId) || 'N/A'
   const patientName = escapeHtml(data.patientName)
   const patientDni = escapeHtml(data.patientDni) || 'N/A'
   const patientAge = data.patientAge
@@ -284,7 +283,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
                   <h1 style="margin:0; font-size:24px; font-weight:800; color:#0f172a; letter-spacing:-0.01em;">${clinicName}</h1>
                   <p style="margin:4px 0 0; font-size:12px; color:#64748b;">Tel: ${clinicPhone} &nbsp;&bull;&nbsp; ${clinicAddress}</p>
                   <p style="margin:10px 0 0; font-size:16px; font-weight:700; color:#0f172a;">${doctorName}</p>
-                  <p style="margin:2px 0 0; font-size:12px; font-weight:600; color:#0d9488;">${doctorSpecialty} &nbsp;&bull;&nbsp; Col. Médico: ${doctorProfessionalId}</p>
+                  <p style="margin:2px 0 0; font-size:12px; font-weight:600; color:#0d9488;">${doctorSpecialty}</p>
                 </td>
               </tr>
 
@@ -371,7 +370,6 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
                   <div style="display:inline-block; border-top:1px solid #334155; padding-top:4px; min-width:220px;">
                     <p style="margin:0; font-size:13px; font-weight:700; color:#0f172a;">${doctorName}</p>
                     <p style="margin:1px 0 0; font-size:10px; color:#475569;">${doctorSpecialty}</p>
-                    <p style="margin:1px 0 0; font-size:9px; color:#64748b;">Col. Médico: ${doctorProfessionalId}</p>
                   </div>
                 </td>
               </tr>

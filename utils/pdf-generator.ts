@@ -50,10 +50,6 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
   doc.setTextColor(13, 148, 136)
   doc.text(data.doctorSpecialty, 195, 29.5, { align: 'right' })
   
-  doc.setFontSize(8.5)
-  doc.setTextColor(100, 116, 139)
-  doc.text(`Col. Médico: ${data.doctorProfessionalId || 'N/A'}`, 195, 34, { align: 'right' })
-
   // 4. Divisor superior
   doc.setDrawColor(226, 232, 240)
   doc.line(15, 40, 195, 40)
