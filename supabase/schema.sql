@@ -58,6 +58,7 @@ CREATE TABLE consultations (
     temperature NUMERIC(4,1), -- Ej. 37.5
     weight NUMERIC(5,2), -- Ej. 75.50 kg
     heart_rate INTEGER, -- bpm
+    oxygen_saturation INTEGER, -- SpO2 (%)
     physical_exam TEXT,
     diagnosis TEXT NOT NULL,
     treatment_plan TEXT NOT NULL,
