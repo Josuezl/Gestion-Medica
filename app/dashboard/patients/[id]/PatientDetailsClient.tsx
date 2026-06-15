@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { updatePatient } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { isAssistant, canEditPrescription } from '@/utils/permissions'
@@ -132,6 +133,7 @@ export default function PatientDetailsClient({
   const [isEditPediatric, setIsEditPediatric] = useState(isPediatric(patient.birth_date))
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
+  const router = useRouter()
 
 
   // Manejar edición de ficha
@@ -146,6 +148,7 @@ export default function PatientDetailsClient({
         setEditError(result.error)
       } else {
         setIsEditing(false)
+        router.refresh()
       }
     })
   }
@@ -838,7 +841,7 @@ export default function PatientDetailsClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Género</label>
-                <select className="form-input" name="gender" defaultValue={patient.gender || ''}>
+                <select className="form-input" name="gender" defaultValue={patient.gender || 'O'}>
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
                   <option value="O">Otro</option>
