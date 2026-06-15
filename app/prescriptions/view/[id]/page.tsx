@@ -171,7 +171,6 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
 
   const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const docProfessionalId = doctor.professional_id || 'N/A'
 
   // Formatear sexo en español
   const getGenderText = (g: string) => {
@@ -603,7 +602,6 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
                   <h2 className="doctor-name">{docName}</h2>
                   <p className="doctor-specialty">{docSpecialty}</p>
-                  <p className="doctor-detail">Col. Médico: {docProfessionalId}</p>
                   {doctor.phone && <p className="doctor-detail">Contacto: {doctor.phone}</p>}
                 </td>
               </tr>
@@ -730,7 +728,6 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 <div className="signature-line">
                   <p className="sig-doc-name">{docName}</p>
                   <p className="sig-doc-spec">{docSpecialty}</p>
-                  <p className="sig-doc-id">Col. Médico: {docProfessionalId}</p>
                   <p style={{ fontSize: '9px', color: '#94a3b8', margin: '3px 0 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Firma Digital / Sello Electrónico</p>
                 </div>
               </>
@@ -743,7 +740,6 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 <div className="signature-line">
                   <p className="sig-doc-name">{docName}</p>
                   <p className="sig-doc-spec">{docSpecialty}</p>
-                  <p className="sig-doc-id">Col. Médico: {docProfessionalId}</p>
                   <p style={{ fontSize: '9px', color: '#94a3b8', margin: '3px 0 0 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Firma Autorizada</p>
                 </div>
               </>

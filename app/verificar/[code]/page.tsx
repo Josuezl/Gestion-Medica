@@ -33,8 +33,7 @@ export default async function VerifyPrescriptionPage({ params }: { params: Promi
       user_profiles!doctor_id (
         first_name,
         last_name,
-        specialty,
-        professional_id
+        specialty
       )
     `)
     .eq('verification_code', code)
@@ -86,7 +85,6 @@ export default async function VerifyPrescriptionPage({ params }: { params: Promi
                   </h3>
                   <p style={{ margin: '0', fontWeight: 500, color: '#0f172a' }}>Dr/a. {(prescription.user_profiles as any).first_name} {(prescription.user_profiles as any).last_name}</p>
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>{(prescription.user_profiles as any).specialty || 'Medicina General'}</p>
-                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>Colegiación: {(prescription.user_profiles as any).professional_id || 'N/A'}</p>
                 </div>
               </div>
 
