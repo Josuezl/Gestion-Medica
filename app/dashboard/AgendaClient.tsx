@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { createAppointment, updateAppointmentStatus, updateAppointment } from './actions'
+import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -182,6 +183,25 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const [patientSearch, setPatientSearch] = useState('')
   const [selectedPatientId, setSelectedPatientId] = useState('')
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false)
+  const [patientSearchResults, setPatientSearchResults] = useState<typeof patients>([])
+  const [isSearchingPatients, setIsSearchingPatients] = useState(false)
+
+  // Búsqueda dinámica con debounce: llama al servidor en vez de filtrar en memoria.
+  // Funciona con cualquier cantidad de pacientes (no hay límite de carga inicial).
+  useEffect(() => {
+    const q = patientSearch.trim()
+    if (q.length < 2) {
+      setPatientSearchResults([])
+      return
+    }
+    setIsSearchingPatients(true)
+    const timer = setTimeout(async () => {
+      const results = await searchPatientsForAgenda(q)
+      setPatientSearchResults(results as typeof patients)
+      setIsSearchingPatients(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [patientSearch])
   
   // --- Derived Data ---
   const filteredAppointments = useMemo(() => {
@@ -818,7 +838,10 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                 />
                 {isPatientDropdownOpen && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, maxHeight: '250px', overflowY: 'auto', marginTop: '4px', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-                    {patients.filter(p => `${p.first_name} ${p.last_name} ${p.phone}`.toLowerCase().includes(patientSearch.toLowerCase())).slice(0, 50).map(p => (
+                    {isSearchingPatients && (
+                      <div style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>Buscando...</div>
+                    )}
+                    {!isSearchingPatients && patientSearchResults.map(p => (
                       <div 
                         key={p.id} 
                         style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '8px', backgroundColor: selectedPatientId === p.id ? 'rgba(45, 212, 191, 0.1)' : 'transparent', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
@@ -830,11 +853,14 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                         }}
                       >
                         <div style={{ fontWeight: 600, color: '#1e293b' }}>{p.first_name} {p.last_name}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{p.phone}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{p.phone || 'Sin teléfono'}</div>
                       </div>
                     ))}
-                    {patients.filter(p => `${p.first_name} ${p.last_name} ${p.phone}`.toLowerCase().includes(patientSearch.toLowerCase())).length === 0 && (
+                    {!isSearchingPatients && patientSearch.trim().length >= 2 && patientSearchResults.length === 0 && (
                       <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>No se encontraron pacientes.</div>
+                    )}
+                    {!isSearchingPatients && patientSearch.trim().length < 2 && (
+                      <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>Escribe al menos 2 caracteres para buscar.</div>
                     )}
                   </div>
                 )}

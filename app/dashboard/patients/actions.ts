@@ -252,3 +252,47 @@ export async function deleteMedicalStudy(studyId: string) {
   revalidatePath(`/dashboard/patients/${study.patient_id}`)
   return { success: true }
 }
+
+/**
+ * Búsqueda dinámica de pacientes para el selector de citas (agenda).
+ * Igual que la búsqueda de la página de Pacientes: divide la query en palabras
+ * y exige que cada palabra aparezca en alguno de los campos (AND entre palabras,
+ * OR entre campos). Esto permite buscar "Juan Carlos Vaquedano" aunque el nombre
+ * y el apellido estén en columnas separadas.
+ * Devuelve máximo 30 resultados para el dropdown.
+ */
+export async function searchPatientsForAgenda(query: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.clinic_id) return []
+
+  const words = query.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return []
+
+  let dbQuery = supabase
+    .from('patients')
+    .select('id, first_name, last_name, phone, birth_date, gender, id_card')
+    .eq('clinic_id', profile.clinic_id)
+
+  // Por cada palabra, al menos uno de los campos debe contenerla
+  words.forEach(word => {
+    dbQuery = dbQuery.or(
+      `first_name.ilike.%${word}%,last_name.ilike.%${word}%,phone.ilike.%${word}%,id_card.ilike.%${word}%`
+    )
+  })
+
+  const { data } = await dbQuery
+    .order('last_name', { ascending: true })
+    .limit(30)
+
+  return data || []
+}
