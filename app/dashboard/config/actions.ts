@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { provisionUserAccount } from '@/utils/provisioning'
+import { effectiveLimit } from '@/utils/clinicLimits'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -29,11 +30,17 @@ export async function sendInvitation(formData: FormData) {
 
   const supabase = await createClient()
 
-  // Verificar topes del plan ANTES de crear la cuenta.
+  // Verificar topes ANTES de crear la cuenta. Tope efectivo = override por-clínica o plan.
   const { data: planData } = await supabase
     .from('plans')
     .select('*')
     .eq('code', ctx.planCode)
+    .single()
+
+  const { data: clinicRow } = await supabase
+    .from('clinics')
+    .select('max_doctors_override, max_assistants_override')
+    .eq('id', ctx.clinicId)
     .single()
 
   if (planData) {
@@ -43,10 +50,12 @@ export async function sendInvitation(formData: FormData) {
       .eq('clinic_id', ctx.clinicId)
       .eq('role', role)
 
-    const maxAllowed = role === 'DOCTOR' ? planData.max_doctors : planData.max_assistants
+    const maxAllowed = role === 'DOCTOR'
+      ? effectiveLimit(clinicRow?.max_doctors_override, planData.max_doctors)
+      : effectiveLimit(clinicRow?.max_assistants_override, planData.max_assistants)
 
-    if (currentUsers !== null && currentUsers >= maxAllowed) {
-      return { error: `Has alcanzado el límite de ${maxAllowed} usuarios con rol ${role} para tu plan ${planData.name}.` }
+    if (maxAllowed !== null && currentUsers !== null && currentUsers >= maxAllowed) {
+      return { error: `Has alcanzado el límite de ${maxAllowed} usuarios con rol ${role} para este tenant.` }
     }
   }
 

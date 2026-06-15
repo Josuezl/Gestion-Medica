@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { effectiveLimit } from '@/utils/clinicLimits'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -135,10 +136,10 @@ export async function checkStudyQuota(fileSize: number) {
 
   const { data: clinicPlan } = await supabase
     .from('clinics')
-    .select('plans(max_storage_mb)')
+    .select('max_storage_mb_override, plans(max_storage_mb)')
     .eq('id', profile.clinic_id)
     .single()
-  const maxStorageMb = (clinicPlan?.plans as any)?.max_storage_mb ?? 1024
+  const maxStorageMb = effectiveLimit((clinicPlan as any)?.max_storage_mb_override, (clinicPlan?.plans as any)?.max_storage_mb) ?? 1024
   const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
   if ((usedBytes ?? 0) + fileSize > maxStorageMb * 1024 * 1024) {
     return { error: 'Límite de almacenamiento del plan alcanzado. Contacta para ampliar tu plan.' }
@@ -174,10 +175,10 @@ export async function recordMedicalStudy(patientId: string, name: string, filePa
   // Cuota autoritativa: el archivo ya está subido y contado; si excede, lo borramos.
   const { data: clinicPlan } = await supabase
     .from('clinics')
-    .select('plans(max_storage_mb)')
+    .select('max_storage_mb_override, plans(max_storage_mb)')
     .eq('id', profile.clinic_id)
     .single()
-  const maxStorageMb = (clinicPlan?.plans as any)?.max_storage_mb ?? 1024
+  const maxStorageMb = effectiveLimit((clinicPlan as any)?.max_storage_mb_override, (clinicPlan?.plans as any)?.max_storage_mb) ?? 1024
   const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
   if ((usedBytes ?? 0) > maxStorageMb * 1024 * 1024) {
     await supabase.storage.from('medical-studies').remove([filePath])

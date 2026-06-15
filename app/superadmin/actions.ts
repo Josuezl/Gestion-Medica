@@ -156,6 +156,62 @@ export async function setClinicPlan(clinicId: string, planCode: string) {
   return { success: true }
 }
 
+export interface ClinicLimitsInput {
+  maxDoctors: number | null
+  maxAssistants: number | null
+  maxLocations: number | null
+  maxStorageMb: number | null
+}
+
+/**
+ * Fija los topes por-tenant (override de los del plan). Solo platform admin.
+ * `null` en cualquier campo = limpiar el override (el tenant vuelve a heredar el plan).
+ * Mismo patrón seguro que setClinicPlan: service_role (pasa guard_clinic_changes) + auditoría.
+ */
+export async function setClinicLimits(clinicId: string, limits: ClinicLimitsInput) {
+  let actorUserId: string
+  try {
+    actorUserId = await assertPlatformAdmin()
+  } catch {
+    return { error: 'No autorizado.' }
+  }
+
+  if (!clinicId) return { error: 'Falta la clínica.' }
+
+  // Normaliza: null = heredar; si viene número debe ser entero ≥ 1.
+  const normalize = (v: number | null, label: string): number | null | { error: string } => {
+    if (v == null) return null
+    if (!Number.isInteger(v) || v < 1) return { error: `${label} debe ser un entero ≥ 1 (o vacío para heredar el plan).` }
+    return v
+  }
+
+  const fields: Array<[keyof ClinicLimitsInput, string, string]> = [
+    ['maxDoctors', 'max_doctors_override', 'Médicos'],
+    ['maxAssistants', 'max_assistants_override', 'Asistentes'],
+    ['maxLocations', 'max_locations_override', 'Clínicas'],
+    ['maxStorageMb', 'max_storage_mb_override', 'Almacenamiento'],
+  ]
+
+  const update: Record<string, number | null> = {}
+  for (const [key, column, label] of fields) {
+    const result = normalize(limits[key], label)
+    if (result !== null && typeof result === 'object') return { error: result.error }
+    update[column] = result
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from('clinics').update(update).eq('id', clinicId)
+  if (error) return { error: `No se pudieron guardar los límites: ${error.message}` }
+
+  await logPlatformEvent(actorUserId, 'SET_CLINIC_LIMITS', {
+    targetClinicId: clinicId,
+    metadata: update,
+  })
+
+  revalidatePath('/superadmin')
+  return { success: true }
+}
+
 /**
  * Reenvía el enlace de activación al dueño de una clínica que aún no fijó su contraseña.
  */

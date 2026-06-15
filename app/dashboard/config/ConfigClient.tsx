@@ -14,6 +14,7 @@ interface ConfigClientProps {
   maxAssistants: number
   planCode: string
   canManageLocations: boolean
+  canInviteDoctors: boolean
   maxLocations: number
   storageUsedBytes: number
   maxStorageMb: number
@@ -29,6 +30,7 @@ export default function ConfigClient({
   maxAssistants,
   planCode,
   canManageLocations,
+  canInviteDoctors,
   maxLocations,
   storageUsedBytes,
   maxStorageMb
@@ -61,8 +63,9 @@ export default function ConfigClient({
   const doctorUsagePercentage = Math.min((doctorCount / maxDoctors) * 100, 100)
   const assistantUsagePercentage = Math.min((assistantCount / maxAssistants) * 100, 100)
   
-  // Disable invite button if both limits are reached (or depending on plan restrictions)
-  const limitReached = planCode === 'SOLO_MEDICO' ? assistantLimitReached : (doctorLimitReached && assistantLimitReached)
+  // Disable invite button if both limits are reached. Si el tenant no puede invitar
+  // médicos (solo asistentes), basta con que se llene el cupo de asistentes.
+  const limitReached = canInviteDoctors ? (doctorLimitReached && assistantLimitReached) : assistantLimitReached
 
   async function handleInvite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -251,14 +254,14 @@ export default function ConfigClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Rol</label>
-                <select name="role" className="form-input" required defaultValue={planCode === 'HOSPITAL' ? 'DOCTOR' : 'ASSISTANT'}>
-                  {planCode === 'HOSPITAL' && (
+                <select name="role" className="form-input" required defaultValue={canInviteDoctors ? 'DOCTOR' : 'ASSISTANT'}>
+                  {canInviteDoctors && (
                     <option value="DOCTOR">Médico Especialista</option>
                   )}
                   <option value="ASSISTANT">Asistente/Secretaria</option>
                 </select>
               </div>
-              {planCode === 'HOSPITAL' && (
+              {canInviteDoctors && (
                 <div className="form-group">
                   <label className="form-label">Especialidad (opcional)</label>
                   <input type="text" name="specialty" className="form-input" placeholder="Ej. Pediatría" />
