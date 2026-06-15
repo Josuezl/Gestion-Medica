@@ -240,7 +240,7 @@ export default function NewConsultationClient({
               <div style={styles.vitalsGrid}>
                 <div className="form-group">
                   <label className="form-label">Presión Arterial</label>
-                  <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80 mmHg" />
+                  <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Temperatura (°C)</label>
