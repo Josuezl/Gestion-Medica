@@ -1,11 +1,21 @@
 'use client'
 
 import React, { useState } from 'react'
-import { provisionTenant, setClinicPlan, resendOwnerInvite, provisionTenantWithTeam, type TeamMemberInput } from './actions'
+import { provisionTenant, setClinicPlan, setClinicLimits, resendOwnerInvite, provisionTenantWithTeam, type TeamMemberInput, type ClinicLimitsInput } from './actions'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Loader2, Send, CheckCircle, AlertCircle, Users, Plus, Trash2 } from 'lucide-react'
+import { UserPlus, Loader2, Send, CheckCircle, AlertCircle, Users, Plus, Trash2, SlidersHorizontal } from 'lucide-react'
 
 interface Plan { code: string; name: string }
+interface LimitSet {
+  maxDoctors: number | null
+  maxAssistants: number | null
+  maxLocations: number | null
+  maxStorageMb: number | null
+}
+export interface TenantLimits {
+  plan: LimitSet
+  override: LimitSet
+}
 interface Tenant {
   clinic_id: string
   clinic_name: string
@@ -25,12 +35,55 @@ interface Summary {
 }
 
 export default function SuperAdminClient({
-  summary, tenants, plans,
-}: { summary: Summary | null; tenants: Tenant[]; plans: Plan[] }) {
+  summary, tenants, plans, tenantLimits,
+}: { summary: Summary | null; tenants: Tenant[]; plans: Plan[]; tenantLimits: Record<string, TenantLimits> }) {
   const router = useRouter()
   const [creating, setCreating] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [rowBusy, setRowBusy] = useState<string | null>(null)
+
+  // — Editor de límites por tenant —
+  const [limitsOpen, setLimitsOpen] = useState<string | null>(null)
+  const [limitsDraft, setLimitsDraft] = useState<Record<keyof LimitSet, string>>({
+    maxDoctors: '', maxAssistants: '', maxLocations: '', maxStorageMb: '',
+  })
+
+  function openLimits(clinicId: string) {
+    if (limitsOpen === clinicId) { setLimitsOpen(null); return }
+    const ov = tenantLimits[clinicId]?.override
+    setLimitsDraft({
+      maxDoctors: ov?.maxDoctors != null ? String(ov.maxDoctors) : '',
+      maxAssistants: ov?.maxAssistants != null ? String(ov.maxAssistants) : '',
+      maxLocations: ov?.maxLocations != null ? String(ov.maxLocations) : '',
+      maxStorageMb: ov?.maxStorageMb != null ? String(ov.maxStorageMb) : '',
+    })
+    setLimitsOpen(clinicId)
+  }
+
+  async function handleSaveLimits(clinicId: string) {
+    const parse = (s: string): number | null => {
+      const t = s.trim()
+      if (t === '') return null
+      return Number(t)
+    }
+    const payload: ClinicLimitsInput = {
+      maxDoctors: parse(limitsDraft.maxDoctors),
+      maxAssistants: parse(limitsDraft.maxAssistants),
+      maxLocations: parse(limitsDraft.maxLocations),
+      maxStorageMb: parse(limitsDraft.maxStorageMb),
+    }
+    setRowBusy(clinicId)
+    setMsg(null)
+    const result = await setClinicLimits(clinicId, payload)
+    setRowBusy(null)
+    if (result?.error) {
+      setMsg({ type: 'err', text: result.error })
+    } else {
+      setMsg({ type: 'ok', text: 'Límites actualizados.' })
+      setLimitsOpen(null)
+      router.refresh()
+    }
+  }
 
   // — Aprovisionamiento con equipo completo —
   const [showTeamForm, setShowTeamForm] = useState(false)
@@ -266,8 +319,12 @@ export default function SuperAdminClient({
             </tr>
           </thead>
           <tbody>
-            {tenants.map(t => (
-              <tr key={t.clinic_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+            {tenants.map(t => {
+              const plan = tenantLimits[t.clinic_id]?.plan
+              const isOpen = limitsOpen === t.clinic_id
+              return (
+              <React.Fragment key={t.clinic_id}>
+              <tr style={{ borderBottom: isOpen ? 'none' : '1px solid #f1f5f9' }}>
                 <td style={{ ...S.td, fontWeight: 600 }}>{t.clinic_name}</td>
                 <td style={S.td}>
                   <select
@@ -284,18 +341,56 @@ export default function SuperAdminClient({
                 <td style={S.td}>{t.patients}</td>
                 <td style={S.td}>{Math.round((t.storage_bytes || 0) / (1024 * 1024))}</td>
                 <td style={S.td}>
-                  <button
-                    onClick={() => handleResend(t.clinic_id)}
-                    disabled={rowBusy === t.clinic_id}
-                    style={S.linkBtn}
-                    title="Reenviar enlace de activación al dueño"
-                  >
-                    {rowBusy === t.clinic_id ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={14} />}
-                    Reenviar acceso
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => openLimits(t.clinic_id)}
+                      disabled={rowBusy === t.clinic_id}
+                      style={{ ...S.linkBtn, ...(isOpen ? { background: '#0d9488', color: '#fff', borderColor: '#0d9488' } : {}) }}
+                      title="Editar topes de médicos, asistentes, clínicas y almacenamiento"
+                    >
+                      <SlidersHorizontal size={14} />
+                      Límites
+                    </button>
+                    <button
+                      onClick={() => handleResend(t.clinic_id)}
+                      disabled={rowBusy === t.clinic_id}
+                      style={S.linkBtn}
+                      title="Reenviar enlace de activación al dueño"
+                    >
+                      {rowBusy === t.clinic_id ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={14} />}
+                      Reenviar acceso
+                    </button>
+                  </div>
                 </td>
               </tr>
-            ))}
+              {isOpen && (
+                <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td colSpan={7} style={{ ...S.td, background: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '0.6rem' }}>
+                      Límites del tenant <span style={{ fontWeight: 400, color: '#94a3b8' }}>· vacío = heredar el plan</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem', maxWidth: '720px' }}>
+                      <LimitField label="Máx. médicos" value={limitsDraft.maxDoctors} planValue={plan?.maxDoctors}
+                        onChange={(v) => setLimitsDraft(d => ({ ...d, maxDoctors: v }))} />
+                      <LimitField label="Máx. asistentes" value={limitsDraft.maxAssistants} planValue={plan?.maxAssistants}
+                        onChange={(v) => setLimitsDraft(d => ({ ...d, maxAssistants: v }))} />
+                      <LimitField label="Máx. clínicas" value={limitsDraft.maxLocations} planValue={plan?.maxLocations}
+                        onChange={(v) => setLimitsDraft(d => ({ ...d, maxLocations: v }))} />
+                      <LimitField label="Máx. almacenamiento (MB)" value={limitsDraft.maxStorageMb} planValue={plan?.maxStorageMb}
+                        onChange={(v) => setLimitsDraft(d => ({ ...d, maxStorageMb: v }))} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.9rem' }}>
+                      <button onClick={() => handleSaveLimits(t.clinic_id)} disabled={rowBusy === t.clinic_id} style={S.primaryBtn}>
+                        {rowBusy === t.clinic_id ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</> : 'Guardar límites'}
+                      </button>
+                      <button onClick={() => setLimitsOpen(null)} style={S.toggleBtn}>Cancelar</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
+              )
+            })}
             {tenants.length === 0 && (
               <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No hay clientes registrados aún.</td></tr>
             )}
@@ -322,6 +417,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label style={S.label}>{label}</label>
       {children}
+    </div>
+  )
+}
+
+function LimitField({
+  label, value, planValue, onChange,
+}: { label: string; value: string; planValue?: number | null; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label style={S.label}>{label}</label>
+      <input
+        type="number"
+        min={1}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={planValue != null ? `plan: ${planValue}` : 'plan: —'}
+        style={S.input}
+      />
     </div>
   )
 }

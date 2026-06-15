@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { requireOrgAdmin } from '@/utils/auth-guard'
+import { effectiveLimit, canInviteDoctors, canManageLocations } from '@/utils/clinicLimits'
 import ConfigClient from './ConfigClient'
 import { Settings } from 'lucide-react'
 
@@ -32,14 +33,17 @@ export default async function ConfigPage() {
     .eq('code', ctx.planCode)
     .single()
 
-  const maxDoctors = planData ? planData.max_doctors : 1
-  const maxAssistants = planData ? planData.max_assistants : 5
+  // Topes efectivos = override por-clínica (si existe) o el del plan. El superadmin
+  // ajusta los overrides; NULL = heredar el plan. Misma regla que aplica el trigger SQL.
+  const maxDoctors = effectiveLimit(clinic?.max_doctors_override, planData?.max_doctors) ?? 1
+  const maxAssistants = effectiveLimit(clinic?.max_assistants_override, planData?.max_assistants) ?? 5
+  const doctorsEnabled = canInviteDoctors(maxDoctors)
 
   // Gestión de clínicas (locations): por plan solo la tiene SOLO_MEDICO, pero un
   // override por-clínica (clinics.max_locations_override) la habilita para un tenant
   // puntual y fija su tope, sin cambiar el plan. NULL = comportamiento por plan.
   const locationsOverride = (clinic?.max_locations_override ?? null) as number | null
-  const canManageLocations = ctx.planCode === 'SOLO_MEDICO' || locationsOverride != null
+  const showLocations = canManageLocations(ctx.planCode, locationsOverride)
   const maxLocations = locationsOverride ?? planData?.max_locations ?? 1
 
   // Load team members
@@ -85,7 +89,8 @@ export default async function ConfigPage() {
         maxDoctors={maxDoctors}
         maxAssistants={maxAssistants}
         planCode={ctx.planCode}
-        canManageLocations={canManageLocations}
+        canManageLocations={showLocations}
+        canInviteDoctors={doctorsEnabled}
         maxLocations={maxLocations}
         storageUsedBytes={storageUsedBytes || 0}
         maxStorageMb={maxStorageMb}
