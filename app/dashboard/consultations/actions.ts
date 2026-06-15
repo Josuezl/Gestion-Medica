@@ -70,6 +70,7 @@ export async function createConsultation(
   }
 
   // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
+  let prescriptionId: string | null = null
   if (medicines && medicines.length > 0) {
     const verificationCode = `MC-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
     const prescriptionNotes = formData.get('prescription_notes') as string || ''
@@ -91,6 +92,7 @@ export async function createConsultation(
     if (prescriptionError) {
       console.error('Error al insertar receta en DB:', prescriptionError)
     } else {
+      prescriptionId = prescription.id
       try {
         // Cargar información completa de paciente, clínica y doctor para el PDF
         const { data: patient } = await supabase.from('patients').select('*').eq('id', patientId).single()
@@ -189,5 +191,7 @@ export async function createConsultation(
     success: true,
     consultationId: consultation.id,
     hasMedicalLeave: !!(medicalLeave && medicalLeave.trim()),
+    hasPrescription: !!(medicines && medicines.length > 0 && prescriptionId),
+    prescriptionId,
   }
 }

@@ -48,7 +48,12 @@ export default function NewConsultationClient({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
-  const [leaveModalId, setLeaveModalId] = useState<string | null>(null)
+  const [printModal, setPrintModal] = useState<{
+    consultationId: string
+    prescriptionId: string | null
+    hasMedicalLeave: boolean
+    hasPrescription: boolean
+  } | null>(null)
 
   // Estado para la lista de medicamentos de la receta
   const [medicines, setMedicines] = useState<MedicineItem[]>([])
@@ -100,47 +105,68 @@ export default function NewConsultationClient({
       return
     }
 
-    // Si se registró una incapacidad médica, ofrecer imprimirla antes de salir.
-    if (result && (result as any).hasMedicalLeave) {
-      setLeaveModalId((result as any).consultationId)
+    // Si hay receta y/o incapacidad, ofrecer imprimir antes de salir.
+    const r = result as any
+    if (r && (r.hasMedicalLeave || r.hasPrescription)) {
+      setPrintModal({
+        consultationId: r.consultationId,
+        prescriptionId: r.prescriptionId ?? null,
+        hasMedicalLeave: !!r.hasMedicalLeave,
+        hasPrescription: !!r.hasPrescription,
+      })
       return
     }
 
-    // Sin incapacidad: navegar directo al expediente del paciente.
+    // Sin documentos que imprimir: navegar directo al expediente del paciente.
     window.location.href = `/dashboard/patients/${patient.id}`
   }
 
   return (
     <div style={styles.container}>
-      {/* Modal: ofrecer imprimir la incapacidad médica al finalizar */}
-      {leaveModalId && (
+      {/* Modal: ofrecer imprimir receta y/o incapacidad al finalizar.
+          Cada botón abre su impresión en pestaña nueva y el cuadro queda abierto,
+          así el médico puede imprimir ambas, una, o ninguna. */}
+      {printModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <h3 style={styles.modalTitle}>Consulta registrada</h3>
             <p style={styles.modalText}>
-              Se registró una <strong>incapacidad médica</strong> para este paciente.
-              ¿Deseas imprimirla ahora?
+              {printModal.hasPrescription && printModal.hasMedicalLeave
+                ? <>Se generaron una <strong>receta médica</strong> y una <strong>incapacidad médica</strong>. Imprime los documentos que necesites:</>
+                : printModal.hasPrescription
+                  ? <>Se generó una <strong>receta médica</strong> para este paciente. ¿Deseas imprimirla ahora?</>
+                  : <>Se registró una <strong>incapacidad médica</strong> para este paciente. ¿Deseas imprimirla ahora?</>}
             </p>
-            <div style={styles.modalActions}>
+            <div style={{ ...styles.modalActions, flexDirection: 'column' }}>
+              {printModal.hasPrescription && printModal.prescriptionId && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                  onClick={() => window.open(`/prescriptions/${printModal.prescriptionId}/print`, '_blank')}
+                >
+                  <Printer size={16} />
+                  Imprimir Receta
+                </button>
+              )}
+              {printModal.hasMedicalLeave && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                  onClick={() => window.open(`/consultations/${printModal.consultationId}/print`, '_blank')}
+                >
+                  <Printer size={16} />
+                  Imprimir Incapacidad
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ flex: 1 }}
+                style={{ width: '100%' }}
                 onClick={() => { window.location.href = `/dashboard/patients/${patient.id}` }}
               >
                 Ir al Expediente
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ flex: 1, gap: '0.4rem' }}
-                onClick={() => {
-                  window.open(`/consultations/${leaveModalId}/print`, '_blank')
-                  window.location.href = `/dashboard/patients/${patient.id}`
-                }}
-              >
-                <Printer size={16} />
-                Imprimir Incapacidad
               </button>
             </div>
           </div>
