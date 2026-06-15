@@ -128,7 +128,8 @@ export async function createConsultation(
           date: formattedDate,
           medicines,
           notes: prescriptionNotes,
-          verificationCode
+          verificationCode,
+          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || ''
         })
 
         // Subir el PDF a Supabase Storage

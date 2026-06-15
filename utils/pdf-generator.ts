@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import QRCode from 'qrcode'
 
 interface PDFPrescriptionData {
   clinicName: string
@@ -14,6 +15,7 @@ interface PDFPrescriptionData {
   medicines: any[]
   notes: string
   verificationCode: string
+  siteUrl: string
 }
 
 export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promise<ArrayBuffer> {
@@ -142,17 +144,21 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
   doc.setDrawColor(226, 232, 240)
   doc.line(15, footerY - 8, 195, footerY - 8)
 
-  // QR Info y código
+  // QR de verificación (apunta a /verificar/<código>) + código
+  const verifyUrl = `${data.siteUrl}/verificar/${data.verificationCode}`
+  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
+  doc.addImage(qrDataUrl, 'PNG', 15, footerY - 6, 20, 20)
+
   doc.setFont('Helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(100, 116, 139)
-  doc.text('RECETA MÉDICA VERIFICADA', 15, footerY - 2)
-  
+  doc.text('RECETA MÉDICA VERIFICADA', 40, footerY - 2)
+
   doc.setFont('Helvetica', 'normal')
   doc.setFontSize(7.5)
-  doc.text(`Código de Validación: ${data.verificationCode}`, 15, footerY + 2)
-  doc.text('Esta receta ha sido generada y encriptada de forma', 15, footerY + 6)
-  doc.text('segura de acuerdo con la legislación de salud.', 15, footerY + 10)
+  doc.text(`Código de Validación: ${data.verificationCode}`, 40, footerY + 2)
+  doc.text('Escanea el QR para validar esta receta', 40, footerY + 6)
+  doc.text('en su versión digital.', 40, footerY + 10)
 
   // Línea de firma
   doc.text('__________________________________', 195, footerY - 1, { align: 'right' })
