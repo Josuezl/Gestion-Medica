@@ -3,6 +3,22 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+/**
+ * ¿La clínica tiene clínicas (locations) activas? Si las tiene, la cita debe asignarse a
+ * una; de lo contrario quedaría "huérfana" y no aparecería al filtrar la agenda por clínica.
+ */
+async function clinicHasActiveLocations(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clinicId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('locations')
+    .select('id', { count: 'exact', head: true })
+    .eq('clinic_id', clinicId)
+    .eq('is_active', true)
+  return (count ?? 0) > 0
+}
+
 export async function createAppointment(formData: FormData) {
   const supabase = await createClient()
 
@@ -30,6 +46,10 @@ export async function createAppointment(formData: FormData) {
 
   if (!dateStr || !timeStr) {
     return { error: 'Por favor selecciona fecha y hora para la cita.' }
+  }
+
+  if (!locationId && await clinicHasActiveLocations(supabase, profile.clinic_id)) {
+    return { error: 'Selecciona una clínica para la cita.' }
   }
 
   // Combinar fecha y hora en formato ISO string
@@ -74,6 +94,17 @@ export async function updateAppointment(id: string, formData: FormData) {
 
   if (!dateStr || !timeStr || !doctorId) {
     return { error: 'Datos incompletos para actualizar.' }
+  }
+
+  if (!locationId) {
+    const { data: appt } = await supabase
+      .from('appointments')
+      .select('clinic_id')
+      .eq('id', id)
+      .single()
+    if (appt?.clinic_id && await clinicHasActiveLocations(supabase, appt.clinic_id)) {
+      return { error: 'Selecciona una clínica para la cita.' }
+    }
   }
 
   const scheduledAt = new Date(`${dateStr}T${timeStr}:00-06:00`).toISOString()

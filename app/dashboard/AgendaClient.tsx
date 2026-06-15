@@ -725,6 +725,15 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
       const timeVal = formData.get('time') as string
       const doctorIdVal = formData.get('doctor_id') as string
       const statusVal = formData.get('status') as string
+      const locationVal = formData.get('location_id') as string
+
+      // Validación: si el tenant tiene clínicas, la cita debe asignarse a una
+      // (si no, queda "huérfana" y no aparece al filtrar por clínica).
+      if (locations.length > 0 && !locationVal) {
+        setFormError('Selecciona una clínica para la cita.')
+        setIsSubmitting(false)
+        return
+      }
 
       // Validation: Rescheduling a cancelled/no-show appointment
       if (isEdit && editAppointment && ['CANCELLED', 'NO_SHOW'].includes(editAppointment.status)) {
@@ -844,7 +853,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
             {locations.length > 0 && (
               <div className="form-group">
                 <label className="form-label">Clínica</label>
-                <select name="location_id" className="form-input" defaultValue={editAppointment?.location_id || (selectedLocationId !== 'all' ? selectedLocationId : '')}>
+                <select name="location_id" className="form-input" required defaultValue={editAppointment?.location_id || (selectedLocationId !== 'all' ? selectedLocationId : (locations.length === 1 ? locations[0].id : ''))}>
                   <option value="">Selecciona una clínica</option>
                   {locations.map(loc => (
                     <option key={loc.id} value={loc.id}>{loc.name}</option>
