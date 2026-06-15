@@ -24,11 +24,14 @@ export default async function DashboardPage() {
   const defaultLocationId = cookieStore.get('current_location_id')?.value || 'all'
 
   // 2. Obtener lista de pacientes para el buscador/selector de citas
+  // Límite explícito de 5000 para superar el cap por defecto de Supabase (1000 filas).
+  // Para clínicas muy grandes (>5000 pacientes) se deberá migrar a búsqueda dinámica por API.
   const { data: patients } = await supabase
     .from('patients')
     .select('id, first_name, last_name, phone, birth_date, gender, id_card')
     .eq('clinic_id', clinicId || '')
     .order('last_name', { ascending: true })
+    .limit(5000)
 
   // 3. Obtener lista de citas activas de la clínica
   const { data: appointments } = await supabase
