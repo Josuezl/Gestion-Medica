@@ -13,6 +13,7 @@ interface ConfigClientProps {
   maxDoctors: number
   maxAssistants: number
   planCode: string
+  canManageLocations: boolean
   maxLocations: number
   storageUsedBytes: number
   maxStorageMb: number
@@ -27,6 +28,7 @@ export default function ConfigClient({
   maxDoctors,
   maxAssistants,
   planCode,
+  canManageLocations,
   maxLocations,
   storageUsedBytes,
   maxStorageMb
@@ -404,8 +406,10 @@ export default function ConfigClient({
         </form>
       </div>
 
-      {/* Sección 3: Clínicas (Solo para plan SOLO_MEDICO que se mueve entre clínicas) */}
-      {planCode === 'SOLO_MEDICO' && (
+      {/* Sección 3: Clínicas. Por plan la usa SOLO_MEDICO (se mueve entre consultorios);
+          un override por-clínica (max_locations_override) la habilita para un tenant
+          puntual aunque su plan no la contemple. */}
+      {canManageLocations && (
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

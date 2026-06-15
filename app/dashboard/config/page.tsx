@@ -35,6 +35,13 @@ export default async function ConfigPage() {
   const maxDoctors = planData ? planData.max_doctors : 1
   const maxAssistants = planData ? planData.max_assistants : 5
 
+  // Gestión de clínicas (locations): por plan solo la tiene SOLO_MEDICO, pero un
+  // override por-clínica (clinics.max_locations_override) la habilita para un tenant
+  // puntual y fija su tope, sin cambiar el plan. NULL = comportamiento por plan.
+  const locationsOverride = (clinic?.max_locations_override ?? null) as number | null
+  const canManageLocations = ctx.planCode === 'SOLO_MEDICO' || locationsOverride != null
+  const maxLocations = locationsOverride ?? planData?.max_locations ?? 1
+
   // Load team members
   const { data: teamMembers } = await supabase
     .from('user_profiles')
@@ -78,7 +85,8 @@ export default async function ConfigPage() {
         maxDoctors={maxDoctors}
         maxAssistants={maxAssistants}
         planCode={ctx.planCode}
-        maxLocations={planData?.max_locations || 1}
+        canManageLocations={canManageLocations}
+        maxLocations={maxLocations}
         storageUsedBytes={storageUsedBytes || 0}
         maxStorageMb={maxStorageMb}
       />
