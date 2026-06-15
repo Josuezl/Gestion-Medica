@@ -226,7 +226,7 @@ export default function NewConsultationClient({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-muted)' }}>Género:</span>
+            <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)' }}>Género:</span>
             <select
               value={patient.gender || 'O'}
               disabled={isUpdatingGender}
@@ -242,8 +242,8 @@ export default function NewConsultationClient({
                 color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
                 border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
                 borderRadius: '999px',
-                padding: '0.3rem 1rem',
-                fontSize: '1rem',
+                padding: '0.2rem 0.75rem',
+                fontSize: '0.8rem',
                 fontWeight: '700',
                 letterSpacing: '0.02em',
                 outline: 'none',
