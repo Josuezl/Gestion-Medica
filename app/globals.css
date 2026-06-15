@@ -1234,11 +1234,6 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.55rem 0;
   }
 
-  /* Reset the marginTop:auto that pushes "Estados" to the bottom on desktop */
-  .agenda-sidebar > div:last-child {
-    margin-top: 0 !important;
-  }
-
   /* Tarjetas de cita: en móvil la botonera baja a su propia línea con wrap,
      para que la tarjeta no se ensanche más que la pantalla (lo que arrastraba
      y descuadraba el calendario al seleccionar un día con citas). */

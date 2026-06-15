@@ -21,12 +21,7 @@ import {
   X,
   CheckCircle,
   Edit2,
-  Settings,
-  Users,
-  FileText,
-  UserPlus
 } from 'lucide-react'
-import Link from 'next/link'
 import { doctorShortName } from '@/utils/doctorName'
 
 // ============================================================================
@@ -960,92 +955,11 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
             </div>
           </div>
         </div>
-
-        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-          <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#1e293b', marginBottom: '0.5rem', fontWeight: 700 }}>Estados</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {Object.values(STATUS_CONFIG).map((cfg, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#334155' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: cfg.dotColor, border: '1px solid rgba(0,0,0,0.1)' }}></div>
-                {cfg.label}
-              </div>
-            ))}
-          </div>
-        </div>
       </aside>
 
       {/* MAIN AREA */}
       <main className="agenda-main" style={{ display: 'flex', flexDirection: 'column' }}>
-        
-        {/* QUICK ACTIONS ROW */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '1rem', 
-          padding: '1rem', 
-          backgroundColor: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0'
-        }}>
-          <Link href="/dashboard/patients/new" style={{ textDecoration: 'none' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-              <div style={{ backgroundColor: '#e0f2fe', padding: '0.75rem', borderRadius: '10px', color: '#0ea5e9' }}>
-                <UserPlus size={24} />
-              </div>
-              <div>
-                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Registrar Paciente</h4>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Nuevo expediente</p>
-              </div>
-            </div>
-          </Link>
 
-          <Link href="/dashboard/patients" style={{ textDecoration: 'none' }}>
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-              <div style={{ backgroundColor: '#dcfce7', padding: '0.75rem', borderRadius: '10px', color: '#22c55e' }}>
-                <Users size={24} />
-              </div>
-              <div>
-                <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Consulta Médica</h4>
-                <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Ver pacientes</p>
-              </div>
-            </div>
-          </Link>
-
-          {!isAssistant && (
-            <Link href="/dashboard/consultations" style={{ textDecoration: 'none' }}>
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-                <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '10px', color: '#d97706' }}>
-                  <FileText size={24} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Historial</h4>
-                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Consultas previas</p>
-                </div>
-              </div>
-            </Link>
-          )}
-
-          {currentDoctor.isOrgAdmin && (
-            <Link href="/dashboard/config" style={{ textDecoration: 'none' }}>
-              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.2s' }} className="quick-action-card">
-                <div style={{ backgroundColor: '#f3e8ff', padding: '0.75rem', borderRadius: '10px', color: '#a855f7' }}>
-                  <Settings size={24} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>Administración</h4>
-                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.8rem' }}>Ajustes y personal</p>
-                </div>
-              </div>
-            </Link>
-          )}
-
-          <style>{`
-            .quick-action-card:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-              border-color: #0d9488 !important;
-            }
-          `}</style>
-        </div>
         {/* TOPBAR */}
         <div className="agenda-topbar" style={{ display: 'flex', alignItems: 'center' }}>
           {/* Left: View Tabs & Add Button */}
