@@ -527,6 +527,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
     gap: '0.75rem',
+    // Alinea los inputs por abajo aunque algún label (Perímetro Cefálico, Ritmo
+    // Cardiaco) ocupe dos líneas y empuje su campo hacia abajo.
+    alignItems: 'end',
   },
   medAddForm: {
     backgroundColor: 'var(--bg-input)',
