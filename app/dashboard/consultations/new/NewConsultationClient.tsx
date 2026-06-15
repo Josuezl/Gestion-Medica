@@ -305,15 +305,7 @@ export default function NewConsultationClient({
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Incapacidad Médica</label>
-                <textarea
-                  className="form-input"
-                  name="medical_leave"
-                  placeholder="Días de incapacidad y motivo (si aplica)..."
-                  rows={2}
-                />
-              </div>
+
             </div>
 
             {/* 3. Diagnóstico y Plan */}
@@ -343,6 +335,23 @@ export default function NewConsultationClient({
                   placeholder="Instrucciones generales de cuidado, reposo, dieta..." 
                   rows={3} 
                   required 
+                />
+              </div>
+            </div>
+
+            {/* 4. Incapacidad Médica */}
+            <div className="card" style={{ marginTop: '1.5rem' }}>
+              <h3 style={styles.sectionTitle}>
+                <Activity size={18} color="var(--primary)" />
+                Incapacidad Médica
+              </h3>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <textarea
+                  className="form-input"
+                  name="medical_leave"
+                  placeholder="Días de incapacidad y motivo (si aplica)..."
+                  rows={3}
                 />
               </div>
             </div>
