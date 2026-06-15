@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { createConsultation } from '../actions'
+import { updatePatientGender } from '../../patients/actions'
 import { 
   Heart, 
   Activity, 
@@ -50,6 +51,7 @@ export default function NewConsultationClient({
   
   const patientAge = calculateAge(patient.birth_date)
   const [loading, setLoading] = useState(false)
+  const [isUpdatingGender, startGenderTransition] = React.useTransition()
   // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
   const [printModal, setPrintModal] = useState<{
     consultationId: string
@@ -220,6 +222,34 @@ export default function NewConsultationClient({
           }}>
             {patientAge} años
           </span>
+
+          <select
+            value={patient.gender || 'O'}
+            disabled={isUpdatingGender}
+            onChange={(e) => {
+              startGenderTransition(async () => {
+                await updatePatientGender(patient.id, e.target.value)
+              })
+            }}
+            style={{
+              appearance: 'none',
+              cursor: 'pointer',
+              backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
+              color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
+              border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
+              borderRadius: '999px',
+              padding: '0.2rem 0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              letterSpacing: '0.02em',
+              outline: 'none',
+              opacity: isUpdatingGender ? 0.6 : 1
+            }}
+          >
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="O">Otro</option>
+          </select>
 
         </div>
       </div>

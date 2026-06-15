@@ -110,6 +110,23 @@ export async function updatePatient(id: string, formData: FormData) {
   return { success: true }
 }
 
+export async function updatePatientGender(id: string, gender: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('patients')
+    .update({ gender })
+    .eq('id', id)
+
+  if (error) {
+    return { error: `Error al actualizar género: ${error.message}` }
+  }
+
+  // Revalidar las dos rutas donde se ve el género frecuentemente
+  revalidatePath(`/dashboard/patients/${id}`)
+  revalidatePath(`/dashboard/consultations/new`)
+  return { success: true }
+}
+
 const MAX_FILE_BYTES = 26214400 // 25 MB
 
 /**

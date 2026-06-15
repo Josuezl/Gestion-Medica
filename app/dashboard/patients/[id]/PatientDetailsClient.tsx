@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updatePatient } from '../actions'
+import { updatePatient, updatePatientGender } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { isAssistant, canEditPrescription } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
@@ -133,6 +133,7 @@ export default function PatientDetailsClient({
   const [isEditPediatric, setIsEditPediatric] = useState(isPediatric(patient.birth_date))
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
+  const [isUpdatingGender, startGenderTransition] = useTransition()
   const router = useRouter()
 
 
@@ -692,9 +693,36 @@ export default function PatientDetailsClient({
               )}
             </div>
             
-            <p style={styles.demographicsSub}>
+            <p style={{ ...styles.demographicsSub, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               {calculateAge(patient.birth_date)} años • Nacido el {new Date(patient.birth_date).toLocaleDateString('es-HN')} • 
-              Género: {patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}
+              Género:
+              <select
+                value={patient.gender || 'O'}
+                disabled={isUpdatingGender}
+                onChange={(e) => {
+                  startGenderTransition(async () => {
+                    await updatePatientGender(patient.id, e.target.value)
+                  })
+                }}
+                style={{
+                  appearance: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
+                  color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
+                  border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
+                  borderRadius: '999px',
+                  padding: '0.2rem 0.75rem',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  letterSpacing: '0.02em',
+                  outline: 'none',
+                  opacity: isUpdatingGender ? 0.6 : 1
+                }}
+              >
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
             </p>
 
             <div style={styles.contactRow}>
