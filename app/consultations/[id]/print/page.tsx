@@ -1,8 +1,10 @@
 import React from 'react'
+import QRCode from 'qrcode'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import { doctorShortName } from '@/utils/doctorName'
+import { formatDateTimeHN } from '@/utils/datetime'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -54,9 +56,9 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   if (!patient || !doctor || !clinic) return notFound()
 
   const patientAge = calculateAge(patient.birth_date)
-  const formattedDate = new Date(consultation.created_at).toLocaleDateString('es-HN', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
-  })
+  const formattedDate = formatDateTimeHN(consultation.created_at)
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const qrDataUrl = await QRCode.toDataURL(`${SITE_URL}/verificar/${consultation.verification_code}`, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
   const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
@@ -138,9 +140,14 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
         .section-title { font-size: 13px; font-weight: 700; color: #0d9488; margin: 0 0 5px; padding-bottom: 5px; border-bottom: 1px solid #e2e8f0; }
         .section-body { font-size: 12px; color: #334155; line-height: 1.55; margin: 0; white-space: pre-line; }
 
-        /* Firma */
-        .sign-area { margin-top: 26px; display: flex; justify-content: center; }
-        .sign { text-align: center; min-width: 240px; }
+        /* Pie: QR + firma */
+        .sign-area { margin-top: 26px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+        .qr-box { display: flex; align-items: center; gap: 12px; max-width: 300px; text-align: left; }
+        .qr-box img { width: 84px; height: 84px; }
+        .qr-cap-title { font-size: 11px; font-weight: 700; color: #0f172a; margin: 0; }
+        .qr-cap-text { font-size: 9px; color: #64748b; margin: 2px 0 0; line-height: 1.3; }
+        .qr-code { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; color: #0d9488; margin: 4px 0 0; letter-spacing: 0.04em; }
+        .sign { text-align: center; min-width: 200px; }
         .sign img { max-height: 64px; max-width: 220px; object-fit: contain; display: block; margin: 0 auto 4px; }
         .sign-empty { height: 56px; }
         .sign-line { border-top: 1px solid #334155; padding-top: 4px; }
@@ -230,8 +237,17 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
             )}
           </div>
 
-          {/* Firma */}
+          {/* Pie: QR de verificación + firma */}
           <div className="sign-area">
+            <div className="qr-box">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt="Código QR de verificación del documento" />
+              <div>
+                <p className="qr-cap-title">Documento verificable</p>
+                <p className="qr-cap-text">Escanea el código para validar este documento en su versión digital.</p>
+                <p className="qr-code">{c.verification_code}</p>
+              </div>
+            </div>
             <div className="sign">
               {doctor.signature_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
