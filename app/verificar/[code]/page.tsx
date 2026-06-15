@@ -57,7 +57,7 @@ export default async function VerifyPrescriptionPage({ params }: { params: Promi
           </h1>
           {isValid && (
             <p style={{ margin: '0.5rem 0 0', opacity: 0.9 }}>
-              Emitida el {new Date(prescription.created_at).toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' })}
+              Emitida el {new Date(prescription.created_at).toLocaleDateString('es-HN', { timeZone: 'America/Tegucigalpa', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           )}
         </div>

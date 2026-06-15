@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
 import { canEditPrescription } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
+import { formatDateTimeHN } from '@/utils/datetime'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -134,9 +135,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     return age
   }
 
-  const emissionDate = new Date(prescription.created_at).toLocaleDateString('es-HN', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
-  })
+  const emissionDate = formatDateTimeHN(prescription.created_at)
 
   // 6. Enviar correo con Resend (mismo formato que la receta impresa)
   const result = await sendPrescriptionEmail({

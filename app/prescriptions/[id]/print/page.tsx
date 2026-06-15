@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import { doctorShortName } from '@/utils/doctorName'
+import { formatDateTimeHN } from '@/utils/datetime'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -62,9 +63,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   if (!patient || !doctor || !clinic) return notFound()
 
   const patientAge = calculateAge(patient.birth_date)
-  const formattedDate = new Date(prescription.created_at).toLocaleDateString('es-HN', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
-  })
+  const formattedDate = formatDateTimeHN(prescription.created_at)
   const docName = doctorShortName(doctor.first_name, doctor.last_name)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
