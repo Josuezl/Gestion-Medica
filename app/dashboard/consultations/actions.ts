@@ -35,12 +35,14 @@ export async function createConsultation(
   const heightVal = formData.get('height') as string
   const headCircVal = formData.get('head_circumference') as string
   const hrVal = formData.get('heart_rate') as string
+  const oxVal = formData.get('oxygen_saturation') as string
 
   const temperature = tempVal ? parseFloat(tempVal) : null
   const weight = weightVal ? parseFloat(weightVal) : null
   const height = heightVal ? parseFloat(heightVal) : null
   const headCircumference = headCircVal ? parseFloat(headCircVal) : null
   const heartRate = hrVal ? parseInt(hrVal, 10) : null
+  const oxygenSaturation = oxVal ? parseInt(oxVal, 10) : null
 
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
@@ -60,7 +62,8 @@ export async function createConsultation(
       weight,
       height,
       head_circumference: headCircumference,
-      heart_rate: heartRate
+      heart_rate: heartRate,
+      oxygen_saturation: oxygenSaturation
     }])
     .select()
     .single()

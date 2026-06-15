@@ -264,6 +264,10 @@ export default function NewConsultationClient({
                   <label className="form-label">Ritmo Cardiaco (bpm)</label>
                   <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" />
                 </div>
+                <div className="form-group">
+                  <label className="form-label">SpO2 (%)</label>
+                  <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" />
+                </div>
               </div>
             </div>
 
