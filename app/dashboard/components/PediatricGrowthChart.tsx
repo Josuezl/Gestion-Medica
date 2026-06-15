@@ -140,7 +140,7 @@ export default function PediatricGrowthChart({ consultations, patient }: Pediatr
     } as React.CSSProperties,
   }
 
-  const sexNote = !sex ? 'Sin curvas de referencia OMS: el sexo del paciente no está especificado.' : undefined
+  const sexNote = !sex ? 'Sin curvas de referencia OMS: el género del paciente es "Otro" o no está especificado. La OMS solo provee tablas para masculino y femenino.' : undefined
 
   return (
     <div style={styles.container}>

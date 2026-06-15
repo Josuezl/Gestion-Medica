@@ -957,7 +957,7 @@ export default function PatientDetailsClient({
               onClick={() => setActiveTab('pediatrics')}
             >
               <Baby size={18} />
-              <span>Pediatría</span>
+              <span>Curvas de Crecimiento OMS</span>
             </button>
           )}
         </div>
