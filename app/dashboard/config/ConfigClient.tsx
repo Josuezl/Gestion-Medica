@@ -48,6 +48,7 @@ export default function ConfigClient({
   const [clinicLoading, setClinicLoading] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
   
+  const [locationError, setLocationError] = useState<string | null>(null)
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null)
   const [editLocName, setEditLocName] = useState('')
   const [editLocAddress, setEditLocAddress] = useState('')
@@ -111,15 +112,15 @@ export default function ConfigClient({
 
   async function handleCreateLocation(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
+    setLocationError(null)
     setLoading(true)
-    
+
     const formData = new FormData(e.currentTarget)
     const res = await createLocation(formData)
-    
+
     setLoading(false)
     if (res?.error) {
-      setError(res.error)
+      setLocationError(res.error)
     } else {
       setShowLocationForm(false)
     }
@@ -432,6 +433,12 @@ export default function ConfigClient({
           <div style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
             Límite de clínicas: {locations.length} / {maxLocations}
           </div>
+
+          {locationError && (
+            <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              {locationError}
+            </div>
+          )}
 
           {showLocationForm && locations.length < maxLocations && (
             <form onSubmit={handleCreateLocation} style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
