@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { isAssistant } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
 import { doctorShortName } from '@/utils/doctorName'
+import { formatDateTimeHN } from '@/utils/datetime'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
@@ -162,13 +163,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
               </thead>
               <tbody>
                 {paginatedConsultations.map((consultation: any) => {
-                  const date = new Date(consultation.created_at).toLocaleDateString('es-HN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })
+                  const date = formatDateTimeHN(consultation.created_at)
                   const patientName = consultation.patients 
                     ? `${consultation.patients.first_name} ${consultation.patients.last_name}` 
                     : 'Paciente Desconocido'

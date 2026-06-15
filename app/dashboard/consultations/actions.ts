@@ -6,6 +6,7 @@ import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { sendPrescriptionNotification } from '@/utils/whatsapp'
 import { requireRole } from '@/utils/auth-guard'
 import { doctorShortName } from '@/utils/doctorName'
+import { formatDateHN } from '@/utils/datetime'
 
 export async function createConsultation(
   patientId: string,
@@ -111,11 +112,7 @@ export async function createConsultation(
           return age
         }
 
-        const formattedDate = new Date(consultation.created_at).toLocaleDateString('es-HN', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })
+        const formattedDate = formatDateHN(consultation.created_at)
 
         // Generar el PDF
         const pdfBuffer = await generatePrescriptionPDF({
