@@ -16,6 +16,7 @@ import {
   Printer
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
+import { calculateAge } from '@/utils/age'
 
 interface NewConsultationClientProps {
   patient: any
@@ -46,6 +47,8 @@ export default function NewConsultationClient({
   isOrgAdmin
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
+  
+  const patientAge = calculateAge(patient.birth_date)
   const [loading, setLoading] = useState(false)
   // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
   const [printModal, setPrintModal] = useState<{
@@ -199,9 +202,24 @@ export default function NewConsultationClient({
               letterSpacing: '0.02em',
               whiteSpace: 'nowrap',
             }}>
-              🧒 Pediátrico
+              Pediátrico
             </span>
           )}
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            backgroundColor: '#e2e8f0',
+            color: '#334155',
+            border: '1px solid #cbd5e1',
+            borderRadius: '999px',
+            padding: '0.2rem 0.75rem',
+            fontSize: '0.8rem',
+            fontWeight: '700',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+          }}>
+            {patientAge} años
+          </span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>• Registro de evolución y receta</span>
         </div>
       </div>
