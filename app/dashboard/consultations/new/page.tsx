@@ -35,10 +35,14 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     redirect('/dashboard')
   }
 
-  // 2. Obtener paciente
+  // 2. Obtener paciente. Se traen todas las columnas porque el formulario y el
+  //    expediente embebido (PatientHistoryTabs) necesitan is_pediatric, birth_date y
+  //    gender (campo de perímetro cefálico, pestaña/gráficas de Pediatría) además de
+  //    los antecedentes. Con un select mínimo, is_pediatric llegaba undefined y se
+  //    ocultaban esas secciones aunque el paciente fuera pediátrico.
   const { data: patient, error } = await supabase
     .from('patients')
-    .select('id, first_name, last_name')
+    .select('*')
     .eq('id', patientId)
     .single()
 
