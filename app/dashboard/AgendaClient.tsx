@@ -853,7 +853,6 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                         }}
                       >
                         <div style={{ fontWeight: 600, color: '#1e293b' }}>{p.first_name} {p.last_name}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{p.phone || 'Sin teléfono'}</div>
                       </div>
                     ))}
                     {!isSearchingPatients && patientSearch.trim().length >= 2 && patientSearchResults.length === 0 && (
