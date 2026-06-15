@@ -126,21 +126,29 @@ export async function createLocation(formData: FormData) {
 
   const supabase = await createClient()
 
-  // Verify limit
+  // Tope efectivo: el override por-clínica manda sobre el del plan (si existe).
   const { data: planData } = await supabase
     .from('plans')
     .select('max_locations')
     .eq('code', ctx.planCode)
     .single()
 
-  if (planData) {
+  const { data: clinicRow } = await supabase
+    .from('clinics')
+    .select('max_locations_override')
+    .eq('id', ctx.clinicId)
+    .single()
+
+  const effectiveMax = clinicRow?.max_locations_override ?? planData?.max_locations ?? null
+
+  if (effectiveMax !== null) {
     const { count: currentLocations } = await supabase
       .from('locations')
       .select('*', { count: 'exact', head: true })
       .eq('clinic_id', ctx.clinicId)
 
-    if (currentLocations !== null && currentLocations >= planData.max_locations) {
-      return { error: `Límite alcanzado (${planData.max_locations} clínicas).` }
+    if (currentLocations !== null && currentLocations >= effectiveMax) {
+      return { error: `Límite alcanzado (${effectiveMax} clínicas).` }
     }
   }
 
