@@ -5,6 +5,7 @@ import { updatePatient } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
 import { isAssistant, canEditPrescription } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
+import { isPediatric } from '@/utils/age'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import { 
@@ -127,7 +128,8 @@ export default function PatientDetailsClient({
   const [savingPrescription, setSavingPrescription] = useState(false)
   const [prescSaveMsg, setPrescSaveMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isEditing, setIsEditing] = useState(initialEdit)
-  const [isEditPediatric, setIsEditPediatric] = useState(patient.is_pediatric || false)
+  // Derivado de la fecha de nacimiento (menor de 19 años); el servidor lo recalcula al guardar.
+  const [isEditPediatric, setIsEditPediatric] = useState(isPediatric(patient.birth_date))
   const [editError, setEditError] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
 
@@ -823,7 +825,7 @@ export default function PatientDetailsClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Fecha de Nacimiento *</label>
-                <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date} required />
+                <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date} onChange={(e) => setIsEditPediatric(isPediatric(e.target.value))} required />
               </div>
               <div className="form-group">
                 <label className="form-label">WhatsApp (Honduras) *</label>
@@ -855,17 +857,12 @@ export default function PatientDetailsClient({
                 </select>
               </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    name="is_pediatric"
-                    value="true"
-                    checked={isEditPediatric}
-                    onChange={(e) => setIsEditPediatric(e.target.checked)}
-                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
-                  />
-                  ¿Es paciente pediátrico?
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  <Activity size={16} color={isEditPediatric ? '#0d9488' : 'var(--text-muted)'} />
+                  Paciente pediátrico (menor de 19 años):{' '}
+                  <strong style={{ color: isEditPediatric ? '#0d9488' : 'var(--text-muted)' }}>{isEditPediatric ? 'Sí' : 'No'}</strong>
+                  <span style={{ fontSize: '0.8rem' }}>— se determina por la fecha de nacimiento.</span>
+                </div>
               </div>
 
               {isEditPediatric && (
