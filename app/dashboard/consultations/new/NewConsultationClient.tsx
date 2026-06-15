@@ -185,7 +185,8 @@ export default function NewConsultationClient({
           Volver al Expediente del Paciente
         </a>
         <h2 style={styles.title}>Nueva Consulta Clínica</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <p style={{ ...styles.subtitle, fontSize: '1.1rem', margin: 0 }}>
             Paciente: <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{patient.first_name} {patient.last_name}</strong>
           </p>
@@ -222,35 +223,38 @@ export default function NewConsultationClient({
           }}>
             {patientAge} años
           </span>
+          </div>
 
-          <select
-            value={patient.gender || 'O'}
-            disabled={isUpdatingGender}
-            onChange={(e) => {
-              startGenderTransition(async () => {
-                await updatePatientGender(patient.id, e.target.value)
-              })
-            }}
-            style={{
-              appearance: 'none',
-              cursor: 'pointer',
-              backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
-              color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
-              border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
-              borderRadius: '999px',
-              padding: '0.2rem 0.75rem',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              letterSpacing: '0.02em',
-              outline: 'none',
-              opacity: isUpdatingGender ? 0.6 : 1
-            }}
-          >
-            <option value="M">Masculino</option>
-            <option value="F">Femenino</option>
-            <option value="O">Otro</option>
-          </select>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-muted)' }}>Género:</span>
+            <select
+              value={patient.gender || 'O'}
+              disabled={isUpdatingGender}
+              onChange={(e) => {
+                startGenderTransition(async () => {
+                  await updatePatientGender(patient.id, e.target.value)
+                })
+              }}
+              style={{
+                appearance: 'none',
+                cursor: 'pointer',
+                backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
+                color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
+                border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
+                borderRadius: '999px',
+                padding: '0.3rem 1rem',
+                fontSize: '1rem',
+                fontWeight: '700',
+                letterSpacing: '0.02em',
+                outline: 'none',
+                opacity: isUpdatingGender ? 0.6 : 1
+              }}
+            >
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+              <option value="O">Otro</option>
+            </select>
+          </div>
         </div>
       </div>
 
