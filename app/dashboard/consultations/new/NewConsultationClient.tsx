@@ -180,7 +180,30 @@ export default function NewConsultationClient({
           Volver al Expediente del Paciente
         </a>
         <h2 style={styles.title}>Nueva Consulta Clínica</h2>
-        <p style={styles.subtitle}>Paciente: <strong>{patient.first_name} {patient.last_name}</strong> • Registro de evolución y receta</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <p style={{ ...styles.subtitle, fontSize: '1.1rem', margin: 0 }}>
+            Paciente: <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{patient.first_name} {patient.last_name}</strong>
+          </p>
+          {patient.is_pediatric && (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              backgroundColor: '#dcfce7',
+              color: '#166534',
+              border: '1px solid #bbf7d0',
+              borderRadius: '999px',
+              padding: '0.2rem 0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              letterSpacing: '0.02em',
+              whiteSpace: 'nowrap',
+            }}>
+              🧒 Pediátrico
+            </span>
+          )}
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>• Registro de evolución y receta</span>
+        </div>
       </div>
 
       {error && <div style={styles.errorAlert}>{error}</div>}
