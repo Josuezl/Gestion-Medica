@@ -105,3 +105,27 @@ node merge-patients.mjs <idConservar> <idEliminar> --execute  # fusiona
 
 Ejemplo ejecutado el 2026-06-13: se unió "Juan Carlos Vaquedano" en "Juan Carlos
 Vaquedano Flores" (15 consultas en un solo expediente).
+
+## Corrección de género por nombre (`fix-pediatric-gender.mjs`)
+
+Tras la migración, los pacientes **pediátricos** del tenant Centro Neurológico quedaron
+con género **"Otro"** (el Access no traía `Sexo` y se guardó `null`). Este script infiere
+el género (M/F) **del nombre de pila**, solo para `is_pediatric = true` de ese tenant y solo
+los que están en null/'O'. Los nombres unisex/ambiguos (p. ej. "Jose Maria") se **omiten**
+para revisión manual.
+
+```bash
+node fix-pediatric-gender.mjs --dump-names   # vuelca los nombres de pila a un archivo local
+node fix-pediatric-gender.mjs                # dry-run: solo conteos
+node fix-pediatric-gender.mjs --execute      # aplica los cambios
+```
+
+- La clasificación M/F vive en `gender-map.local.json` (la genera la revisión asistida por IA
+  sobre los nombres reales). El script omite cualquier nombre compuesto que mezcle un token
+  masculino y uno femenino.
+- **Idempotente** y acotado: nunca toca M/F existentes, ni adultos, ni otros tenants.
+- **Privacidad:** los archivos con nombres (`*.local.*`) están en `.gitignore`; nunca se
+  commitean. La consola solo muestra conteos.
+
+Ejecutado el 2026-06-15: 2,368 pediátricos en "Otro" → 1,395 M + 885 F actualizados;
+88 omitidos (unisex/ambiguos) para revisión manual de la doctora.

@@ -46,3 +46,6 @@ next-env.d.ts
 
 # dependencias del script de migración
 scripts/migracion-access/node_modules/
+
+# Salidas locales del corrector de género (nombres de pacientes; no commitear)
+scripts/migracion-access/*.local.*
