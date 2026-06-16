@@ -228,6 +228,7 @@ export interface PrescriptionEmailData {
   date: string
   verificationCode: string
   pdfUrl: string
+  pdfBase64?: string | null
   medicines: { name: string; dose?: string; frequency?: string; duration?: string }[]
   notes?: string | null
 }
@@ -235,6 +236,7 @@ export interface PrescriptionEmailData {
 export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promise<SendEmailResult> {
   const toEmail = data.toEmail
   const pdfUrl = data.pdfUrl
+  const pdfBase64 = data.pdfBase64
   const subjectClinic = data.clinicName
   const rawCode = data.verificationCode
   // Datos escapados para interpolar de forma segura en el HTML.
@@ -403,6 +405,9 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
       to: [toEmail],
       subject: `Receta Médica - ${rawCode} | ${subjectClinic}`,
       html,
+      ...(pdfBase64
+        ? { attachments: [{ filename: `Receta-${rawCode}.pdf`, content: pdfBase64 }] }
+        : {}),
     })
 
     if (error) {

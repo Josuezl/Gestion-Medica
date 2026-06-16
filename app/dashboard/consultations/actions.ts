@@ -119,7 +119,7 @@ export async function createConsultation(
           clinicName: clinic?.name || 'Consultorio Médico',
           clinicPhone: clinic?.phone || 'N/A',
           clinicAddress: clinic?.address || 'Honduras',
-          doctorName: doctorShortName(docProfile?.first_name, docProfile?.last_name),
+          doctorName: doctorShortName(docProfile?.first_name, docProfile?.last_name, docProfile?.gender),
           doctorSpecialty: docProfile?.specialty || 'Medicina General',
           doctorProfessionalId: docProfile?.professional_id || 'N/A',
           patientName: `${patient?.first_name} ${patient?.last_name}`,
@@ -156,7 +156,7 @@ export async function createConsultation(
             .createSignedUrl(filePath, 86400) // 24 horas
 
           if (signedData?.signedUrl && patient?.phone) {
-            const docName = doctorShortName(docProfile?.first_name, docProfile?.last_name)
+            const docName = doctorShortName(docProfile?.first_name, docProfile?.last_name, docProfile?.gender)
             const patientName = `${patient.first_name} ${patient.last_name}`
             await sendPrescriptionNotification(
               patient.phone,

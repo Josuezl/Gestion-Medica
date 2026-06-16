@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation } from './actions'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember } from './actions'
 import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive } from 'lucide-react'
 
 interface ConfigClientProps {
@@ -52,6 +52,40 @@ export default function ConfigClient({
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null)
   const [editLocName, setEditLocName] = useState('')
   const [editLocAddress, setEditLocAddress] = useState('')
+
+  // Edición de un miembro del equipo (médico/asistente)
+  const [editMember, setEditMember] = useState<any | null>(null)
+  const [memberSaving, setMemberSaving] = useState(false)
+  const [memberError, setMemberError] = useState<string | null>(null)
+
+  function openEditMember(member: any) {
+    setMemberError(null)
+    setEditMember({
+      id: member.id,
+      firstName: member.first_name || '',
+      lastName: member.last_name || '',
+      specialty: member.specialty || '',
+      professionalId: member.professional_id || '',
+      gender: member.gender || '',
+      role: member.role,
+    })
+  }
+
+  async function handleSaveMember() {
+    if (!editMember) return
+    setMemberError(null)
+    setMemberSaving(true)
+    const res = await updateTeamMember(editMember.id, {
+      firstName: editMember.firstName,
+      lastName: editMember.lastName,
+      specialty: editMember.specialty,
+      professionalId: editMember.professionalId,
+      gender: editMember.gender,
+    })
+    setMemberSaving(false)
+    if (res?.error) setMemberError(res.error)
+    else setEditMember(null)
+  }
   
   const allMembersAndInvites = [...teamMembers, ...invitations]
   
@@ -146,6 +180,56 @@ export default function ConfigClient({
 
   return (
     <div style={{ display: 'grid', gap: '2rem', gridTemplateColumns: '1fr' }}>
+
+      {/* Modal: editar datos de un miembro del equipo */}
+      {editMember && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="card modal-card" style={{ maxWidth: '520px', width: '100%' }}>
+            <h3 style={{ margin: '0 0 1.25rem', fontSize: '1.1rem' }}>Editar miembro</h3>
+            {memberError && (
+              <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                {memberError}
+              </div>
+            )}
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Nombre(s)</label>
+                <input type="text" className="form-input" value={editMember.firstName} onChange={e => setEditMember({ ...editMember, firstName: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Apellido(s)</label>
+                <input type="text" className="form-input" value={editMember.lastName} onChange={e => setEditMember({ ...editMember, lastName: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Género</label>
+                <select className="form-input" value={editMember.gender} onChange={e => setEditMember({ ...editMember, gender: e.target.value })}>
+                  <option value="">Sin especificar</option>
+                  <option value="M">Masculino (Dr.)</option>
+                  <option value="F">Femenino (Dra.)</option>
+                </select>
+              </div>
+              {editMember.role !== 'ASSISTANT' && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Especialidad</label>
+                    <input type="text" className="form-input" value={editMember.specialty} onChange={e => setEditMember({ ...editMember, specialty: e.target.value })} placeholder="Ej. Pediatría" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">N° Colegiación</label>
+                    <input type="text" className="form-input" value={editMember.professionalId} onChange={e => setEditMember({ ...editMember, professionalId: e.target.value })} placeholder="CMH-0000" />
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setEditMember(null)} disabled={memberSaving}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveMember} disabled={memberSaving}>
+                {memberSaving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Almacenamiento */}
       <div className="card">
@@ -268,6 +352,14 @@ export default function ConfigClient({
                   <input type="text" name="specialty" className="form-input" placeholder="Ej. Pediatría" />
                 </div>
               )}
+              <div className="form-group">
+                <label className="form-label">Género</label>
+                <select name="gender" className="form-input" defaultValue="">
+                  <option value="">Sin especificar</option>
+                  <option value="M">Masculino (Dr.)</option>
+                  <option value="F">Femenino (Dra.)</option>
+                </select>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -290,6 +382,7 @@ export default function ConfigClient({
                 <th style={{ padding: '0.75rem 1rem' }}>Rol</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Especialidad</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Estado</th>
+                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -318,6 +411,15 @@ export default function ConfigClient({
                   </td>
                   <td data-label="Estado" style={{ padding: '0.75rem 1rem' }}>
                     <span className="badge badge-success">Activo</span>
+                  </td>
+                  <td data-label="Acciones" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      onClick={() => openEditMember(member)}
+                      style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
+                    >
+                      <Edit size={14} /> Editar
+                    </button>
                   </td>
                 </tr>
               ))}

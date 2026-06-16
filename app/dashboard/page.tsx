@@ -60,7 +60,7 @@ export default async function DashboardPage() {
   // 4. Obtener doctores de la clínica
   const { data: doctors } = await supabase
     .from('user_profiles')
-    .select('id, first_name, last_name, role')
+    .select('id, first_name, last_name, role, gender')
     .eq('clinic_id', clinicId || '')
     .in('role', ['ADMIN', 'DOCTOR'])
     .order('first_name', { ascending: true })

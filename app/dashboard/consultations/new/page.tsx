@@ -53,7 +53,7 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
   // 3. Cargar consultas de evolución
   const { data: consultations } = await supabase
     .from('consultations')
-    .select('*, user_profiles(first_name, last_name), prescriptions(id, medicines, notes, verification_code, pdf_url)')
+    .select('*, user_profiles(first_name, last_name, gender), prescriptions(id, medicines, notes, verification_code, pdf_url)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 
@@ -82,7 +82,7 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
   // 5. Cargar recetas
   const { data: prescriptions } = await supabase
     .from('prescriptions')
-    .select('*, user_profiles(first_name, last_name)')
+    .select('*, user_profiles(first_name, last_name, gender)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 

@@ -64,7 +64,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(prescription.created_at)
-  const docName = doctorShortName(doctor.first_name, doctor.last_name)
+  const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 

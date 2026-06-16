@@ -37,7 +37,7 @@ export async function sendMedicalRecordByEmail(patientId: string) {
   if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado. Edita su ficha para agregarlo.' }
 
   const clinicName = profile.clinics?.name || 'Consultorio Médico'
-  const doctorName = doctorShortName(profile.first_name, profile.last_name)
+  const doctorName = doctorShortName(profile.first_name, profile.last_name, profile.gender)
 
   // 4. Enviar correo con Resend
   const result = await sendMedicalRecordEmail(
@@ -112,18 +112,26 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
 
   if (!prescription) return { error: 'Receta no encontrada' }
 
-  // 5. Generar URL firmada temporal del PDF (válida por 24 horas)
+  // 5. PDF de la receta: URL firmada (botón) + bytes para adjuntarlo al correo.
+  //    El adjunto reutiliza el PDF ya guardado (no gasta almacenamiento extra).
   let pdfUrl = '#'
+  let pdfBase64: string | null = null
   if (prescription.pdf_url) {
     const { data: signedData } = await supabase.storage
       .from('prescriptions')
       .createSignedUrl(prescription.pdf_url, 86400) // 24 horas
-
     pdfUrl = signedData?.signedUrl || '#'
+
+    const { data: pdfBlob } = await supabase.storage
+      .from('prescriptions')
+      .download(prescription.pdf_url)
+    if (pdfBlob) {
+      pdfBase64 = Buffer.from(await pdfBlob.arrayBuffer()).toString('base64')
+    }
   }
 
   const clinicName = profile.clinics?.name || 'Consultorio Médico'
-  const doctorName = doctorShortName(profile.first_name, profile.last_name)
+  const doctorName = doctorShortName(profile.first_name, profile.last_name, profile.gender)
   const patientName = `${patient.first_name} ${patient.last_name}`
 
   const calculateAge = (birthDateString: string) => {
@@ -154,6 +162,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     date: emissionDate,
     verificationCode: prescription.verification_code,
     pdfUrl,
+    pdfBase64,
     medicines: prescription.medicines || [],
     notes: prescription.notes,
   })

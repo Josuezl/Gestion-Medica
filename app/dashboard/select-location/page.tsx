@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import SelectLocationClient from './SelectLocationClient'
-import { firstWord } from '@/utils/doctorName'
+import { firstWord, doctorTitle } from '@/utils/doctorName'
 
 export default async function SelectLocationPage() {
   const supabase = await createClient()
@@ -14,7 +14,7 @@ export default async function SelectLocationPage() {
 
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('id, clinic_id, first_name, last_name, role')
+    .select('id, clinic_id, first_name, last_name, role, gender')
     .eq('id', user.id)
     .single()
 
@@ -49,7 +49,7 @@ export default async function SelectLocationPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', padding: '2rem' }}>
       <div style={{ maxWidth: '600px', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', color: '#0f172a', margin: '0 0 0.5rem' }}>Bienvenido, {profile.role === 'DOCTOR' ? 'Dr. ' : ''}{firstWord(profile.first_name)}</h1>
+          <h1 style={{ fontSize: '2rem', color: '#0f172a', margin: '0 0 0.5rem' }}>Bienvenido, {profile.role === 'DOCTOR' ? `${doctorTitle(profile.gender)} ` : ''}{firstWord(profile.first_name)}</h1>
           <p style={{ color: '#64748b', margin: 0, fontSize: '1.1rem' }}>¿En cuál clínica vas a trabajar hoy?</p>
         </div>
         

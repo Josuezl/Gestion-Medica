@@ -56,7 +56,8 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
       ),
       user_profiles (
         first_name,
-        last_name
+        last_name,
+        gender
       )
     `, { count: 'exact' })
     .eq('clinic_id', clinicId || '')
@@ -167,7 +168,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                   const patientName = consultation.patients 
                     ? `${consultation.patients.first_name} ${consultation.patients.last_name}` 
                     : 'Paciente Desconocido'
-                  const doctorName = doctorShortName(consultation.user_profiles?.first_name, consultation.user_profiles?.last_name)
+                  const doctorName = doctorShortName(consultation.user_profiles?.first_name, consultation.user_profiles?.last_name, consultation.user_profiles?.gender)
 
                   return (
                     <tr key={consultation.id}>

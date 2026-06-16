@@ -2,6 +2,7 @@ import React from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList } from 'lucide-react'
 import { formatDateHN } from '@/utils/datetime'
+import { doctorTitle } from '@/utils/doctorName'
 
 // Página PÚBLICA: usa el cliente service_role porque RLS bloquea el acceso anónimo.
 // Se instancia DENTRO del componente (no a nivel de módulo) para no romper el build.
@@ -34,7 +35,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
         id, created_at, medical_leave, reason_for_visit, verification_code,
         clinics ( name ),
         patients ( first_name, last_name ),
-        user_profiles!doctor_id ( first_name, last_name, specialty )
+        user_profiles!doctor_id ( first_name, last_name, specialty, gender )
       `)
       .eq('verification_code', code)
       .single()
@@ -92,7 +93,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
                   <h3 style={{ fontSize: '0.875rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Stethoscope size={16} /> Médico
                   </h3>
-                  <p style={{ margin: '0', fontWeight: 500, color: '#0f172a' }}>Dr/a. {docDoctor?.first_name} {docDoctor?.last_name}</p>
+                  <p style={{ margin: '0', fontWeight: 500, color: '#0f172a' }}>{doctorTitle(docDoctor?.gender)} {docDoctor?.first_name} {docDoctor?.last_name}</p>
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>{docDoctor?.specialty || 'Medicina General'}</p>
                 </div>
               </div>

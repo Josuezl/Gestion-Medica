@@ -20,6 +20,7 @@ export async function sendInvitation(formData: FormData) {
   const email = (formData.get('email') as string || '').trim().toLowerCase()
   const role = formData.get('role') as string
   const specialty = (formData.get('specialty') as string || '').trim()
+  const gender = (formData.get('gender') as string || '').trim()
 
   if (!firstName || !lastName || !email || !role) {
     return { error: 'Nombre, apellido, correo y rol son requeridos.' }
@@ -70,6 +71,7 @@ export async function sendInvitation(formData: FormData) {
     role,
     isOrgAdmin: false,
     specialty: specialty || null,
+    gender: gender || null,
     inviterName,
   })
 
@@ -82,6 +84,51 @@ export async function sendInvitation(formData: FormData) {
     success: true,
     warning: result.emailError ? `Cuenta creada, pero el email falló: ${result.emailError}` : undefined,
   }
+}
+
+export interface TeamMemberUpdate {
+  firstName: string
+  lastName: string
+  specialty: string
+  professionalId: string
+  gender: string // '', 'M', 'F', 'O'
+}
+
+/**
+ * Edición de los datos de un médico/asistente existente por el org-admin (no cambia el rol).
+ * Sirve, entre otras cosas, para fijar el género y que se muestre "Dra." en vez de "Dr.".
+ */
+export async function updateTeamMember(memberId: string, data: TeamMemberUpdate) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado. Solo los administradores pueden editar miembros.' }
+
+  const firstName = (data.firstName || '').trim()
+  const lastName = (data.lastName || '').trim()
+  if (!firstName || !lastName) return { error: 'Nombre y apellido son requeridos.' }
+
+  const gender = ['M', 'F', 'O'].includes(data.gender) ? data.gender : null
+
+  const supabase = await createClient()
+  // Solo se actualiza si el miembro pertenece a la misma clínica del admin (aislamiento de tenant).
+  const { data: updated, error } = await supabase
+    .from('user_profiles')
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      specialty: (data.specialty || '').trim() || null,
+      professional_id: (data.professionalId || '').trim() || null,
+      gender,
+    })
+    .eq('id', memberId)
+    .eq('clinic_id', ctx.clinicId)
+    .select('id')
+
+  if (error) return { error: 'Error al actualizar: ' + error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este miembro.' }
+
+  revalidatePath('/dashboard/config')
+  revalidatePath('/dashboard')
+  return { success: true }
 }
 
 export async function revokeInvitation(invitationId: string) {
