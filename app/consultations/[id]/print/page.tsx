@@ -59,7 +59,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   const formattedDate = formatDateTimeHN(consultation.created_at)
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const qrDataUrl = await QRCode.toDataURL(`${SITE_URL}/verificar/${consultation.verification_code}`, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
-  const docName = doctorShortName(doctor.first_name, doctor.last_name)
+  const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 

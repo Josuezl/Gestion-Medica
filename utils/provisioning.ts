@@ -13,6 +13,7 @@ export interface ProvisionParams {
   isOrgAdmin: boolean
   specialty?: string | null
   professionalId?: string | null
+  gender?: string | null
   defaultLocationId?: string | null
   inviterName?: string | null
 }
@@ -59,6 +60,7 @@ export async function provisionUserAccount(params: ProvisionParams): Promise<Pro
       is_org_admin: params.isOrgAdmin,
       specialty: params.specialty || null,
       professional_id: params.professionalId || null,
+      gender: params.gender || null,
       default_location_id: params.defaultLocationId || null,
     })
     .eq('id', userId)

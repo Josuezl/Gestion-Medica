@@ -64,7 +64,7 @@ export default function PatientHistoryTabs({
   }
 
   const handleCopyPrescription = (presc: any) => {
-    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
+    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
     const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
     navigator.clipboard.writeText(text)
     
@@ -155,7 +155,7 @@ export default function PatientHistoryTabs({
                       month: 'long',
                       day: 'numeric'
                     })
-                    const docName = doctorShortName(consult.user_profiles?.first_name, consult.user_profiles?.last_name)
+                    const docName = doctorShortName(consult.user_profiles?.first_name, consult.user_profiles?.last_name, consult.user_profiles?.gender)
                     const isExpanded = !!expandedConsultations[consult.id]
                     
                     return (
@@ -394,7 +394,7 @@ export default function PatientHistoryTabs({
               <div style={styles.studiesList}>
                 {prescriptions.map((presc) => {
                   const date = new Date(presc.created_at).toLocaleDateString('es-HN')
-                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
+                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
                   const isExpanded = expandedPrescription === presc.id
                   const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
                   
@@ -593,7 +593,7 @@ export default function PatientHistoryTabs({
               <button
                 onClick={() => {
                   const presc = whatsappModalPresc
-                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
+                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
                   const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
                   const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
                   const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
@@ -635,7 +635,7 @@ export default function PatientHistoryTabs({
               <button
                 onClick={() => {
                   const presc = whatsappModalPresc
-                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name)
+                  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
                   const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}?code=${presc.verification_code}`
                   const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
                   const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`

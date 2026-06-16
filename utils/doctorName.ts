@@ -14,11 +14,16 @@ export function personShortName(firstName?: string | null, lastName?: string | n
   return [firstWord(firstName), firstWord(lastName)].filter(Boolean).join(' ')
 }
 
+/** Título según el género del médico: "Dra." si es femenino, "Dr." en cualquier otro caso. */
+export function doctorTitle(gender?: string | null): string {
+  return gender === 'F' ? 'Dra.' : 'Dr.'
+}
+
 /**
- * "Dr. {primer nombre} {primer apellido}".
- * Si no hay nombre disponible, devuelve "Médico".
+ * "Dr./Dra. {primer nombre} {primer apellido}" según el género del médico.
+ * Si no hay nombre disponible, devuelve "Médico". Sin género → "Dr." (default).
  */
-export function doctorShortName(firstName?: string | null, lastName?: string | null): string {
+export function doctorShortName(firstName?: string | null, lastName?: string | null, gender?: string | null): string {
   const name = personShortName(firstName, lastName)
-  return name ? `Dr. ${name}` : 'Médico'
+  return name ? `${doctorTitle(gender)} ${name}` : 'Médico'
 }

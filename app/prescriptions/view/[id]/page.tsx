@@ -1,4 +1,5 @@
 import React from 'react'
+import QRCode from 'qrcode'
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import CodeForm from './CodeForm'
@@ -163,8 +164,11 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(prescription.created_at)
 
-  const docName = doctorShortName(doctor.first_name, doctor.last_name)
+  const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
+
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const qrDataUrl = await QRCode.toDataURL(`${SITE_URL}/verificar/${prescription.verification_code}`, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
 
   // Formatear sexo en español
   const getGenderText = (g: string) => {
@@ -701,13 +705,17 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
         {/* Pie de Receta: Sello y Validación */}
         <div className="footer-section">
           {/* Bloque de validación electrónica */}
-          <div className="validation-block">
-            <h5 className="validation-title">Receta Médica Verificada Electrónicamente</h5>
-            <div className="validation-code">Código: {prescription.verification_code}</div>
-            <p className="validation-text">
-              Esta receta ha sido emitida de forma electrónica por un profesional de la salud debidamente autorizado y certificado. 
-              El código impreso arriba es único y puede utilizarse para validar la integridad del documento en farmacias.
-            </p>
+          <div className="validation-block" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt="Código QR de verificación de la receta" style={{ width: '92px', height: '92px', flexShrink: 0 }} />
+            <div>
+              <h5 className="validation-title">Receta Médica Verificada Electrónicamente</h5>
+              <div className="validation-code">Código: {prescription.verification_code}</div>
+              <p className="validation-text">
+                Escanea el código QR o usa el código de arriba para validar esta receta en su versión digital.
+                Documento emitido electrónicamente por un profesional autorizado.
+              </p>
+            </div>
           </div>
 
           {/* Firma Médica */}
