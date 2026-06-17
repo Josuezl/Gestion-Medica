@@ -44,6 +44,10 @@ export async function createAppointment(formData: FormData) {
   const duration = durationStr ? parseInt(durationStr, 10) : 15
   const status = formData.get('status') as string || 'PENDING'
 
+  if (!patientId) {
+    return { error: 'Debes seleccionar un paciente registrado para la cita.' }
+  }
+
   if (!dateStr || !timeStr) {
     return { error: 'Por favor selecciona fecha y hora para la cita.' }
   }
@@ -83,6 +87,7 @@ export async function createAppointment(formData: FormData) {
 export async function updateAppointment(id: string, formData: FormData) {
   const supabase = await createClient()
 
+  const patientId = formData.get('patient_id') as string || null
   const doctorId = formData.get('doctor_id') as string
   const dateStr = formData.get('date') as string
   const timeStr = formData.get('time') as string
@@ -94,6 +99,10 @@ export async function updateAppointment(id: string, formData: FormData) {
 
   if (!dateStr || !timeStr || !doctorId) {
     return { error: 'Datos incompletos para actualizar.' }
+  }
+
+  if (!patientId) {
+    return { error: 'Debes seleccionar un paciente registrado para la cita.' }
   }
 
   if (!locationId) {
@@ -112,6 +121,7 @@ export async function updateAppointment(id: string, formData: FormData) {
   const { error } = await supabase
     .from('appointments')
     .update({
+      patient_id: patientId,
       doctor_id: doctorId,
       scheduled_at: scheduledAt,
       duration_minutes: duration,

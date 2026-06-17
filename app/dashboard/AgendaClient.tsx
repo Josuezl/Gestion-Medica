@@ -186,6 +186,12 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false)
   const [patientSearchResults, setPatientSearchResults] = useState<typeof patients>([])
   const [isSearchingPatients, setIsSearchingPatients] = useState(false)
+  // Nombre escrito que no corresponde a un paciente registrado (dispara el modal de registro).
+  const [unregisteredName, setUnregisteredName] = useState<string | null>(null)
+
+  const goRegisterPatient = (name: string) => {
+    window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
+  }
 
   // Búsqueda dinámica con debounce: llama al servidor en vez de filtrar en memoria.
   // Funciona con cualquier cantidad de pacientes (no hay límite de carga inicial).
@@ -748,6 +754,19 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
       const statusVal = formData.get('status') as string
       const locationVal = formData.get('location_id') as string
 
+      // Validación: la cita debe ser para un paciente REGISTRADO (seleccionado del buscador).
+      if (!selectedPatientId) {
+        const typed = patientSearch.trim()
+        if (typed.length === 0) {
+          setFormError('Selecciona un paciente registrado para la cita.')
+        } else {
+          // Escribió un nombre que no eligió del listado → ofrecer registrarlo.
+          setUnregisteredName(typed)
+        }
+        setIsSubmitting(false)
+        return
+      }
+
       // Validación: si el tenant tiene clínicas, la cita debe asignarse a una
       // (si no, queda "huérfana" y no aparece al filtrar por clínica).
       if (locations.length > 0 && !locationVal) {
@@ -803,6 +822,22 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
 
     return (
       <div className="sidebar-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease-out forwards' }}>
+        {/* Confirmación: el paciente escrito no está registrado */}
+        {unregisteredName && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
+            <div className="card" style={{ maxWidth: '460px', width: '100%' }}>
+              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.1rem' }}>Paciente no registrado</h3>
+              <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                El paciente <strong>«{unregisteredName}»</strong> no está registrado. No se puede agendar
+                una cita a un paciente sin registrar. ¿Deseas registrarlo ahora?
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setUnregisteredName(null)}>Cancelar</button>
+                <button type="button" className="btn btn-primary" onClick={() => goRegisterPatient(unregisteredName)}>Sí, registrar</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="card modal-card" style={{ animation: 'fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards', transition: 'box-shadow 0.2s, border-color 0.2s' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h3 style={{ margin: 0 }}>{isEdit ? 'Editar Cita' : 'Nueva Cita'}</h3>
@@ -821,7 +856,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
             
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Paciente</label>
-              <input type="hidden" name="patient_id" value={selectedPatientId} required />
+              <input type="hidden" name="patient_id" value={selectedPatientId} />
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
@@ -857,7 +892,15 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                       </div>
                     ))}
                     {!isSearchingPatients && patientSearch.trim().length >= 2 && patientSearchResults.length === 0 && (
-                      <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>No se encontraron pacientes.</div>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => goRegisterPatient(patientSearch)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.6rem 0.5rem', cursor: 'pointer', borderRadius: '8px', border: '1px dashed #14b8a6', background: 'rgba(45, 212, 191, 0.08)', color: '#0d9488', fontSize: '0.85rem', fontWeight: 600, textAlign: 'left' }}
+                      >
+                        <Plus size={16} />
+                        No se encontró. Registrar nuevo paciente «{patientSearch.trim()}»
+                      </button>
                     )}
                     {!isSearchingPatients && patientSearch.trim().length < 2 && (
                       <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>Escribe al menos 2 caracteres para buscar.</div>

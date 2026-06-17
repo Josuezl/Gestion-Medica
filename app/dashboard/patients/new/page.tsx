@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createPatient } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import { 
@@ -22,6 +22,18 @@ export default function NewPatientPage() {
   const [loading, setLoading] = useState(false)
   // Se detecta automáticamente por la fecha de nacimiento (menor de 19 años).
   const [isPediatric, setIsPediatric] = useState(false)
+
+  // Pre-carga del nombre cuando se llega desde "Agendar cita" con un paciente no registrado
+  // (/dashboard/patients/new?nombre=...). Controlado + efecto de montaje para no romper la hidratación.
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  useEffect(() => {
+    const nombre = new URLSearchParams(window.location.search).get('nombre')?.trim()
+    if (!nombre) return
+    const parts = nombre.split(/\s+/)
+    setFirstName(parts[0] || '')
+    setLastName(parts.slice(1).join(' '))
+  }, [])
 
   function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
     setIsPediatric(isPediatricAge(e.target.value))
@@ -75,6 +87,8 @@ export default function NewPatientPage() {
                   name="first_name"
                   type="text"
                   placeholder="Ej. Carlos Roberto"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
               </div>
@@ -89,6 +103,8 @@ export default function NewPatientPage() {
                   name="last_name"
                   type="text"
                   placeholder="Ej. Martínez"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                   required
                 />
               </div>
