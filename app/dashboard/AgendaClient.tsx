@@ -173,7 +173,11 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const isAssistant = currentDoctor.role === 'ASSISTANT'
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isAssistant ? 'all' : currentDoctor.id)
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(defaultLocationId)
+  // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
+  // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
+  const [selectedLocationId, setSelectedLocationId] = useState<string>(
+    defaultLocationId === 'all' || locations.some(l => l.id === defaultLocationId) ? defaultLocationId : 'all'
+  )
   
   const [showForm, setShowForm] = useState(false)
   const [selectedHourForForm, setSelectedHourForForm] = useState<string>('08:00')

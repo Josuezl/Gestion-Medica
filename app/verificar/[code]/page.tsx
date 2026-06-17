@@ -35,7 +35,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
         id, created_at, medical_leave, reason_for_visit, verification_code,
         clinics ( name ),
         patients ( first_name, last_name ),
-        user_profiles!doctor_id ( first_name, last_name, specialty, gender )
+        user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
       `)
       .eq('verification_code', code)
       .single()
@@ -129,7 +129,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
               )}
 
               <div style={{ textAlign: 'center', fontSize: '0.875rem', color: '#94a3b8' }}>
-                <p style={{ margin: '0 0 0.25rem' }}>{doc.clinics?.name}</p>
+                <p style={{ margin: '0 0 0.25rem' }}>{docDoctor?.practice_name || doc.clinics?.name}</p>
                 <p style={{ margin: '0' }}>Verificado mediante CloudMedHN</p>
               </div>
             </div>

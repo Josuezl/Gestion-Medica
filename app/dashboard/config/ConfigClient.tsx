@@ -67,6 +67,9 @@ export default function ConfigClient({
       specialty: member.specialty || '',
       professionalId: member.professional_id || '',
       gender: member.gender || '',
+      practiceName: member.practice_name || '',
+      practicePhone: member.practice_phone || '',
+      practiceAddress: member.practice_address || '',
       role: member.role,
     })
   }
@@ -81,6 +84,9 @@ export default function ConfigClient({
       specialty: editMember.specialty,
       professionalId: editMember.professionalId,
       gender: editMember.gender,
+      practiceName: editMember.practiceName,
+      practicePhone: editMember.practicePhone,
+      practiceAddress: editMember.practiceAddress,
     })
     setMemberSaving(false)
     if (res?.error) setMemberError(res.error)
@@ -221,6 +227,29 @@ export default function ConfigClient({
                 </>
               )}
             </div>
+
+            {editMember.role !== 'ASSISTANT' && (
+              <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem' }}>Datos para receta (opcional)</div>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Si se llenan, reemplazan el nombre/teléfono/dirección de la organización en las recetas de este médico. Si se dejan vacíos, se usa el de la organización.
+                </p>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Nombre del consultorio</label>
+                    <input type="text" className="form-input" value={editMember.practiceName} onChange={e => setEditMember({ ...editMember, practiceName: e.target.value })} placeholder="Ej. Cardiología Espinoza" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Teléfono (receta)</label>
+                    <input type="text" className="form-input" value={editMember.practicePhone} onChange={e => setEditMember({ ...editMember, practicePhone: e.target.value })} placeholder="Ej. +504 0000-0000" />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">Dirección (receta)</label>
+                    <input type="text" className="form-input" value={editMember.practiceAddress} onChange={e => setEditMember({ ...editMember, practiceAddress: e.target.value })} placeholder="Ej. Torre Médica, 3er piso, San Pedro Sula" />
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setEditMember(null)} disabled={memberSaving}>Cancelar</button>
               <button type="button" className="btn btn-primary" onClick={handleSaveMember} disabled={memberSaving}>

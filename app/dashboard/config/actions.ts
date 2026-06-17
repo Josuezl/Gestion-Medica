@@ -92,6 +92,9 @@ export interface TeamMemberUpdate {
   specialty: string
   professionalId: string
   gender: string // '', 'M', 'F', 'O'
+  practiceName: string
+  practicePhone: string
+  practiceAddress: string
 }
 
 /**
@@ -118,6 +121,9 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
       specialty: (data.specialty || '').trim() || null,
       professional_id: (data.professionalId || '').trim() || null,
       gender,
+      practice_name: (data.practiceName || '').trim() || null,
+      practice_phone: (data.practicePhone || '').trim() || null,
+      practice_address: (data.practiceAddress || '').trim() || null,
     })
     .eq('id', memberId)
     .eq('clinic_id', ctx.clinicId)

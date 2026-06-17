@@ -36,7 +36,7 @@ export async function sendMedicalRecordByEmail(patientId: string) {
 
   if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado. Edita su ficha para agregarlo.' }
 
-  const clinicName = profile.clinics?.name || 'Consultorio Médico'
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
   const doctorName = doctorShortName(profile.first_name, profile.last_name, profile.gender)
 
   // 4. Enviar correo con Resend
@@ -130,7 +130,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     }
   }
 
-  const clinicName = profile.clinics?.name || 'Consultorio Médico'
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
   const doctorName = doctorShortName(profile.first_name, profile.last_name, profile.gender)
   const patientName = `${patient.first_name} ${patient.last_name}`
 
@@ -149,8 +149,8 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
   const result = await sendPrescriptionEmail({
     toEmail: patient.email,
     clinicName,
-    clinicPhone: profile.clinics?.phone,
-    clinicAddress: profile.clinics?.address,
+    clinicPhone: profile.practice_phone || profile.clinics?.phone,
+    clinicAddress: profile.practice_address || profile.clinics?.address,
     doctorName,
     doctorSpecialty: profile.specialty,
     doctorProfessionalId: profile.professional_id,
