@@ -593,9 +593,9 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
             <tbody>
               <tr>
                 <td style={{ verticalAlign: 'top', textAlign: 'left' }}>
-                  <h1 className="clinic-name">{clinic.name}</h1>
-                  <p className="clinic-detail">Teléfono: {clinic.phone || 'N/A'}</p>
-                  <p className="clinic-detail">{clinic.address || 'Honduras'}</p>
+                  <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
+                  <p className="clinic-detail">Teléfono: {doctor.practice_phone || clinic.phone || 'N/A'}</p>
+                  <p className="clinic-detail">{doctor.practice_address || clinic.address || 'Honduras'}</p>
                 </td>
                 <td style={{ verticalAlign: 'top', textAlign: 'right' }}>
                   <h2 className="doctor-name">{docName}</h2>

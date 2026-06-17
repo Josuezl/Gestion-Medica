@@ -116,9 +116,9 @@ export async function createConsultation(
 
         // Generar el PDF
         const pdfBuffer = await generatePrescriptionPDF({
-          clinicName: clinic?.name || 'Consultorio Médico',
-          clinicPhone: clinic?.phone || 'N/A',
-          clinicAddress: clinic?.address || 'Honduras',
+          clinicName: docProfile?.practice_name || clinic?.name || 'Consultorio Médico',
+          clinicPhone: docProfile?.practice_phone || clinic?.phone || 'N/A',
+          clinicAddress: docProfile?.practice_address || clinic?.address || 'Honduras',
           doctorName: doctorShortName(docProfile?.first_name, docProfile?.last_name, docProfile?.gender),
           doctorSpecialty: docProfile?.specialty || 'Medicina General',
           doctorProfessionalId: docProfile?.professional_id || 'N/A',

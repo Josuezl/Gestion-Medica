@@ -183,8 +183,8 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
         <div className="sheet">
           {/* Cabecera centrada: organización arriba, médico debajo */}
           <div className="header">
-            <h1 className="clinic-name">{clinic.name}</h1>
-            <p className="clinic-detail">Tel: {clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{clinic.address || 'Honduras'}</p>
+            <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
+            <p className="clinic-detail">Tel: {doctor.practice_phone || clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{doctor.practice_address || clinic.address || 'Honduras'}</p>
             <div className="doc-block">
               <h2 className="doctor-name">{docName}</h2>
               <p className="doctor-specialty">{docSpecialty}</p>
