@@ -656,11 +656,11 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                 </div>
                 
                 <div className="appt-info" style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem' }}>
-                    <span>{app.patients?.first_name?.split(' ')[0]} {app.patients?.last_name?.split(' ')[0]}</span>
-                    <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem' }}>
-                      ({ageText}Tel: {app.patients?.phone || 'Sin teléfono'})
-                    </span>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>
+                    {app.patients?.first_name} {app.patients?.last_name}
+                  </div>
+                  <div style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem', marginTop: '0.15rem' }}>
+                    {ageText}Tel: {app.patients?.phone || 'Sin teléfono'}
                   </div>
                   {app.notes && (
                     <div style={{ fontSize: '0.85rem', color: '#0d9488', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
