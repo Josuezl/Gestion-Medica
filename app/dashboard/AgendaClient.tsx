@@ -22,6 +22,7 @@ import {
   X,
   CheckCircle,
   Edit2,
+  FileText,
 } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
 
@@ -686,6 +687,12 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   {!isAssistant && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
                     <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
                       <Clipboard size={14} /> Iniciar Consulta
+                    </button>
+                  )}
+
+                  {app.patients?.id && (
+                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b' }} title="Abrir expediente del paciente">
+                      <FileText size={14} color="#64748b" /> Expediente
                     </button>
                   )}
 
