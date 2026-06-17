@@ -655,8 +655,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   <div style={{ fontWeight: 700, color: statusColor, fontSize: '1rem', whiteSpace: 'nowrap' }}>{time}</div>
                 </div>
                 
-                <div className="appt-info" style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem' }}>
+                <div className="appt-info" style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={`${app.patients?.first_name || ''} ${app.patients?.last_name || ''}`.trim()}>
                     {app.patients?.first_name} {app.patients?.last_name}
                   </div>
                   <div style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem', marginTop: '0.15rem' }}>
@@ -691,8 +691,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   )}
 
                   {app.patients?.id && (
-                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#dbeafe', border: '1px solid #bfdbfe', color: '#1d4ed8' }} title="Abrir expediente del paciente">
-                      <FileText size={14} color="#2563eb" /> Expediente
+                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#3b82f6', border: '1px solid #3b82f6', color: '#ffffff' }} title="Abrir expediente del paciente">
+                      <FileText size={14} color="#ffffff" /> Expediente
                     </button>
                   )}
 
