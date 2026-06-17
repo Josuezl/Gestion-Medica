@@ -691,7 +691,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   )}
 
                   {app.patients?.id && (
-                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#3b82f6', border: '1px solid #3b82f6', color: '#ffffff' }} title="Abrir expediente del paciente">
+                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#4f46e5', border: '1px solid #4f46e5', color: '#ffffff' }} title="Abrir expediente del paciente">
                       <FileText size={14} color="#ffffff" /> Expediente
                     </button>
                   )}
