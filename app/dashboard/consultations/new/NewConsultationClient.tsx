@@ -442,7 +442,7 @@ export default function NewConsultationClient({
             </div>
 
               {/* Botón de Enviar */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1.5rem' }}>
                 <button
                   type="submit"
                   className="btn btn-primary"
