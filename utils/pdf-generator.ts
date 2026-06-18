@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
+import { medicineDetail } from './medicines'
 
 interface PDFPrescriptionData {
   clinicName: string
@@ -105,13 +106,17 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
       doc.rect(0, 0, 210, 8, 'F')
       y = 25
     }
-    
+
+    // Texto libre (solo nombre) → usa todo el ancho; estructurado → nombre + detalle en 2 columnas.
+    const detail = medicineDetail(med)
     doc.setFont('Helvetica', 'bold')
-    doc.text(`${idx + 1}. ${med.name}`, 15, y)
-    
-    doc.setFont('Helvetica', 'normal')
-    doc.text(`${med.dose || ''}  •  ${med.frequency || ''}  •  ${med.duration || ''}`, 75, y)
-    y += 9
+    const nameLines = doc.splitTextToSize(`${idx + 1}. ${med.name || ''}`, detail ? 55 : 180)
+    doc.text(nameLines, 15, y)
+    if (detail) {
+      doc.setFont('Helvetica', 'normal')
+      doc.text(detail, 75, y)
+    }
+    y += Math.max(nameLines.length * 5.5, 9)
   })
 
   // 8. Indicaciones de la receta

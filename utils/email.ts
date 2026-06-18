@@ -4,6 +4,7 @@
  */
 
 import { Resend } from 'resend'
+import { medicineDetail } from './medicines'
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_123')
 
@@ -261,8 +262,8 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
 
   const medsHtml = medicines.map((med, i) => `
     <tr>
-      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:14px; color:#0f172a; font-weight:700; vertical-align:top; width:40%;">${i + 1}. ${med.name}</td>
-      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; color:#475569; vertical-align:top;">${med.dose}${med.frequency ? ` &bull; ${med.frequency}` : ''}${med.duration ? ` &bull; ${med.duration}` : ''}</td>
+      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:14px; color:#0f172a; font-weight:700; vertical-align:top; width:40%;">${i + 1}. ${escapeHtml(med.name)}</td>
+      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; color:#475569; vertical-align:top;">${escapeHtml(medicineDetail(med))}</td>
     </tr>
   `).join('')
 

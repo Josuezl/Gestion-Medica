@@ -25,6 +25,7 @@ import PediatricGrowthChart from './PediatricGrowthChart'
 import StudyUploader from './StudyUploader'
 import StudyList from './StudyList'
 import { doctorShortName } from '@/utils/doctorName'
+import { medicineDetail } from '@/utils/medicines'
 
 interface PatientHistoryTabsProps {
   patient: any
@@ -330,9 +331,7 @@ export default function PatientHistoryTabs({
                                       }}>
                                         <span style={{ fontWeight: '700', color: 'var(--text-main)', width: '24px', flexShrink: 0 }}>{idx + 1}</span>
                                         <span style={{ fontWeight: '700', color: 'var(--text-main)', flex: 2.5 }}>{med.name}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1 }}>{med.dose || 'N/A'}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.frequency || 'N/A'}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.duration || 'N/A'}</span>
+                                        <span style={{ color: 'var(--text-muted)', flex: 3.4 }}>{medicineDetail(med)}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -457,7 +456,7 @@ export default function PatientHistoryTabs({
                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '440px' }}>
                             <div style={{
                               display: 'grid',
-                              gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                              gridTemplateColumns: '2fr 3fr',
                               gap: '0.5rem',
                               padding: '0.4rem 0.6rem',
                               fontSize: '0.7rem',
@@ -467,14 +466,12 @@ export default function PatientHistoryTabs({
                               letterSpacing: '0.05em',
                             }}>
                               <span>Medicamento</span>
-                              <span>Dosis</span>
-                              <span>Frecuencia</span>
-                              <span>Duración</span>
+                              <span>Dosis / Frecuencia / Duración</span>
                             </div>
                             {(presc.medicines || []).map((med: any, idx: number) => (
                               <div key={idx} style={{
                                 display: 'grid',
-                                gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                gridTemplateColumns: '2fr 3fr',
                                 gap: '0.5rem',
                                 padding: '0.5rem 0.6rem',
                                 backgroundColor: 'var(--bg-card)',
@@ -483,9 +480,7 @@ export default function PatientHistoryTabs({
                                 border: '1px solid var(--border-color)',
                               }}>
                                 <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{idx + 1}. {med.name}</span>
-                                <span style={{ color: 'var(--text-muted)' }}>{med.dose || '—'}</span>
-                                <span style={{ color: 'var(--text-muted)' }}>{med.frequency || '—'}</span>
-                                <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{medicineDetail(med) || '—'}</span>
                               </div>
                             ))}
                            </div>

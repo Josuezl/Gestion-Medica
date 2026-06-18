@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList } from 'lucide-react'
 import { formatDateHN } from '@/utils/datetime'
 import { doctorTitle } from '@/utils/doctorName'
+import { medicineDetail } from '@/utils/medicines'
 
 // Página PÚBLICA: usa el cliente service_role porque RLS bloquea el acceso anónimo.
 // Se instancia DENTRO del componente (no a nivel de módulo) para no romper el build.
@@ -120,8 +121,10 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                     {(prescription!.medicines as any[]).map((med, idx) => (
                       <div key={idx} style={{ padding: '1rem', borderBottom: idx !== (prescription!.medicines as any[]).length - 1 ? '1px solid #e2e8f0' : 'none' }}>
-                        <p style={{ margin: '0 0 0.25rem', fontWeight: 600, color: '#0f172a' }}>{med.name} {med.dose}</p>
-                        <p style={{ margin: '0', fontSize: '0.875rem', color: '#64748b' }}>{med.frequency} por {med.duration}</p>
+                        <p style={{ margin: '0 0 0.25rem', fontWeight: 600, color: '#0f172a' }}>{idx + 1}. {med.name}</p>
+                        {medicineDetail(med) && (
+                          <p style={{ margin: '0', fontSize: '0.875rem', color: '#64748b' }}>{medicineDetail(med)}</p>
+                        )}
                       </div>
                     ))}
                   </div>

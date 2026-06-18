@@ -6,11 +6,9 @@ import { updatePatientGender } from '../../patients/actions'
 import { 
   Heart, 
   Activity, 
-  Stethoscope, 
-  Clipboard, 
-  Pill, 
-  Plus, 
-  Trash2, 
+  Stethoscope,
+  Clipboard,
+  Pill,
   ChevronLeft,
   Save,
   Loader2,
@@ -18,6 +16,8 @@ import {
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
+import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
+import { formatDateHN } from '@/utils/datetime'
 
 interface NewConsultationClientProps {
   patient: any
@@ -30,11 +30,17 @@ interface NewConsultationClientProps {
   isOrgAdmin: boolean
 }
 
-interface MedicineItem {
-  name: string
-  dose: string
-  frequency: string
-  duration: string
+/** Tarjeta de referencia con el último valor (diagnóstico/plan) + botón "Usar". */
+function LastValueRef({ label, value, onUse }: { label: string; value: string; onUse: () => void }) {
+  return (
+    <div style={{ marginTop: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8' }}>{label}</span>
+        <button type="button" onClick={onUse} style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>Usar</button>
+      </div>
+      <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{value}</p>
+    </div>
+  )
 }
 
 export default function NewConsultationClient({
@@ -60,39 +66,20 @@ export default function NewConsultationClient({
     hasPrescription: boolean
   } | null>(null)
 
-  // Estado para la lista de medicamentos de la receta
-  const [medicines, setMedicines] = useState<MedicineItem[]>([])
-  
-  // Estados para el medicamento en edición
-  const [medName, setMedName] = useState('')
-  const [medDose, setMedDose] = useState('')
-  const [medFreq, setMedFreq] = useState('')
-  const [medDur, setMedDur] = useState('')
+  // Receta en TEXTO LIBRE: un medicamento por línea. Al guardar, cada línea se convierte en
+  // un ítem { name }. La consulta previa más reciente sirve de referencia / para reusar.
+  const lastPrescription = prescriptions[0]
+  const lastConsultation = consultations[0]
+  const [medicinesText, setMedicinesText] = useState('')
+  const [prescriptionNotes, setPrescriptionNotes] = useState('')
+  const [diagnosisText, setDiagnosisText] = useState('')
+  const [treatmentText, setTreatmentText] = useState('')
 
-  // Agregar un medicamento a la lista
-  function handleAddMedicine() {
-    if (!medName.trim()) {
-      alert('Por favor ingresa el nombre del medicamento.')
-      return
-    }
-    const newItem: MedicineItem = {
-      name: medName,
-      dose: medDose || 'N/A',
-      frequency: medFreq || 'N/A',
-      duration: medDur || 'N/A'
-    }
-    setMedicines([...medicines, newItem])
-    
-    // Limpiar campos de medicamento
-    setMedName('')
-    setMedDose('')
-    setMedFreq('')
-    setMedDur('')
-  }
-
-  // Eliminar un medicamento de la lista
-  function handleRemoveMedicine(index: number) {
-    setMedicines(medicines.filter((_, idx) => idx !== index))
+  // Cargar los medicamentos (y notas) de la última receta del paciente al textarea.
+  function loadLastPrescription() {
+    if (!lastPrescription) return
+    setMedicinesText(medicinesToText(lastPrescription.medicines || []))
+    if (lastPrescription.notes) setPrescriptionNotes(lastPrescription.notes)
   }
 
   // Manejar el submit del formulario completo
@@ -102,6 +89,7 @@ export default function NewConsultationClient({
     setLoading(true)
 
     const formData = new FormData(event.currentTarget)
+    const medicines = parseMedicinesText(medicinesText)
     const result = await createConsultation(patient.id, appointmentId, medicines, formData)
 
     if (result && (result as any).error) {
@@ -355,25 +343,43 @@ export default function NewConsultationClient({
               
               <div className="form-group">
                 <label className="form-label">Diagnóstico *</label>
-                <textarea 
-                  className="form-input" 
-                  name="diagnosis" 
-                  placeholder="Diagnóstico clínico (CIE-10 o descripción detallada)..." 
-                  rows={2} 
-                  required 
+                <textarea
+                  className="form-input"
+                  name="diagnosis"
+                  value={diagnosisText}
+                  onChange={(e) => setDiagnosisText(e.target.value)}
+                  placeholder="Diagnóstico clínico (CIE-10 o descripción detallada)..."
+                  rows={2}
+                  required
                   style={{ borderLeft: '3px solid var(--primary)' }}
                 />
+                {lastConsultation?.diagnosis && (
+                  <LastValueRef
+                    label={`Último diagnóstico · ${formatDateHN(lastConsultation.created_at)}`}
+                    value={lastConsultation.diagnosis}
+                    onUse={() => setDiagnosisText(lastConsultation.diagnosis)}
+                  />
+                )}
               </div>
 
               <div className="form-group">
                 <label className="form-label">Plan de Tratamiento / Recomendaciones *</label>
-                <textarea 
-                  className="form-input" 
-                  name="treatment_plan" 
-                  placeholder="Instrucciones generales de cuidado, reposo, dieta..." 
-                  rows={3} 
-                  required 
+                <textarea
+                  className="form-input"
+                  name="treatment_plan"
+                  value={treatmentText}
+                  onChange={(e) => setTreatmentText(e.target.value)}
+                  placeholder="Instrucciones generales de cuidado, reposo, dieta..."
+                  rows={3}
+                  required
                 />
+                {lastConsultation?.treatment_plan && (
+                  <LastValueRef
+                    label={`Último plan de tratamiento · ${formatDateHN(lastConsultation.created_at)}`}
+                    value={lastConsultation.treatment_plan}
+                    onUse={() => setTreatmentText(lastConsultation.treatment_plan)}
+                  />
+                )}
               </div>
             </div>
 
@@ -403,95 +409,39 @@ export default function NewConsultationClient({
                 Prescribir Receta Médica
               </h3>
 
-              {/* Formulario rápido para añadir medicamento a la receta */}
+              {/* Medicamentos en TEXTO LIBRE: un medicamento por línea */}
               <div style={styles.medAddForm}>
-                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                  <label className="form-label">Medicamento</label>
-                  <input 
-                    className="form-input" 
-                    placeholder="Ej. Acetaminofén" 
-                    value={medName}
-                    onChange={(e) => setMedName(e.target.value)}
-                  />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                  <label className="form-label" style={{ margin: 0 }}>Medicamentos</label>
+                  {lastPrescription && (
+                    <button type="button" onClick={loadLastPrescription} className="btn btn-secondary" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                      <Clipboard size={14} /> Cargar última receta
+                    </button>
+                  )}
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Dosis</label>
-                    <input 
-                      className="form-input" 
-                      placeholder="Ej. 500 mg" 
-                      value={medDose}
-                      onChange={(e) => setMedDose(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Duración</label>
-                    <input 
-                      className="form-input" 
-                      placeholder="Ej. 5 días" 
-                      value={medDur}
-                      onChange={(e) => setMedDur(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label className="form-label">Frecuencia</label>
-                  <input 
-                    className="form-input" 
-                    placeholder="Ej. Cada 8 horas" 
-                    value={medFreq}
-                    onChange={(e) => setMedFreq(e.target.value)}
-                  />
-                </div>
-
-                <button 
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleAddMedicine}
-                  style={{ width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', borderStyle: 'dashed' }}
-                >
-                  <Plus size={18} />
-                  Agregar Medicamento
-                </button>
-              </div>
-
-              {/* Listado de medicamentos agregados */}
-              <div style={styles.medsListWrapper}>
-                <h4 style={styles.medsListTitle}>Medicamentos Prescritos ({medicines.length})</h4>
-                {medicines.length === 0 ? (
-                  <p style={styles.emptyMedsText}>No has agregado ningún medicamento a la receta.</p>
-                ) : (
-                  <div style={styles.medsList}>
-                    {medicines.map((med, index) => (
-                      <div key={index} style={styles.medItem}>
-                        <div style={styles.medDetails}>
-                          <p style={styles.medNameText}>{med.name} - {med.dose}</p>
-                          <p style={styles.medInstructions}>{med.frequency} • {med.duration}</p>
-                        </div>
-                        <button 
-                          type="button" 
-                          style={styles.medRemoveBtn}
-                          onClick={() => handleRemoveMedicine(index)}
-                          title="Eliminar medicamento"
-                        >
-                          <Trash2 size={15} color="#ef4444" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <textarea
+                  className="form-input"
+                  value={medicinesText}
+                  onChange={(e) => setMedicinesText(e.target.value)}
+                  placeholder={`Escribe un medicamento por línea. Ejemplo:\nCARDIOASPIRINA 81 MG VO CADA DIA. 12 MD\nLIPITOR 40 MG VO CADA DIA. 6 PM\nEUTIROX NF 50 MCG VO 1 TABLETA CADA DIA, EN AYUNO`}
+                  rows={9}
+                  style={{ resize: "vertical", fontSize: "0.9rem", lineHeight: 1.5 }}
+                />
+                <p style={{ margin: "0.4rem 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                  Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
+                </p>
               </div>
 
               {/* Indicaciones de la receta */}
               <div className="form-group" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <label className="form-label">Notas Adicionales de la Receta</label>
-                <textarea 
-                  className="form-input" 
-                  name="prescription_notes" 
-                  placeholder="Indicaciones adicionales de toma o advertencias..." 
-                  rows={2} 
+                <textarea
+                  className="form-input"
+                  name="prescription_notes"
+                  value={prescriptionNotes}
+                  onChange={(e) => setPrescriptionNotes(e.target.value)}
+                  placeholder="Indicaciones adicionales de toma o advertencias..."
+                  rows={2}
                 />
               </div>
 
