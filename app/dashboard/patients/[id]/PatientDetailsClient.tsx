@@ -7,6 +7,7 @@ import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription }
 import { isAssistant, canEditPrescription } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
+import { medicineDetail } from '@/utils/medicines'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import { 
@@ -178,15 +179,13 @@ export default function PatientDetailsClient({
 
           const medsHtml = (c.prescriptions && c.prescriptions.length > 0 && c.prescriptions[0].medicines && c.prescriptions[0].medicines.length > 0)
             ? `<table class="med-table">
-                <thead><tr><th>#</th><th>Medicamento</th><th>Dosis</th><th>Frecuencia</th><th>Duración</th></tr></thead>
+                <thead><tr><th>#</th><th>Medicamento</th><th>Dosis / Frecuencia / Duración</th></tr></thead>
                 <tbody>
                   ${c.prescriptions[0].medicines.map((m: any, i: number) =>
                     `<tr>
                       <td>${i + 1}</td>
-                      <td><strong>${m.name || 'N/A'}</strong></td>
-                      <td>${m.dose || 'N/A'}</td>
-                      <td>${m.frequency || 'N/A'}</td>
-                      <td>${m.duration || 'N/A'}</td>
+                      <td><strong>${m.name || ''}</strong></td>
+                      <td>${medicineDetail(m)}</td>
                     </tr>`
                   ).join('')}
                 </tbody>
@@ -1196,9 +1195,7 @@ export default function PatientDetailsClient({
                                       }}>
                                         <span style={{ fontWeight: '700', color: 'var(--text-main)', width: '24px', flexShrink: 0 }}>{idx + 1}</span>
                                         <span style={{ fontWeight: '700', color: 'var(--text-main)', flex: 2.5 }}>{med.name}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1 }}>{med.dose || 'N/A'}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.frequency || 'N/A'}</span>
-                                        <span style={{ color: 'var(--text-muted)', flex: 1.2 }}>{med.duration || 'N/A'}</span>
+                                        <span style={{ color: 'var(--text-muted)', flex: 3.4 }}>{medicineDetail(med)}</span>
                                       </div>
                                     ))}
                                    </div>
@@ -1453,7 +1450,7 @@ export default function PatientDetailsClient({
                                   {/* Table Header */}
                                   <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                    gridTemplateColumns: '2fr 3fr',
                                     gap: '0.5rem',
                                     padding: '0.4rem 0.6rem',
                                     fontSize: '0.7rem',
@@ -1463,15 +1460,13 @@ export default function PatientDetailsClient({
                                     letterSpacing: '0.05em',
                                   }}>
                                     <span>Medicamento</span>
-                                    <span>Dosis</span>
-                                    <span>Frecuencia</span>
-                                    <span>Duración</span>
+                                    <span>Dosis / Frecuencia / Duración</span>
                                   </div>
                                   {/* Medicine Rows */}
                                   {(presc.medicines || []).map((med: any, idx: number) => (
                                     <div key={idx} style={{
                                       display: 'grid',
-                                      gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                      gridTemplateColumns: '2fr 3fr',
                                       gap: '0.5rem',
                                       padding: '0.5rem 0.6rem',
                                       backgroundColor: 'var(--bg-card)',
@@ -1480,9 +1475,7 @@ export default function PatientDetailsClient({
                                       border: '1px solid var(--border-color)',
                                     }}>
                                       <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{idx + 1}. {med.name}</span>
-                                      <span style={{ color: 'var(--text-muted)' }}>{med.dose || '—'}</span>
-                                      <span style={{ color: 'var(--text-muted)' }}>{med.frequency || '—'}</span>
-                                      <span style={{ color: 'var(--text-muted)' }}>{med.duration || '—'}</span>
+                                      <span style={{ color: 'var(--text-muted)' }}>{medicineDetail(med) || '—'}</span>
                                     </div>
                                   ))}
                                 </div>

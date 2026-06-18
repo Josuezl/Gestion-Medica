@@ -6,6 +6,7 @@ import CodeForm from './CodeForm'
 import PatientControlBar from './PatientControlBar'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
+import { medicineDetail } from '@/utils/medicines'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -681,9 +682,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                       <span className="med-name">{index + 1}. {med.name}</span>
                     </td>
                     <td>
-                      <span className="med-desc">
-                        {med.dose || ''} {med.frequency ? `• ${med.frequency}` : ''} {med.duration ? `• ${med.duration}` : ''}
-                      </span>
+                      <span className="med-desc">{medicineDetail(med)}</span>
                     </td>
                   </tr>
                 ))}
