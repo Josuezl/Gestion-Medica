@@ -442,24 +442,26 @@ export default function NewConsultationClient({
             </div>
 
               {/* Botón de Enviar */}
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
-                disabled={loading} 
-                style={{ width: '100%', gap: '0.5rem', marginTop: '1rem' }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                    Guardando Consulta...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Finalizar Consulta & Recetar
-                  </>
-                )}
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  style={{ gap: '0.5rem' }}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                      Guardando Consulta...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} />
+                      Finalizar Consulta & Recetar
+                    </>
+                  )}
+                </button>
+              </div>
       </form>
 
       {/* HISTORIAL MÉDICO DEL PACIENTE */}

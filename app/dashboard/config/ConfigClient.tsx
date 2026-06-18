@@ -327,6 +327,9 @@ export default function ConfigClient({
                         <Loader2 size={14} className="animate-spin" /> Subiendo firma...
                       </div>
                     )}
+                    {memberError && !signatureUploading && (
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#b91c1c' }}>{memberError}</div>
+                    )}
                   </div>
                 )}
               </div>

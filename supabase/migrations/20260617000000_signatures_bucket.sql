@@ -10,6 +10,11 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- Escritura solo por usuarios autenticados dentro de su propia clínica (carpeta = clinic_id).
+-- Idempotente: se puede re-ejecutar sin error (drop ... if exists antes de create).
+drop policy if exists "signatures_insert" on storage.objects;
+drop policy if exists "signatures_update" on storage.objects;
+drop policy if exists "signatures_delete" on storage.objects;
+
 create policy "signatures_insert" on storage.objects for insert to authenticated
   with check (bucket_id = 'signatures' and (storage.foldername(name))[1] = current_clinic_id()::text);
 create policy "signatures_update" on storage.objects for update to authenticated
