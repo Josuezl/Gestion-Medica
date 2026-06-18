@@ -372,7 +372,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
               <!-- Firma -->
               <tr>
                 <td style="padding:26px 36px 0; text-align:center;">
-                  ${signatureUrl ? `<div style="margin-bottom:2px;"><img src="${signatureUrl}" alt="Firma y sello" style="max-height:70px; max-width:220px; object-fit:contain;" /></div>` : ''}
+                  ${signatureUrl ? `<div style="margin-bottom:2px;"><img src="${signatureUrl}" alt="Firma y sello" style="max-height:96px; max-width:280px; object-fit:contain;" /></div>` : ''}
                   <div style="display:inline-block; border-top:1px solid #334155; padding-top:4px; min-width:220px;">
                     <p style="margin:0; font-size:13px; font-weight:700; color:#0f172a;">${doctorName}</p>
                     <p style="margin:1px 0 0; font-size:10px; color:#475569;">${doctorSpecialty}</p>
