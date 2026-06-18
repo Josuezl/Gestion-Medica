@@ -34,7 +34,7 @@ interface NewConsultationClientProps {
 function LastValueRef({ label, value, onUse }: { label: string; value: string; onUse: () => void }) {
   return (
     <div style={{ marginTop: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '1rem', marginBottom: '0.25rem' }}>
         <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8' }}>{label}</span>
         <button type="button" onClick={onUse} style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>Usar</button>
       </div>
@@ -389,7 +389,7 @@ export default function NewConsultationClient({
 
               {/* Medicamentos en TEXTO LIBRE: un medicamento por línea */}
               <div style={styles.medAddForm}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
                   <label className="form-label" style={{ margin: 0 }}>Medicamentos</label>
                   {lastPrescription && (
                     <button type="button" onClick={loadLastPrescription} className="btn btn-secondary" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
