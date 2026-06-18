@@ -129,7 +129,8 @@ export async function createConsultation(
           medicines,
           notes: prescriptionNotes,
           verificationCode,
-          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || ''
+          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
+          doctorSignatureUrl: docProfile?.signature_url || undefined
         })
 
         // Subir el PDF a Supabase Storage

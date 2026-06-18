@@ -2,7 +2,11 @@
 
 import React, { useState } from 'react'
 import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2 } from 'lucide-react'
+
+const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
+const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
 
 interface ConfigClientProps {
   clinic: any
@@ -57,6 +61,7 @@ export default function ConfigClient({
   const [editMember, setEditMember] = useState<any | null>(null)
   const [memberSaving, setMemberSaving] = useState(false)
   const [memberError, setMemberError] = useState<string | null>(null)
+  const [signatureUploading, setSignatureUploading] = useState(false)
 
   function openEditMember(member: any) {
     setMemberError(null)
@@ -70,8 +75,39 @@ export default function ConfigClient({
       practiceName: member.practice_name || '',
       practicePhone: member.practice_phone || '',
       practiceAddress: member.practice_address || '',
+      signatureUrl: member.signature_url || '',
       role: member.role,
     })
+  }
+
+  // Sube la firma/sello DIRECTO del navegador al bucket público `signatures`
+  // (ruta clinic_id/member_id/...) y guarda la URL pública en el estado del modal.
+  async function handleSignatureUpload(file: File) {
+    if (!editMember) return
+    if (!SIGNATURE_MIME.includes(file.type)) {
+      setMemberError('La firma debe ser una imagen PNG, JPG o WEBP.')
+      return
+    }
+    if (file.size > SIGNATURE_MAX_BYTES) {
+      setMemberError('La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.')
+      return
+    }
+    setMemberError(null)
+    setSignatureUploading(true)
+    const supabase = createClient()
+    const fileExt = file.name.split('.').pop()
+    const filePath = `${clinic.id}/${editMember.id}/${Date.now()}.${fileExt}`
+    const { error: upErr } = await supabase.storage
+      .from('signatures')
+      .upload(filePath, file, { contentType: file.type, upsert: true })
+    if (upErr) {
+      setSignatureUploading(false)
+      setMemberError(`Error al subir la firma: ${upErr.message}`)
+      return
+    }
+    const { data: pub } = supabase.storage.from('signatures').getPublicUrl(filePath)
+    setSignatureUploading(false)
+    setEditMember((prev: any) => (prev ? { ...prev, signatureUrl: pub.publicUrl } : prev))
   }
 
   async function handleSaveMember() {
@@ -87,6 +123,7 @@ export default function ConfigClient({
       practiceName: editMember.practiceName,
       practicePhone: editMember.practicePhone,
       practiceAddress: editMember.practiceAddress,
+      signatureUrl: editMember.signatureUrl,
     })
     setMemberSaving(false)
     if (res?.error) setMemberError(res.error)
@@ -250,6 +287,51 @@ export default function ConfigClient({
                 </div>
               </div>
             )}
+
+            {editMember.role !== 'ASSISTANT' && (
+              <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Stamp size={15} /> Firma y sello (opcional)
+                </div>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Si se sube una imagen, aparecerá en todas las recetas e incapacidades de este médico. Recomendado: PNG con fondo transparente, máx. 2 MB.
+                </p>
+                {editMember.signatureUrl ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <img
+                      src={editMember.signatureUrl}
+                      alt="Firma y sello"
+                      style={{ height: '70px', maxWidth: '220px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#fff', padding: '0.25rem' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setEditMember({ ...editMember, signatureUrl: '' })}
+                      disabled={signatureUploading || memberSaving}
+                      style={{ gap: '0.35rem' }}
+                    >
+                      <Trash2 size={14} /> Quitar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <input
+                      type="file"
+                      className="form-input"
+                      accept="image/png,image/jpeg,image/webp"
+                      disabled={signatureUploading || memberSaving}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSignatureUpload(f); e.target.value = '' }}
+                    />
+                    {signatureUploading && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        <Loader2 size={14} className="animate-spin" /> Subiendo firma...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setEditMember(null)} disabled={memberSaving}>Cancelar</button>
               <button type="button" className="btn btn-primary" onClick={handleSaveMember} disabled={memberSaving}>

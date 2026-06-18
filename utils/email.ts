@@ -232,6 +232,7 @@ export interface PrescriptionEmailData {
   pdfBase64?: string | null
   medicines: { name: string; dose?: string; frequency?: string; duration?: string }[]
   notes?: string | null
+  signatureUrl?: string | null
 }
 
 export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promise<SendEmailResult> {
@@ -253,6 +254,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
   const date = escapeHtml(data.date)
   const verificationCode = escapeHtml(data.verificationCode)
   const notes = data.notes ? escapeHtml(data.notes) : ''
+  const signatureUrl = data.signatureUrl ? escapeHtml(data.signatureUrl) : ''
   const medicines = data.medicines.map((m) => ({
     name: escapeHtml(m.name),
     dose: m.dose ? escapeHtml(m.dose) : '',
@@ -260,12 +262,13 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
     duration: m.duration ? escapeHtml(m.duration) : '',
   }))
 
-  const medsHtml = medicines.map((med, i) => `
+  const medsHtml = medicines.map((med, i) => {
+    const det = escapeHtml(medicineDetail(med))
+    return `
     <tr>
-      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:14px; color:#0f172a; font-weight:700; vertical-align:top; width:40%;">${i + 1}. ${escapeHtml(med.name)}</td>
-      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:13px; color:#475569; vertical-align:top;">${escapeHtml(medicineDetail(med))}</td>
-    </tr>
-  `).join('')
+      <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:14px; color:#0f172a; vertical-align:top;"><strong>${i + 1}. ${escapeHtml(med.name)}</strong>${det ? ` <span style="font-weight:400; color:#475569;">— ${det}</span>` : ''}</td>
+    </tr>`
+  }).join('')
 
   const html = `
     <!DOCTYPE html>
@@ -326,8 +329,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
                   <p style="margin:0 0 6px; font-size:18px; font-weight:800; font-style:italic; color:#0d9488;">Rp. <span style="font-style:normal; font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.05em;">Prescripción Médica</span></p>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <th style="text-align:left; font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #e2e8f0; padding:0 0 4px; width:40%;">Medicamento</th>
-                      <th style="text-align:left; font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #e2e8f0; padding:0 0 4px;">Dosis / Frecuencia / Duración</th>
+                      <th style="text-align:left; font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #e2e8f0; padding:0 0 4px;">Medicamento</th>
                     </tr>
                     ${medsHtml}
                   </table>
@@ -370,6 +372,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
               <!-- Firma -->
               <tr>
                 <td style="padding:26px 36px 0; text-align:center;">
+                  ${signatureUrl ? `<div style="margin-bottom:2px;"><img src="${signatureUrl}" alt="Firma y sello" style="max-height:70px; max-width:220px; object-fit:contain;" /></div>` : ''}
                   <div style="display:inline-block; border-top:1px solid #334155; padding-top:4px; min-width:220px;">
                     <p style="margin:0; font-size:13px; font-weight:700; color:#0f172a;">${doctorName}</p>
                     <p style="margin:1px 0 0; font-size:10px; color:#475569;">${doctorSpecialty}</p>

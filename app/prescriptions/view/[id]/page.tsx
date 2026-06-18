@@ -671,8 +671,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
             <table className="medicines-table">
               <thead>
                 <tr>
-                  <th style={{ width: '40%' }}>Medicamento</th>
-                  <th style={{ width: '60%' }}>Indicación / Dosis / Frecuencia / Duración</th>
+                  <th>Medicamento</th>
                 </tr>
               </thead>
               <tbody>
@@ -680,9 +679,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                   <tr key={index}>
                     <td>
                       <span className="med-name">{index + 1}. {med.name}</span>
-                    </td>
-                    <td>
-                      <span className="med-desc">{medicineDetail(med)}</span>
+                      {medicineDetail(med) && <span className="med-desc"> — {medicineDetail(med)}</span>}
                     </td>
                   </tr>
                 ))}

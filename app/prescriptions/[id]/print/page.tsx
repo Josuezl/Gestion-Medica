@@ -235,16 +235,15 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
             <table className="meds">
               <thead>
                 <tr>
-                  <th style={{ width: '38%' }}>Medicamento</th>
-                  <th style={{ width: '62%' }}>Dosis / Frecuencia / Duración</th>
+                  <th>Medicamento</th>
                 </tr>
               </thead>
               <tbody>
                 {(prescription.medicines || []).map((med: any, index: number) => (
                   <tr key={index}>
-                    <td><span className="med-name">{index + 1}. {med.name}</span></td>
                     <td>
-                      <span className="med-desc">{medicineDetail(med)}</span>
+                      <span className="med-name">{index + 1}. {med.name}</span>
+                      {medicineDetail(med) && <span className="med-desc"> — {medicineDetail(med)}</span>}
                     </td>
                   </tr>
                 ))}

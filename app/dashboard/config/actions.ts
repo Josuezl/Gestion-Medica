@@ -95,6 +95,7 @@ export interface TeamMemberUpdate {
   practiceName: string
   practicePhone: string
   practiceAddress: string
+  signatureUrl?: string
 }
 
 /**
@@ -124,6 +125,7 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
       practice_name: (data.practiceName || '').trim() || null,
       practice_phone: (data.practicePhone || '').trim() || null,
       practice_address: (data.practiceAddress || '').trim() || null,
+      signature_url: (data.signatureUrl || '').trim() || null,
     })
     .eq('id', memberId)
     .eq('clinic_id', ctx.clinicId)
