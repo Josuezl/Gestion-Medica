@@ -132,6 +132,9 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
         .prow + .prow { margin-top: 4px; }
         .plabel { font-size: 8px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
         .pval { font-size: 12px; font-weight: 600; color: #1e293b; }
+        .dx { margin-top: 8px; padding-bottom: 7px; border-bottom: 1px solid #e2e8f0; }
+        .dx-label { font-size: 8px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 1px; }
+        .dx-val { font-size: 12px; font-weight: 600; color: #1e293b; }
         .ped-tag { margin-left: 8px; font-size: 9px; background: rgba(13,148,136,0.1); color: #0d9488; padding: 1px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
         .allergy { color: #e11d48 !important; font-weight: 700; }
         .vitals { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 5px; }
@@ -228,6 +231,14 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
               )}
             </div>
           </div>
+
+          {/* Diagnóstico (opcional, lo exigen algunas aseguradoras) */}
+          {prescription.diagnosis && (
+            <div className="dx">
+              <span className="dx-label">Diagnóstico</span>
+              <span className="dx-val">{prescription.diagnosis}</span>
+            </div>
+          )}
 
           {/* Rp */}
           <div className="rp">

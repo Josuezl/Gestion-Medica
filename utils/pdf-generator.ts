@@ -18,6 +18,7 @@ interface PDFPrescriptionData {
   verificationCode: string
   siteUrl: string
   doctorSignatureUrl?: string
+  diagnosis?: string
 }
 
 export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promise<ArrayBuffer> {
@@ -81,21 +82,40 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
   doc.setFont('Helvetica', 'normal')
   doc.text(data.date, 45, 63)
 
+  // 5.b Diagnóstico (opcional): debajo de la caja del paciente, antes de "Rp".
+  //     Empuja hacia abajo el bloque Rp según cuántas líneas ocupe el texto.
+  let rpTitleY = 82
+  if (data.diagnosis) {
+    doc.setFont('Helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(100, 116, 139)
+    doc.text('DIAGNÓSTICO', 15, 77)
+    doc.setFont('Helvetica', 'normal')
+    doc.setFontSize(9.5)
+    doc.setTextColor(15, 23, 42)
+    const dxLines = doc.splitTextToSize(data.diagnosis, 180)
+    doc.text(dxLines, 15, 81.5)
+    const dxBottom = 81.5 + dxLines.length * 4.8
+    doc.setDrawColor(226, 232, 240)
+    doc.line(15, dxBottom + 2, 195, dxBottom + 2)
+    rpTitleY = dxBottom + 8
+  }
+
   // 6. Título de Prescripción
   doc.setFont('Helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(13, 148, 136)
-  doc.text('Rp: PRESCRIPCIÓN MÉDICA', 15, 82)
+  doc.text('Rp: PRESCRIPCIÓN MÉDICA', 15, rpTitleY)
 
   // 7. Lista de medicamentos
-  let y = 92
+  let y = rpTitleY + 10
   doc.setFont('Helvetica', 'bold')
   doc.setFontSize(9.5)
   doc.setTextColor(15, 23, 42)
-  doc.text('Medicamento', 15, 88)
+  doc.text('Medicamento', 15, rpTitleY + 6)
 
   doc.setDrawColor(203, 213, 225)
-  doc.line(15, 90, 195, 90)
+  doc.line(15, rpTitleY + 8, 195, rpTitleY + 8)
 
   doc.setFont('Helvetica', 'normal')
   data.medicines.forEach((med, idx) => {

@@ -78,18 +78,27 @@ export async function createConsultation(
   if (medicines && medicines.length > 0) {
     const verificationCode = `MC-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
     const prescriptionNotes = formData.get('prescription_notes') as string || ''
+    // El médico puede pedir que el diagnóstico de la consulta se imprima en la receta
+    // (algunas aseguradoras lo exigen). Se guarda como snapshot solo si marca el check.
+    const includeDiagnosis = formData.get('include_diagnosis') === 'on'
+    const prescriptionDiagnosis = includeDiagnosis ? (diagnosis?.trim() || null) : null
+
+    // La columna `diagnosis` solo se incluye en el insert cuando hay valor, para no romper
+    // la creación de recetas normales si la migración (ALTER TABLE) aún no se ha aplicado.
+    const prescriptionInsert: Record<string, any> = {
+      clinic_id: clinicId,
+      patient_id: patientId,
+      consultation_id: consultation.id,
+      doctor_id: user.id,
+      medicines,
+      notes: prescriptionNotes,
+      verification_code: verificationCode
+    }
+    if (prescriptionDiagnosis) prescriptionInsert.diagnosis = prescriptionDiagnosis
 
     const { data: prescription, error: prescriptionError } = await supabase
       .from('prescriptions')
-      .insert([{
-        clinic_id: clinicId,
-        patient_id: patientId,
-        consultation_id: consultation.id,
-        doctor_id: user.id,
-        medicines,
-        notes: prescriptionNotes,
-        verification_code: verificationCode
-      }])
+      .insert([prescriptionInsert])
       .select()
       .single()
 
@@ -128,6 +137,7 @@ export async function createConsultation(
           date: formattedDate,
           medicines,
           notes: prescriptionNotes,
+          diagnosis: prescriptionDiagnosis || undefined,
           verificationCode,
           siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
           doctorSignatureUrl: docProfile?.signature_url || undefined
