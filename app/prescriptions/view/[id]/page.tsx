@@ -721,7 +721,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 <img 
                   src={doctor.signature_url} 
                   alt="Firma Digital" 
-                  style={{ maxHeight: '70px', maxWidth: '200px', objectFit: 'contain', marginBottom: '5px' }} 
+                  style={{ maxHeight: '96px', maxWidth: '260px', objectFit: 'contain', marginBottom: '5px' }}
                 />
                 <div className="signature-line">
                   <p className="sig-doc-name">{docName}</p>

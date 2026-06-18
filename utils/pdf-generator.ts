@@ -171,7 +171,8 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
         const ct = (resp.headers.get('content-type') || '').toLowerCase()
         const fmt = ct.includes('png') ? 'PNG' : ct.includes('webp') ? 'WEBP' : 'JPEG'
         const dataUrl = `data:${ct || 'image/png'};base64,${Buffer.from(buf).toString('base64')}`
-        doc.addImage(dataUrl, fmt, 150, footerY - 24, 42, 18)
+        // Centrada sobre la línea de firma (la línea termina en x=195, ancho ~70mm desde 125).
+        doc.addImage(dataUrl, fmt, 137, footerY - 29, 56, 26)
       }
     } catch {
       // Si la descarga falla, se omite la firma y se deja solo la línea.
