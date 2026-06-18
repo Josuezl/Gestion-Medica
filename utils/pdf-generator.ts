@@ -17,6 +17,7 @@ interface PDFPrescriptionData {
   notes: string
   verificationCode: string
   siteUrl: string
+  doctorSignatureUrl?: string
 }
 
 export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promise<ArrayBuffer> {
@@ -92,8 +93,7 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
   doc.setFontSize(9.5)
   doc.setTextColor(15, 23, 42)
   doc.text('Medicamento', 15, 88)
-  doc.text('Indicación / Dosis / Duración', 75, 88)
-  
+
   doc.setDrawColor(203, 213, 225)
   doc.line(15, 90, 195, 90)
 
@@ -107,16 +107,13 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
       y = 25
     }
 
-    // Texto libre (solo nombre) → usa todo el ancho; estructurado → nombre + detalle en 2 columnas.
+    // Una sola columna a todo lo ancho: nombre (+ detalle en línea para recetas viejas).
     const detail = medicineDetail(med)
+    const line = detail ? `${idx + 1}. ${med.name || ''} — ${detail}` : `${idx + 1}. ${med.name || ''}`
     doc.setFont('Helvetica', 'bold')
-    const nameLines = doc.splitTextToSize(`${idx + 1}. ${med.name || ''}`, detail ? 55 : 180)
-    doc.text(nameLines, 15, y)
-    if (detail) {
-      doc.setFont('Helvetica', 'normal')
-      doc.text(detail, 75, y)
-    }
-    y += Math.max(nameLines.length * 5.5, 9)
+    const lines = doc.splitTextToSize(line, 180)
+    doc.text(lines, 15, y)
+    y += Math.max(lines.length * 5.5, 9)
   })
 
   // 8. Indicaciones de la receta
@@ -164,6 +161,22 @@ export async function generatePrescriptionPDF(data: PDFPrescriptionData): Promis
   doc.text(`Código de Validación: ${data.verificationCode}`, 40, footerY + 2)
   doc.text('Escanea el QR para validar esta receta', 40, footerY + 6)
   doc.text('en su versión digital.', 40, footerY + 10)
+
+  // Firma/sello del médico (imagen cargada en su perfil), encima de la línea de firma.
+  if (data.doctorSignatureUrl) {
+    try {
+      const resp = await fetch(data.doctorSignatureUrl)
+      if (resp.ok) {
+        const buf = await resp.arrayBuffer()
+        const ct = (resp.headers.get('content-type') || '').toLowerCase()
+        const fmt = ct.includes('png') ? 'PNG' : ct.includes('webp') ? 'WEBP' : 'JPEG'
+        const dataUrl = `data:${ct || 'image/png'};base64,${Buffer.from(buf).toString('base64')}`
+        doc.addImage(dataUrl, fmt, 150, footerY - 24, 42, 18)
+      }
+    } catch {
+      // Si la descarga falla, se omite la firma y se deja solo la línea.
+    }
+  }
 
   // Línea de firma
   doc.text('__________________________________', 195, footerY - 1, { align: 'right' })

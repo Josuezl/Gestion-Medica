@@ -165,6 +165,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     pdfBase64,
     medicines: prescription.medicines || [],
     notes: prescription.notes,
+    signatureUrl: profile.signature_url || null,
   })
 
   if (!result.success) {

@@ -249,9 +249,6 @@ export default function NewConsultationClient({
       {error && <div style={styles.errorAlert}>{error}</div>}
 
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div className="responsive-main-side">
-          {/* Left Column: Signos Vitales & Notas Clínicas */}
-          <div style={styles.mainColumn}>
             
             {/* 1. Signos Vitales */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -335,7 +332,7 @@ export default function NewConsultationClient({
             </div>
 
             {/* 3. Diagnóstico y Plan */}
-            <div className="card">
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <Clipboard size={18} color="var(--primary)" />
                 Diagnóstico y Tratamiento
@@ -383,27 +380,8 @@ export default function NewConsultationClient({
               </div>
             </div>
 
-            {/* 4. Incapacidad Médica */}
-            <div className="card" style={{ marginTop: '1.5rem' }}>
-              <h3 style={styles.sectionTitle}>
-                <Activity size={18} color="var(--primary)" />
-                Incapacidad Médica
-              </h3>
-              
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <textarea
-                  className="form-input"
-                  name="medical_leave"
-                  placeholder="Días de incapacidad y motivo (si aplica)..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Receta Médica Dinámica */}
-          <div style={styles.sideColumn}>
-            <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* 4. Prescribir Receta Médica */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <Pill size={18} color="var(--secondary)" />
                 Prescribir Receta Médica
@@ -433,7 +411,7 @@ export default function NewConsultationClient({
               </div>
 
               {/* Indicaciones de la receta */}
-              <div className="form-group" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <div className="form-group" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                 <label className="form-label">Notas Adicionales de la Receta</label>
                 <textarea
                   className="form-input"
@@ -444,6 +422,24 @@ export default function NewConsultationClient({
                   rows={2}
                 />
               </div>
+            </div>
+
+            {/* 5. Incapacidad Médica */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={styles.sectionTitle}>
+                <Activity size={18} color="var(--primary)" />
+                Incapacidad Médica
+              </h3>
+              
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <textarea
+                  className="form-input"
+                  name="medical_leave"
+                  placeholder="Días de incapacidad y motivo (si aplica)..."
+                  rows={3}
+                />
+              </div>
+            </div>
 
               {/* Botón de Enviar */}
               <button 
@@ -464,9 +460,6 @@ export default function NewConsultationClient({
                   </>
                 )}
               </button>
-            </div>
-          </div>
-        </div>
       </form>
 
       {/* HISTORIAL MÉDICO DEL PACIENTE */}
