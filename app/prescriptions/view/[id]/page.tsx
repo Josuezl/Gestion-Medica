@@ -342,7 +342,27 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
           color: #1e293b;
           font-size: 13px;
         }
-        
+
+        .dx-block {
+          margin-top: 14px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .dx-block .dx-label {
+          display: block;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          font-size: 10px;
+          letter-spacing: 0.05em;
+          margin-bottom: 3px;
+        }
+        .dx-block .dx-val {
+          font-weight: 600;
+          color: #1e293b;
+          font-size: 13px;
+        }
+
         .vitals-row {
           grid-column: span 2;
           border-top: 1px dashed #e2e8f0;
@@ -658,6 +678,14 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
 
             </div>
           </div>
+
+          {/* Diagnóstico (opcional, lo exigen algunas aseguradoras) */}
+          {prescription.diagnosis && (
+            <div className="dx-block">
+              <span className="dx-label">Diagnóstico</span>
+              <span className="dx-val">{prescription.diagnosis}</span>
+            </div>
+          )}
 
           {/* Rp. Receta */}
           <div className="rp-container">

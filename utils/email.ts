@@ -233,6 +233,7 @@ export interface PrescriptionEmailData {
   medicines: { name: string; dose?: string; frequency?: string; duration?: string }[]
   notes?: string | null
   signatureUrl?: string | null
+  diagnosis?: string | null
 }
 
 export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promise<SendEmailResult> {
@@ -254,6 +255,7 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
   const date = escapeHtml(data.date)
   const verificationCode = escapeHtml(data.verificationCode)
   const notes = data.notes ? escapeHtml(data.notes) : ''
+  const diagnosis = data.diagnosis ? escapeHtml(data.diagnosis) : ''
   const signatureUrl = data.signatureUrl ? escapeHtml(data.signatureUrl) : ''
   const medicines = data.medicines.map((m) => ({
     name: escapeHtml(m.name),
@@ -322,6 +324,15 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
                   </table>
                 </td>
               </tr>
+              ${diagnosis ? `
+              <!-- Diagnóstico (opcional) -->
+              <tr>
+                <td style="padding:14px 36px 0;">
+                  <span style="font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Diagnóstico</span><br>
+                  <span style="font-size:13px; font-weight:600; color:#1e293b;">${diagnosis}</span>
+                  <div style="border-bottom:1px solid #e2e8f0; margin-top:12px;"></div>
+                </td>
+              </tr>` : ''}
 
               <!-- Rp. Prescripción -->
               <tr>

@@ -166,6 +166,7 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     medicines: prescription.medicines || [],
     notes: prescription.notes,
     signatureUrl: profile.signature_url || null,
+    diagnosis: prescription.diagnosis || null,
   })
 
   if (!result.success) {

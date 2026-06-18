@@ -72,6 +72,7 @@ export default function NewConsultationClient({
   const lastConsultation = consultations[0]
   const [medicinesText, setMedicinesText] = useState('')
   const [prescriptionNotes, setPrescriptionNotes] = useState('')
+  const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
   const [diagnosisText, setDiagnosisText] = useState('')
   const [treatmentText, setTreatmentText] = useState('')
 
@@ -422,6 +423,21 @@ export default function NewConsultationClient({
                   rows={2}
                 />
               </div>
+
+              {/* Incluir el diagnóstico de la consulta en la receta (opcional) */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', marginTop: '0.75rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  name="include_diagnosis"
+                  checked={includeDiagnosis}
+                  onChange={(e) => setIncludeDiagnosis(e.target.checked)}
+                  style={{ marginTop: '0.2rem', width: '16px', height: '16px', flexShrink: 0, cursor: 'pointer' }}
+                />
+                <span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>Incluir el diagnóstico de la consulta en la receta</span>
+                  <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Algunas aseguradoras lo requieren.</span>
+                </span>
+              </label>
             </div>
 
             {/* 5. Incapacidad Médica */}
