@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember } from './actions'
-import { createClient } from '@/utils/supabase/client'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature } from './actions'
 import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2 } from 'lucide-react'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -80,8 +79,8 @@ export default function ConfigClient({
     })
   }
 
-  // Sube la firma/sello DIRECTO del navegador al bucket público `signatures`
-  // (ruta clinic_id/member_id/...) y guarda la URL pública en el estado del modal.
+  // Sube la firma/sello vía Server Action (cliente SERVICE_ROLE, gated por org-admin) y
+  // guarda la URL pública devuelta en el estado del modal. No depende de RLS del navegador.
   async function handleSignatureUpload(file: File) {
     if (!editMember) return
     if (!SIGNATURE_MIME.includes(file.type)) {
@@ -94,20 +93,15 @@ export default function ConfigClient({
     }
     setMemberError(null)
     setSignatureUploading(true)
-    const supabase = createClient()
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${clinic.id}/${editMember.id}/${Date.now()}.${fileExt}`
-    const { error: upErr } = await supabase.storage
-      .from('signatures')
-      .upload(filePath, file, { contentType: file.type, upsert: true })
-    if (upErr) {
-      setSignatureUploading(false)
-      setMemberError(`Error al subir la firma: ${upErr.message}`)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await uploadMemberSignature(editMember.id, fd)
+    setSignatureUploading(false)
+    if (res?.error) {
+      setMemberError(res.error)
       return
     }
-    const { data: pub } = supabase.storage.from('signatures').getPublicUrl(filePath)
-    setSignatureUploading(false)
-    setEditMember((prev: any) => (prev ? { ...prev, signatureUrl: pub.publicUrl } : prev))
+    setEditMember((prev: any) => (prev ? { ...prev, signatureUrl: res.url } : prev))
   }
 
   async function handleSaveMember() {

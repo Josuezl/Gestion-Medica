@@ -1,10 +1,14 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { provisionUserAccount } from '@/utils/provisioning'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { revalidatePath } from 'next/cache'
+
+const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
+const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
 
 /**
  * Provisión de un miembro de equipo (médico/asistente) por el org-admin de la clínica.
@@ -96,6 +100,48 @@ export interface TeamMemberUpdate {
   practicePhone: string
   practiceAddress: string
   signatureUrl?: string
+}
+
+/**
+ * Sube la imagen de firma/sello de un médico al bucket público `signatures`.
+ *
+ * Se hace en el servidor con el cliente SERVICE_ROLE (ignora RLS) pero solo después de
+ * validar que quien llama es org-admin y que el miembro pertenece a su clínica; la ruta
+ * queda acotada a `clinic_id/member_id/...`. Así la subida no depende de las políticas de
+ * Storage del navegador. Devuelve la URL pública; el guardado en el perfil ocurre al
+ * presionar "Guardar Cambios" (updateTeamMember).
+ */
+export async function uploadMemberSignature(memberId: string, formData: FormData) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado. Solo los administradores pueden subir la firma.' }
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) return { error: 'No se recibió ninguna imagen.' }
+  if (!SIGNATURE_MIME.includes(file.type)) return { error: 'La firma debe ser una imagen PNG, JPG o WEBP.' }
+  if (file.size > SIGNATURE_MAX_BYTES) return { error: 'La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.' }
+
+  // El miembro debe pertenecer a la clínica del admin (aislamiento de tenant).
+  const supabase = await createClient()
+  const { data: member } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('id', memberId)
+    .eq('clinic_id', ctx.clinicId)
+    .single()
+  if (!member) return { error: 'No tienes permiso para editar este miembro.' }
+
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+  const filePath = `${ctx.clinicId}/${memberId}/${Date.now()}.${ext}`
+  const bytes = Buffer.from(await file.arrayBuffer())
+
+  const admin = createAdminClient()
+  const { error: upErr } = await admin.storage
+    .from('signatures')
+    .upload(filePath, bytes, { contentType: file.type, upsert: true })
+  if (upErr) return { error: 'Error al subir la firma: ' + upErr.message }
+
+  const { data: pub } = admin.storage.from('signatures').getPublicUrl(filePath)
+  return { url: pub.publicUrl }
 }
 
 /**
