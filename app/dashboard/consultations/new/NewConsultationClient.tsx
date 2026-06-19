@@ -553,8 +553,8 @@ export default function NewConsultationClient({
                 <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
                   <label className="form-label" style={{ margin: 0 }}>Medicamentos</label>
                   {lastPrescription && (
-                    <button type="button" onClick={loadLastPrescription} className="btn btn-secondary" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                      <Clipboard size={14} /> Cargar última receta
+                    <button type="button" onClick={loadLastPrescription} className="btn" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem", backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}>
+                      <Clipboard size={14} /> Importar última receta
                     </button>
                   )}
                 </div>
