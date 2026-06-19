@@ -31,6 +31,7 @@ interface NewConsultationClientProps {
   currentUserRole: string
   isOrgAdmin: boolean
   labCatalog?: { category: string; tests: string[] }[]
+  lastLabOrder?: { tests: { category: string; name: string }[]; other_tests: string | null; created_at: string } | null
 }
 
 /** Tarjeta de referencia con el último valor (diagnóstico/plan) + botón "Usar". */
@@ -42,6 +43,39 @@ function LastValueRef({ label, value, onUse }: { label: string; value: string; o
         <button type="button" onClick={onUse} style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>Usar</button>
       </div>
       <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{value}</p>
+    </div>
+  )
+}
+
+/** Agrupa una lista de exámenes [{category,name}] por categoría conservando el orden. */
+function groupTestsByCategory(tests: { category: string; name: string }[]): { category: string; names: string[] }[] {
+  const out: { category: string; names: string[] }[] = []
+  for (const t of (tests || [])) {
+    let g = out.find((x) => x.category === t.category)
+    if (!g) { g = { category: t.category, names: [] }; out.push(g) }
+    g.names.push(t.name)
+  }
+  return out
+}
+
+/** Lista de solo lectura de una orden de laboratorio, agrupada por categoría (+ "Otros"). */
+function LabOrderList({ tests, otherTests }: { tests: { category: string; name: string }[]; otherTests?: string | null }) {
+  const groups = groupTestsByCategory(tests)
+  const otherLines = (otherTests || '').split('\n').map((s) => s.trim()).filter(Boolean)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      {groups.map((g) => (
+        <div key={g.category}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>{g.category}</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>{g.names.join(' · ')}</div>
+        </div>
+      ))}
+      {otherLines.length > 0 && (
+        <div>
+          <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>Otros</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'pre-line' }}>{otherLines.join('\n')}</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -148,7 +182,8 @@ export default function NewConsultationClient({
   currentUserId,
   currentUserRole,
   isOrgAdmin,
-  labCatalog = []
+  labCatalog = [],
+  lastLabOrder = null
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   
@@ -483,33 +518,6 @@ export default function NewConsultationClient({
                 )}
               </div>
 
-              {/* Orden de Laboratorio (opcional): se arma en un modal y se imprime al guardar */}
-              <div className="form-group">
-                <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
-                {labOrderCount === 0 ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowLabModal(true)}
-                    style={{ gap: '0.45rem' }}
-                  >
-                    <FlaskConical size={16} />
-                    Generar Orden de Laboratorio
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '0.6rem 0.85rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', fontWeight: 600, color: '#0f766e' }}>
-                      <FlaskConical size={16} />
-                      Orden de laboratorio: {labOrderCount} {labOrderCount === 1 ? 'examen seleccionado' : 'exámenes seleccionados'}
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowLabModal(true)}>Editar</button>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setLabOrder({ tests: [], otherTests: '' })}>Quitar</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <div className="form-group">
                 <label className="form-label">Plan de Tratamiento / Recomendaciones *</label>
                 <textarea
@@ -590,7 +598,67 @@ export default function NewConsultationClient({
               </label>
             </div>
 
-            {/* 5. Incapacidad Médica */}
+            {/* 5. Orden de Laboratorio */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={styles.sectionTitle}>
+                <FlaskConical size={18} color="var(--primary)" />
+                Orden de Laboratorio
+              </h3>
+
+              <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
+
+              {labOrderCount === 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowLabModal(true)}
+                    style={{ gap: '0.45rem' }}
+                  >
+                    <FlaskConical size={16} />
+                    Generar Orden de Laboratorio
+                  </button>
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Selecciona los exámenes que el paciente debe realizarse.
+                  </p>
+                </>
+              ) : (
+                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
+                      <FlaskConical size={16} />
+                      {labOrderCount} {labOrderCount === 1 ? 'examen seleccionado' : 'exámenes seleccionados'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowLabModal(true)}>Editar</button>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setLabOrder({ tests: [], otherTests: '' })}>Quitar</button>
+                    </div>
+                  </div>
+                  <LabOrderList tests={labOrder.tests} otherTests={labOrder.otherTests} />
+                </div>
+              )}
+
+              {/* Referencia: última orden de laboratorio del paciente (cita anterior) */}
+              {lastLabOrder && Array.isArray(lastLabOrder.tests) && (lastLabOrder.tests.length > 0 || (lastLabOrder.other_tests || '').trim()) && (
+                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8' }}>
+                      Última orden · {formatDateHN(lastLabOrder.created_at)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLabOrder({ tests: lastLabOrder.tests || [], otherTests: lastLabOrder.other_tests || '' })}
+                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Usar
+                    </button>
+                  </div>
+                  <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />
+                </div>
+              )}
+            </div>
+
+            {/* 6. Incapacidad Médica */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <Activity size={18} color="var(--primary)" />
