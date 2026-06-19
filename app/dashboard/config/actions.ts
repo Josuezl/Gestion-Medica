@@ -497,3 +497,20 @@ export async function deleteLabTest(id: string) {
   revalidatePath('/dashboard/config')
   return { success: true }
 }
+
+/** Activa o desactiva TODOS los exámenes de una categoría de una sola vez. */
+export async function setLabCategoryTestsActive(categoryId: string, isActive: boolean) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('lab_tests')
+    .update({ is_active: isActive })
+    .eq('category_id', categoryId)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar los exámenes: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
