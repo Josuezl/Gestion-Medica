@@ -45,6 +45,23 @@ export async function createConsultation(
   const heartRate = hrVal ? parseInt(hrVal, 10) : null
   const oxygenSaturation = oxVal ? parseInt(oxVal, 10) : null
 
+  // 2.b Validar rangos de los signos vitales. Evita el críptico "numeric field overflow"
+  //     de Postgres cuando hay un error de dedo (p. ej. peso en gramos) y le dice al médico
+  //     exactamente qué corregir. Los topes caben holgadamente en las columnas numéricas.
+  const vitalChecks: { label: string; value: number | null; min: number; max: number; unit: string }[] = [
+    { label: 'Temperatura', value: temperature, min: 25, max: 45, unit: '°C' },
+    { label: 'Peso', value: weight, min: 0.2, max: 600, unit: 'kg' },
+    { label: 'Talla', value: height, min: 10, max: 280, unit: 'cm' },
+    { label: 'Perímetro cefálico', value: headCircumference, min: 10, max: 80, unit: 'cm' },
+    { label: 'Ritmo cardiaco', value: heartRate, min: 10, max: 400, unit: 'bpm' },
+    { label: 'SpO2', value: oxygenSaturation, min: 1, max: 100, unit: '%' },
+  ]
+  for (const v of vitalChecks) {
+    if (v.value !== null && (Number.isNaN(v.value) || v.value < v.min || v.value > v.max)) {
+      return { error: `Revisa los signos vitales: el valor de ${v.label} (${v.value}) no es válido. Debe estar entre ${v.min} y ${v.max} ${v.unit}.` }
+    }
+  }
+
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
     .from('consultations')
