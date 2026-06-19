@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { provisionUserAccount } from '@/utils/provisioning'
 import { effectiveLimit } from '@/utils/clinicLimits'
+import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
 import { revalidatePath } from 'next/cache'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -305,7 +306,194 @@ export async function updateLocation(id: string, name: string, address: string) 
     .eq('clinic_id', ctx.clinicId)
 
   if (error) return { error: 'Error al actualizar la clínica: ' + error.message }
-  
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+// ============================================================================
+// Catálogo de Laboratorio (mantenimiento por el administrador de la clínica)
+// ============================================================================
+
+/**
+ * Siembra el catálogo estándar (DEFAULT_LAB_CATALOG) para la clínica del admin.
+ * Idempotente: no hace nada si la clínica ya tiene categorías.
+ */
+export async function seedDefaultLabCatalog() {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('lab_test_categories')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', ctx.clinicId)
+  if ((count ?? 0) > 0) return { success: true } // ya tiene catálogo
+
+  for (let c = 0; c < DEFAULT_LAB_CATALOG.length; c++) {
+    const cat = DEFAULT_LAB_CATALOG[c]
+    const { data: catRow, error: catErr } = await supabase
+      .from('lab_test_categories')
+      .insert([{ clinic_id: ctx.clinicId, name: cat.category, sort_order: c }])
+      .select('id')
+      .single()
+    if (catErr || !catRow) return { error: 'Error al cargar el catálogo: ' + (catErr?.message || '') }
+
+    const rows = cat.tests.map((name, i) => ({
+      clinic_id: ctx.clinicId,
+      category_id: catRow.id,
+      name,
+      sort_order: i,
+    }))
+    const { error: testErr } = await supabase.from('lab_tests').insert(rows)
+    if (testErr) return { error: 'Error al cargar exámenes: ' + testErr.message }
+  }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function createLabCategory(name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre de la categoría es requerido.' }
+
+  const supabase = await createClient()
+  // sort_order al final
+  const { data: last } = await supabase
+    .from('lab_test_categories')
+    .select('sort_order')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sort = ((last?.sort_order ?? -1) as number) + 1
+
+  const { error } = await supabase
+    .from('lab_test_categories')
+    .insert([{ clinic_id: ctx.clinicId, name: clean, sort_order: sort }])
+  if (error) return { error: 'Error al crear la categoría: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function updateLabCategory(id: string, name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre de la categoría es requerido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('lab_test_categories')
+    .update({ name: clean })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar la categoría: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function deleteLabCategory(id: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  // Los exámenes se borran en cascada (FK on delete cascade).
+  const { error } = await supabase
+    .from('lab_test_categories')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al eliminar la categoría: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function createLabTest(categoryId: string, name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre del examen es requerido.' }
+
+  const supabase = await createClient()
+  // La categoría debe ser de la misma clínica.
+  const { data: cat } = await supabase
+    .from('lab_test_categories')
+    .select('id')
+    .eq('id', categoryId)
+    .eq('clinic_id', ctx.clinicId)
+    .maybeSingle()
+  if (!cat) return { error: 'Categoría no válida.' }
+
+  const { data: last } = await supabase
+    .from('lab_tests')
+    .select('sort_order')
+    .eq('category_id', categoryId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sort = ((last?.sort_order ?? -1) as number) + 1
+
+  const { error } = await supabase
+    .from('lab_tests')
+    .insert([{ clinic_id: ctx.clinicId, category_id: categoryId, name: clean, sort_order: sort }])
+  if (error) return { error: 'Error al crear el examen: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function updateLabTest(id: string, name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre del examen es requerido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('lab_tests')
+    .update({ name: clean })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar el examen: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function toggleLabTest(id: string, isActive: boolean) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('lab_tests')
+    .update({ is_active: isActive })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar el examen: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function deleteLabTest(id: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('lab_tests')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al eliminar el examen: ' + error.message }
+
   revalidatePath('/dashboard/config')
   return { success: true }
 }

@@ -73,6 +73,18 @@ export default async function ConfigPage() {
   const { data: storageUsedBytes } = await supabase.rpc('clinic_storage_bytes')
   const maxStorageMb = planData?.max_storage_mb || 1024
 
+  // Catálogo de laboratorio (categorías + todos los exámenes, activos e inactivos)
+  const { data: labCategories } = await supabase
+    .from('lab_test_categories')
+    .select('*')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: true })
+  const { data: labTests } = await supabase
+    .from('lab_tests')
+    .select('*')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: true })
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -94,6 +106,8 @@ export default async function ConfigPage() {
         maxLocations={maxLocations}
         storageUsedBytes={storageUsedBytes || 0}
         maxStorageMb={maxStorageMb}
+        labCategories={labCategories || []}
+        labTests={labTests || []}
       />
     </div>
   )

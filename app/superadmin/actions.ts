@@ -4,7 +4,28 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { provisionUserAccount, resendUserInvite } from '@/utils/provisioning'
 import { provisionUserWithPassword } from '@/utils/provisioning-credentials'
+import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
 import { revalidatePath } from 'next/cache'
+
+/** Siembra el catálogo estándar de laboratorio para una clínica recién creada (best-effort). */
+async function seedLabCatalogForClinic(admin: ReturnType<typeof createAdminClient>, clinicId: string) {
+  try {
+    for (let c = 0; c < DEFAULT_LAB_CATALOG.length; c++) {
+      const cat = DEFAULT_LAB_CATALOG[c]
+      const { data: catRow } = await admin
+        .from('lab_test_categories')
+        .insert([{ clinic_id: clinicId, name: cat.category, sort_order: c }])
+        .select('id')
+        .single()
+      if (!catRow) continue
+      await admin.from('lab_tests').insert(
+        cat.tests.map((name, i) => ({ clinic_id: clinicId, category_id: catRow.id, name, sort_order: i }))
+      )
+    }
+  } catch (e) {
+    console.error('No se pudo sembrar el catálogo de laboratorio para la clínica', clinicId, e)
+  }
+}
 
 /**
  * Verifica que el llamante es platform admin usando el RPC del lado del servidor.
@@ -86,6 +107,9 @@ export async function provisionTenant(formData: FormData) {
     await admin.from('clinics').delete().eq('id', clinic.id)
     return { error: `No se pudo crear la clínica: ${locationError?.message}` }
   }
+
+  // 2.b Sembrar el catálogo estándar de laboratorio (best-effort; no aborta la provisión).
+  await seedLabCatalogForClinic(admin, clinic.id)
 
   // 3. Crear y enlazar al dueño (org admin) + enviar enlace de fijar contraseña.
   const result = await provisionUserAccount({

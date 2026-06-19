@@ -3,16 +3,18 @@
 import React, { useState } from 'react'
 import { createConsultation } from '../actions'
 import { updatePatientGender } from '../../patients/actions'
-import { 
-  Heart, 
-  Activity, 
+import {
+  Heart,
+  Activity,
   Stethoscope,
   Clipboard,
   Pill,
   ChevronLeft,
   Save,
   Loader2,
-  Printer
+  Printer,
+  FlaskConical,
+  X
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
@@ -28,6 +30,7 @@ interface NewConsultationClientProps {
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
+  labCatalog?: { category: string; tests: string[] }[]
 }
 
 /** Tarjeta de referencia con el último valor (diagnóstico/plan) + botón "Usar". */
@@ -43,6 +46,99 @@ function LastValueRef({ label, value, onUse }: { label: string; value: string; o
   )
 }
 
+/** Modal para armar la orden de laboratorio (catálogo en checkboxes por categoría + "Otros"). */
+function LabOrderModal({ catalog, initial, onSave, onClose }: {
+  catalog: { category: string; tests: string[] }[]
+  initial: { tests: { category: string; name: string }[]; otherTests: string }
+  onSave: (v: { tests: { category: string; name: string }[]; otherTests: string }) => void
+  onClose: () => void
+}) {
+  const key = (category: string, name: string) => `${category}||${name}`
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initial.tests.map(t => key(t.category, t.name))))
+  const [otherTests, setOtherTests] = useState(initial.otherTests)
+
+  const toggle = (category: string, name: string) => {
+    const k = key(category, name)
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k); else next.add(k)
+      return next
+    })
+  }
+  const count = selected.size + (otherTests.trim() ? 1 : 0)
+
+  const save = () => {
+    const tests: { category: string; name: string }[] = []
+    for (const cat of catalog) for (const name of cat.tests) if (selected.has(key(cat.category, name))) tests.push({ category: cat.category, name })
+    onSave({ tests, otherTests })
+  }
+
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={{ ...styles.modalCard, maxWidth: '920px', width: '100%', maxHeight: '92vh', padding: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* Encabezado */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.1rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+          <h3 style={{ margin: 0, fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FlaskConical size={18} color="var(--primary)" /> Orden de Laboratorio
+          </h3>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex' }}><X size={20} /></button>
+        </div>
+
+        {/* Cuerpo (scroll) */}
+        <div style={{ overflowY: 'auto', padding: '1.25rem 1.5rem', flex: 1 }}>
+          {catalog.length === 0 ? (
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>
+              No hay laboratorios configurados. Pídele a un administrador que cargue el catálogo en
+              <strong> Configuración → Catálogo de Laboratorio</strong>.
+            </p>
+          ) : (
+            <div style={{ columnWidth: '230px', columnGap: '1.5rem' }}>
+              {catalog.map((cat) => (
+                <div key={cat.category} style={{ breakInside: 'avoid', marginBottom: '1.1rem', display: 'inline-block', width: '100%' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.25rem', marginBottom: '0.45rem' }}>{cat.category}</div>
+                  {cat.tests.map((name) => (
+                    <label key={name} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', padding: '0.15rem 0', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(key(cat.category, name))}
+                        onChange={() => toggle(cat.category, name)}
+                        style={{ marginTop: '0.15rem', width: '15px', height: '15px', flexShrink: 0, cursor: 'pointer' }}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Otros (texto libre) */}
+          <div style={{ marginTop: '1rem' }}>
+            <label className="form-label">Otros (uno por línea)</label>
+            <textarea
+              className="form-input"
+              value={otherTests}
+              onChange={(e) => setOtherTests(e.target.value)}
+              placeholder="Exámenes que no estén en la lista…"
+              rows={2}
+              style={{ resize: 'vertical' }}
+            />
+          </div>
+        </div>
+
+        {/* Pie */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>{count} {count === 1 ? 'seleccionado' : 'seleccionados'}</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button type="button" className="btn btn-primary" onClick={save}>Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function NewConsultationClient({
   patient,
   appointmentId,
@@ -51,7 +147,8 @@ export default function NewConsultationClient({
   prescriptions = [],
   currentUserId,
   currentUserRole,
-  isOrgAdmin
+  isOrgAdmin,
+  labCatalog = []
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   
@@ -62,9 +159,16 @@ export default function NewConsultationClient({
   const [printModal, setPrintModal] = useState<{
     consultationId: string
     prescriptionId: string | null
+    labOrderId: string | null
     hasMedicalLeave: boolean
     hasPrescription: boolean
+    hasLabOrder: boolean
   } | null>(null)
+
+  // Orden de laboratorio: se arma en un modal y se mantiene en estado hasta guardar la consulta.
+  const [showLabModal, setShowLabModal] = useState(false)
+  const [labOrder, setLabOrder] = useState<{ tests: { category: string; name: string }[]; otherTests: string }>({ tests: [], otherTests: '' })
+  const labOrderCount = labOrder.tests.length + (labOrder.otherTests.trim() ? 1 : 0)
 
   // Receta en TEXTO LIBRE: un medicamento por línea. Al guardar, cada línea se convierte en
   // un ítem { name }. La consulta previa más reciente sirve de referencia / para reusar.
@@ -99,14 +203,16 @@ export default function NewConsultationClient({
       return
     }
 
-    // Si hay receta y/o incapacidad, ofrecer imprimir antes de salir.
+    // Si hay receta, incapacidad y/o orden de laboratorio, ofrecer imprimir antes de salir.
     const r = result as any
-    if (r && (r.hasMedicalLeave || r.hasPrescription)) {
+    if (r && (r.hasMedicalLeave || r.hasPrescription || r.hasLabOrder)) {
       setPrintModal({
         consultationId: r.consultationId,
         prescriptionId: r.prescriptionId ?? null,
+        labOrderId: r.labOrderId ?? null,
         hasMedicalLeave: !!r.hasMedicalLeave,
         hasPrescription: !!r.hasPrescription,
+        hasLabOrder: !!r.hasLabOrder,
       })
       return
     }
@@ -117,6 +223,16 @@ export default function NewConsultationClient({
 
   return (
     <div style={styles.container}>
+      {/* Modal de orden de laboratorio */}
+      {showLabModal && (
+        <LabOrderModal
+          catalog={labCatalog}
+          initial={labOrder}
+          onSave={(v) => { setLabOrder(v); setShowLabModal(false) }}
+          onClose={() => setShowLabModal(false)}
+        />
+      )}
+
       {/* Modal: ofrecer imprimir receta y/o incapacidad al finalizar.
           Cada botón abre su impresión en pestaña nueva y el cuadro queda abierto,
           así el médico puede imprimir ambas, una, o ninguna. */}
@@ -125,11 +241,7 @@ export default function NewConsultationClient({
           <div style={styles.modalCard}>
             <h3 style={styles.modalTitle}>Consulta registrada</h3>
             <p style={styles.modalText}>
-              {printModal.hasPrescription && printModal.hasMedicalLeave
-                ? <>Se generaron una <strong>receta médica</strong> y una <strong>incapacidad médica</strong>. Imprime los documentos que necesites:</>
-                : printModal.hasPrescription
-                  ? <>Se generó una <strong>receta médica</strong> para este paciente. ¿Deseas imprimirla ahora?</>
-                  : <>Se registró una <strong>incapacidad médica</strong> para este paciente. ¿Deseas imprimirla ahora?</>}
+              Se generaron documentos para este paciente. Imprime los que necesites:
             </p>
             <div style={{ ...styles.modalActions, flexDirection: 'column' }}>
               {printModal.hasPrescription && printModal.prescriptionId && (
@@ -152,6 +264,17 @@ export default function NewConsultationClient({
                 >
                   <Printer size={16} />
                   Imprimir Incapacidad
+                </button>
+              )}
+              {printModal.hasLabOrder && printModal.labOrderId && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                  onClick={() => window.open(`/lab-orders/${printModal.labOrderId}/print`, '_blank')}
+                >
+                  <Printer size={16} />
+                  Imprimir Orden de Laboratorio
                 </button>
               )}
               <button
@@ -357,6 +480,33 @@ export default function NewConsultationClient({
                     value={lastConsultation.diagnosis}
                     onUse={() => setDiagnosisText(lastConsultation.diagnosis)}
                   />
+                )}
+              </div>
+
+              {/* Orden de Laboratorio (opcional): se arma en un modal y se imprime al guardar */}
+              <div className="form-group">
+                <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
+                {labOrderCount === 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowLabModal(true)}
+                    style={{ gap: '0.45rem' }}
+                  >
+                    <FlaskConical size={16} />
+                    Generar Orden de Laboratorio
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '0.6rem 0.85rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', fontWeight: 600, color: '#0f766e' }}>
+                      <FlaskConical size={16} />
+                      Orden de laboratorio: {labOrderCount} {labOrderCount === 1 ? 'examen seleccionado' : 'exámenes seleccionados'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowLabModal(true)}>Editar</button>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setLabOrder({ tests: [], otherTests: '' })}>Quitar</button>
+                    </div>
+                  </div>
                 )}
               </div>
 

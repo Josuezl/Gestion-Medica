@@ -86,6 +86,24 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 
+  // 6. Catálogo de laboratorio activo (agrupado por categoría) para el modal de orden.
+  //    RLS aísla por clínica. Se tolera que las tablas aún no existan (migración pendiente).
+  const { data: labCats } = await supabase
+    .from('lab_test_categories')
+    .select('id, name, sort_order')
+    .order('sort_order', { ascending: true })
+  const { data: labTestRows } = await supabase
+    .from('lab_tests')
+    .select('category_id, name, sort_order, is_active')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+  const labCatalog = (labCats || [])
+    .map((c: any) => ({
+      category: c.name,
+      tests: (labTestRows || []).filter((t: any) => t.category_id === c.id).map((t: any) => t.name),
+    }))
+    .filter((c: any) => c.tests.length > 0)
+
   return (
     <NewConsultationClient
       patient={patient}
@@ -96,6 +114,7 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
       currentUserId={user.id}
       currentUserRole={currentProfile?.role || ''}
       isOrgAdmin={!!currentProfile?.is_org_admin}
+      labCatalog={labCatalog}
     />
   )
 }
