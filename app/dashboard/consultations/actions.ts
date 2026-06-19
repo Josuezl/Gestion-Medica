@@ -184,6 +184,36 @@ export async function createConsultation(
     }
   }
 
+  // 4.b Orden de laboratorio (opcional). Solo se inserta si el médico marcó exámenes,
+  //      para no tocar la tabla en consultas normales (ni romper si la migración no se aplicó).
+  let labOrderId: string | null = null
+  try {
+    const raw = formData.get('lab_order')
+    if (typeof raw === 'string' && raw) {
+      const parsed = JSON.parse(raw) as { tests?: { category: string; name: string }[]; otherTests?: string }
+      const tests = Array.isArray(parsed?.tests) ? parsed.tests : []
+      const otherTests = (parsed?.otherTests || '').trim()
+      if (tests.length > 0 || otherTests) {
+        const { data: labOrder, error: labErr } = await supabase
+          .from('lab_orders')
+          .insert([{
+            clinic_id: clinicId,
+            patient_id: patientId,
+            consultation_id: consultation.id,
+            doctor_id: user.id,
+            tests,
+            other_tests: otherTests || null,
+          }])
+          .select('id')
+          .single()
+        if (labErr) console.error('Error al insertar orden de laboratorio:', labErr)
+        else labOrderId = labOrder.id
+      }
+    }
+  } catch (e) {
+    console.error('Orden de laboratorio: lab_order inválido', e)
+  }
+
   // 5. Si viene de una cita agendada, actualizar su estado a COMPLETED
   if (appointmentId) {
     const { error: apptError } = await supabase
@@ -205,5 +235,7 @@ export async function createConsultation(
     hasMedicalLeave: !!(medicalLeave && medicalLeave.trim()),
     hasPrescription: !!(medicines && medicines.length > 0 && prescriptionId),
     prescriptionId,
+    hasLabOrder: !!labOrderId,
+    labOrderId,
   }
 }
