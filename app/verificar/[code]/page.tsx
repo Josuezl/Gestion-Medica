@@ -1,6 +1,6 @@
 import React from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList } from 'lucide-react'
+import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList, FlaskConical } from 'lucide-react'
 import { formatDateHN } from '@/utils/datetime'
 import { doctorTitle } from '@/utils/doctorName'
 import { medicineDetail } from '@/utils/medicines'
@@ -43,12 +43,39 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
     leave = data
   }
 
-  const doc: any = prescription || leave
+  // Si no es receta ni incapacidad, buscar una orden de laboratorio con ese código.
+  let labOrder: any = null
+  if (!prescription && !leave) {
+    const { data } = await supabaseAdmin
+      .from('lab_orders')
+      .select(`
+        id, created_at, tests, other_tests, verification_code,
+        clinics ( name ),
+        patients ( first_name, last_name ),
+        user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
+      `)
+      .eq('verification_code', code)
+      .single()
+    labOrder = data
+  }
+
+  const doc: any = prescription || leave || labOrder
   const isValid = !!doc
   const isLeave = !prescription && !!leave
+  const isLabOrder = !prescription && !leave && !!labOrder
 
   const patient = doc?.patients
   const docDoctor = doc?.user_profiles
+
+  // Exámenes de la orden, agrupados por categoría (para mostrarlos en la verificación).
+  const labTests: { category: string; name: string }[] = isLabOrder && Array.isArray(labOrder.tests) ? labOrder.tests : []
+  const labGroups: { category: string; names: string[] }[] = []
+  for (const t of labTests) {
+    let g = labGroups.find((x) => x.category === t.category)
+    if (!g) { g = { category: t.category, names: [] }; labGroups.push(g) }
+    g.names.push(t.name)
+  }
+  const labOtherLines = isLabOrder ? (labOrder.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
@@ -64,7 +91,9 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
           <h1 style={{ margin: '0', fontSize: '1.5rem', fontWeight: 600 }}>
             {!isValid
               ? 'Documento No Encontrado o Inválido'
-              : isLeave ? 'Incapacidad Médica Auténtica' : 'Receta Médica Auténtica'}
+              : isLeave ? 'Incapacidad Médica Auténtica'
+              : isLabOrder ? 'Orden de Laboratorio Auténtica'
+              : 'Receta Médica Auténtica'}
           </h1>
           {isValid && (
             <p style={{ margin: '0.5rem 0 0', opacity: 0.9 }}>
@@ -110,6 +139,29 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
                       : <p style={{ margin: 0, color: '#64748b' }}>Constancia de consulta médica.</p>}
                     {leave.reason_for_visit && (
                       <p style={{ margin: '0.75rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>Motivo: {leave.reason_for_visit}</p>
+                    )}
+                  </div>
+                </div>
+              ) : isLabOrder ? (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FlaskConical size={20} color="#0d9488" /> Exámenes Solicitados
+                  </h3>
+                  <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
+                    {labGroups.map((g) => (
+                      <div key={g.category} style={{ marginBottom: '0.85rem' }}>
+                        <p style={{ margin: '0 0 0.25rem', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0d9488' }}>{g.category}</p>
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>{g.names.join(' · ')}</p>
+                      </div>
+                    ))}
+                    {labOtherLines.length > 0 && (
+                      <div>
+                        <p style={{ margin: '0 0 0.25rem', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Otros</p>
+                        <p style={{ margin: 0, fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{labOtherLines.join('\n')}</p>
+                      </div>
+                    )}
+                    {labGroups.length === 0 && labOtherLines.length === 0 && (
+                      <p style={{ margin: 0, color: '#64748b' }}>Sin exámenes especificados.</p>
                     )}
                   </div>
                 </div>

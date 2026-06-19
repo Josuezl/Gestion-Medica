@@ -211,6 +211,7 @@ export async function createConsultation(
       const tests = Array.isArray(parsed?.tests) ? parsed.tests : []
       const otherTests = (parsed?.otherTests || '').trim()
       if (tests.length > 0 || otherTests) {
+        const labVerificationCode = `LAB-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
         const { data: labOrder, error: labErr } = await supabase
           .from('lab_orders')
           .insert([{
@@ -220,6 +221,7 @@ export async function createConsultation(
             doctor_id: user.id,
             tests,
             other_tests: otherTests || null,
+            verification_code: labVerificationCode,
           }])
           .select('id')
           .single()

@@ -1,4 +1,5 @@
 import React from 'react'
+import QRCode from 'qrcode'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
@@ -8,6 +9,8 @@ import { formatDateTimeHN } from '@/utils/datetime'
 interface PageProps {
   params: Promise<{ id: string }>
 }
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
 function calculateAge(birthDateString: string) {
   const today = new Date()
@@ -71,6 +74,13 @@ export default async function PrintLabOrderPage({ params }: PageProps) {
     g.names.push(t.name)
   }
   const otherLines = (order.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
+
+  // QR -> página pública de verificación de la orden (igual que las recetas)
+  let qrDataUrl: string | null = null
+  if (order.verification_code) {
+    const verifyUrl = `${SITE_URL}/verificar/${order.verification_code}`
+    qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
+  }
 
   return (
     <>
@@ -142,15 +152,20 @@ export default async function PrintLabOrderPage({ params }: PageProps) {
         .cat { break-inside: avoid; margin-bottom: 12px; display: inline-block; width: 100%; }
         .cat-name { font-size: 9.5px; font-weight: 800; color: #1e3a5f; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; }
         .test { font-size: 11px; color: #0f172a; padding: 1.5px 0; display: flex; gap: 6px; align-items: flex-start; }
-        .test::before { content: '•'; color: #0d9488; font-weight: 700; }
+        .test::before { content: '✓'; color: #0d9488; font-weight: 800; font-size: 11px; line-height: 1.3; }
         .empty { font-size: 12px; color: #64748b; }
 
         .others { margin-top: 10px; padding: 8px 11px; background: #f8fafc; border: 1px solid #e9eef4; border-radius: 8px; }
         .others-title { font-size: 8.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 3px; }
         .others-body { font-size: 11px; color: #0f172a; line-height: 1.5; white-space: pre-line; }
 
-        /* Pie: firma */
-        .footer { display: flex; justify-content: flex-end; margin-top: 16px; padding-top: 8px; }
+        /* Pie: QR + firma (estándar de los documentos) */
+        .footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-top: 16px; padding-top: 9px; border-top: 1px solid #e2e8f0; }
+        .qr-box { display: flex; gap: 9px; align-items: center; }
+        .qr-box img { width: 84px; height: 84px; display: block; }
+        .qr-cap-title { font-size: 9px; font-weight: 700; color: #0f172a; margin: 0; }
+        .qr-cap-text { font-size: 8.5px; color: #64748b; margin: 2px 0 0; max-width: 150px; line-height: 1.35; }
+        .qr-code { font-size: 9px; font-weight: 700; color: #0d9488; margin: 3px 0 0; letter-spacing: 0.06em; }
         .sign { text-align: center; min-width: 230px; }
         .sign img { max-height: 92px; max-width: 270px; object-fit: contain; display: block; margin: 0 auto 3px; }
         .sign-empty { height: 56px; }
@@ -242,8 +257,20 @@ export default async function PrintLabOrderPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Pie: firma del médico */}
-          <div className="footer">
+          {/* Pie: QR de verificación + firma del médico */}
+          <div className="footer" style={qrDataUrl ? undefined : { justifyContent: 'flex-end' }}>
+            {qrDataUrl && (
+              <div className="qr-box">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrDataUrl} alt="Código QR de verificación de la orden" />
+                <div>
+                  <p className="qr-cap-title">Orden verificable</p>
+                  <p className="qr-cap-text">Escanea el código para ver y validar esta orden en su versión digital.</p>
+                  <p className="qr-code">{order.verification_code}</p>
+                </div>
+              </div>
+            )}
+
             <div className="sign">
               {doctor.signature_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
