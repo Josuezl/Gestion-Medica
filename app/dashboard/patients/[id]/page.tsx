@@ -114,12 +114,20 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     })
   )
 
+  // 6. Cargar órdenes de laboratorio del paciente (para la pestaña "Lab. Solicitados").
+  const { data: labOrders } = await supabase
+    .from('lab_orders')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+
   return (
     <PatientDetailsClient
       patient={patient}
       consultations={consultations || []}
       studies={studiesWithSignedUrls}
       prescriptions={prescriptionsWithSignedUrls}
+      labOrders={labOrders || []}
       initialEdit={isEditing}
       currentUserId={user.id}
       currentUserRole={currentProfile?.role || ''}

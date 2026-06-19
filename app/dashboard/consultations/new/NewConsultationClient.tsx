@@ -32,6 +32,7 @@ interface NewConsultationClientProps {
   isOrgAdmin: boolean
   labCatalog?: { category: string; tests: string[] }[]
   lastLabOrder?: { tests: { category: string; name: string }[]; other_tests: string | null; created_at: string } | null
+  labOrders?: any[]
 }
 
 /** Tarjeta de referencia con el último valor (diagnóstico/plan) + botón "Usar". */
@@ -183,7 +184,8 @@ export default function NewConsultationClient({
   currentUserRole,
   isOrgAdmin,
   labCatalog = [],
-  lastLabOrder = null
+  lastLabOrder = null,
+  labOrders = []
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   
@@ -708,6 +710,7 @@ export default function NewConsultationClient({
           consultations={consultations}
           studies={studies}
           prescriptions={prescriptions}
+          labOrders={labOrders}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           isOrgAdmin={isOrgAdmin}

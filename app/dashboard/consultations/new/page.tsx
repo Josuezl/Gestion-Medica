@@ -104,14 +104,14 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     }))
     .filter((c: any) => c.tests.length > 0)
 
-  // 7. Última orden de laboratorio del paciente (para mostrarla como referencia / reusarla).
-  const { data: lastLabOrder } = await supabase
+  // 7. Órdenes de laboratorio del paciente: historial completo (para la pestaña del expediente)
+  //    y la última (para mostrarla como referencia / reusarla en el formulario).
+  const { data: labOrders } = await supabase
     .from('lab_orders')
-    .select('tests, other_tests, created_at')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const lastLabOrder = labOrders && labOrders.length > 0 ? labOrders[0] : null
 
   return (
     <NewConsultationClient
@@ -125,6 +125,7 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
       isOrgAdmin={!!currentProfile?.is_org_admin}
       labCatalog={labCatalog}
       lastLabOrder={lastLabOrder || null}
+      labOrders={labOrders || []}
     />
   )
 }
