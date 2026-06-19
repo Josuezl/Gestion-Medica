@@ -618,7 +618,7 @@ export default function NewConsultationClient({
                     style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
                   >
                     <FlaskConical size={16} />
-                    Generar Orden de Laboratorio
+                    Generar Nueva Orden de Laboratorio
                   </button>
                   <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Selecciona los exámenes que el paciente debe realizarse.
