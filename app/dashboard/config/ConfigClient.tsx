@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature, seedDefaultLabCatalog, createLabCategory, updateLabCategory, deleteLabCategory, createLabTest, updateLabTest, toggleLabTest, deleteLabTest } from './actions'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature, seedDefaultLabCatalog, createLabCategory, updateLabCategory, deleteLabCategory, createLabTest, updateLabTest, toggleLabTest, deleteLabTest, setLabCategoryTestsActive } from './actions'
 import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, FlaskConical, Check, X } from 'lucide-react'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -850,7 +850,17 @@ export default function ConfigClient({
                     ) : (
                       <>
                         <span style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-main)' }}>{cat.name}</span>
-                        <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                          {labTestsByCategory(cat.id).length > 0 && (
+                            <button
+                              title="Activar o desactivar todos los exámenes de esta categoría"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: 700, padding: 0, whiteSpace: 'nowrap' }}
+                              disabled={labBusy}
+                              onClick={() => { const allActive = labTestsByCategory(cat.id).every((t: any) => t.is_active); runLab(() => setLabCategoryTestsActive(cat.id, !allActive)) }}
+                            >
+                              {labTestsByCategory(cat.id).every((t: any) => t.is_active) ? 'Desactivar todos' : 'Activar todos'}
+                            </button>
+                          )}
                           <button title="Renombrar categoría" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} onClick={() => { setEditingCatId(cat.id); setEditingCatName(cat.name) }}><Edit size={14} /></button>
                           <button title="Eliminar categoría" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }} disabled={labBusy} onClick={() => { if (confirm(`¿Eliminar la categoría "${cat.name}" y todos sus exámenes?`)) runLab(() => deleteLabCategory(cat.id)) }}><Trash2 size={14} /></button>
                         </div>
