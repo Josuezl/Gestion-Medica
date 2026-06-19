@@ -613,9 +613,9 @@ export default function NewConsultationClient({
                 <>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn"
                     onClick={() => setShowLabModal(true)}
-                    style={{ gap: '0.45rem' }}
+                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
                   >
                     <FlaskConical size={16} />
                     Generar Orden de Laboratorio
