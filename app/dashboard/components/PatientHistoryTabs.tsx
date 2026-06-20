@@ -212,6 +212,7 @@ export default function PatientHistoryTabs({
                                 {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
                                 {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
                                 {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
+                                {consult.respiratory_rate && <span style={styles.vitalTag}>FR: {consult.respiratory_rate}rpm</span>}
                                 {consult.oxygen_saturation && <span style={styles.vitalTag}>SpO2: {consult.oxygen_saturation}%</span>}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>

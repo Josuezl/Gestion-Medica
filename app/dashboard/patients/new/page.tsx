@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { createPatient } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import { 
@@ -20,6 +20,9 @@ import {
 export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Aviso de posible duplicado (no bloquea: se puede guardar de todas formas).
+  const [duplicate, setDuplicate] = useState<{ id: string; name: string; birthDate: string } | null>(null)
+  const pendingForm = useRef<FormData | null>(null)
   // Se detecta automáticamente por la fecha de nacimiento (menor de 19 años).
   const [isPediatric, setIsPediatric] = useState(false)
 
@@ -39,18 +42,30 @@ export default function NewPatientPage() {
     setIsPediatric(isPediatricAge(e.target.value))
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit(formData: FormData, force: boolean) {
     setError(null)
+    setDuplicate(null)
     setLoading(true)
 
-    const formData = new FormData(event.currentTarget)
-    const result = await createPatient(formData)
+    const result: any = await createPatient(formData, force)
 
-    if (result && result.error) {
+    if (result?.error) {
       setError(result.error)
       setLoading(false)
+      return
     }
+    if (result?.duplicate) {
+      pendingForm.current = formData
+      setDuplicate(result.duplicate)
+      setLoading(false)
+      return
+    }
+    // Éxito: el server action redirige al detalle; no hay nada más que hacer aquí.
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await submit(new FormData(event.currentTarget), false)
   }
 
   return (
@@ -66,6 +81,32 @@ export default function NewPatientPage() {
       </div>
 
       {error && <div style={styles.errorAlert}>{error}</div>}
+
+      {duplicate && (
+        <div style={styles.dupAlert}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong>Ya existe un paciente parecido:</strong> {duplicate.name}
+              {duplicate.birthDate ? ` (nac. ${duplicate.birthDate})` : ''}. ¿Es la misma persona?
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                <a href={`/dashboard/patients/${duplicate.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  Ver ese paciente
+                </a>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                  disabled={loading}
+                  onClick={() => { if (pendingForm.current) submit(pendingForm.current, true) }}
+                >
+                  {loading ? <Loader2 size={14} className="animate-spin" /> : 'Guardar de todas formas'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <div className="responsive-main-side">
@@ -123,6 +164,20 @@ export default function NewPatientPage() {
               </div>
 
               <div className="form-group">
+                <label className="form-label" htmlFor="record_number">
+                  N° de Expediente
+                </label>
+                <input
+                  className="form-input"
+                  id="record_number"
+                  name="record_number"
+                  type="text"
+                  placeholder="Ej. EXP-00123"
+                />
+                <p style={styles.inputHelp}>Opcional — si tu clínica maneja número de expediente.</p>
+              </div>
+
+              <div className="form-group">
                 <label className="form-label" htmlFor="birth_date">
                   Fecha de Nacimiento *
                 </label>
@@ -144,7 +199,6 @@ export default function NewPatientPage() {
                   <option value="">Selecciona...</option>
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
-                  <option value="O">Otro</option>
                 </select>
               </div>
 
@@ -222,7 +276,7 @@ export default function NewPatientPage() {
             <div className="responsive-2col">
               <div className="form-group">
                 <label className="form-label" htmlFor="phone">
-                  Teléfono Celular (WhatsApp) *
+                  Teléfono Celular (WhatsApp)
                 </label>
                 <div style={styles.phoneInputWrapper}>
                   <span style={styles.phoneAddon}>+504</span>
@@ -232,13 +286,12 @@ export default function NewPatientPage() {
                     name="phone"
                     type="tel"
                     placeholder="9988-7766"
-                    required
                     pattern="[389][0-9]{7}"
                     title="Por favor ingresa un número celular de Honduras de 8 dígitos que comience con 3, 8 o 9"
                     style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
                   />
                 </div>
-                <p style={styles.inputHelp}>Número de Honduras de 8 dígitos para enviar recordatorios y recetas.</p>
+                <p style={styles.inputHelp}>Opcional — número de Honduras de 8 dígitos para recordatorios y recetas. Puedes agregarlo después.</p>
               </div>
 
               <div className="form-group">
@@ -406,6 +459,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: '#f87171',
     fontSize: '0.85rem',
+  },
+  dupAlert: {
+    padding: '0.85rem 1rem',
+    backgroundColor: '#fffbeb',
+    border: '1px solid #fde68a',
+    borderRadius: '8px',
+    color: '#92400e',
+    fontSize: '0.88rem',
+    marginBottom: '1rem',
   },
   form: {
     display: 'flex',

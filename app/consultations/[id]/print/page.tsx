@@ -65,7 +65,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
 
   const c: any = consultation
   const hc = c.head_circumference
-  const hasVitals = c.weight || c.height || c.blood_pressure || c.temperature || c.heart_rate || c.oxygen_saturation || hc
+  const hasVitals = c.weight || c.height || c.blood_pressure || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
   const sections = [
     { title: 'Motivo de Consulta', value: c.reason_for_visit },
@@ -215,6 +215,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
                 {c.blood_pressure && <span className="vital">P. Arterial: <strong>{c.blood_pressure}</strong></span>}
                 {c.temperature && <span className="vital">Temp: <strong>{c.temperature} °C</strong></span>}
                 {c.heart_rate && <span className="vital">F. Cardíaca: <strong>{c.heart_rate} bpm</strong></span>}
+                {c.respiratory_rate && <span className="vital">F. Respiratoria: <strong>{c.respiratory_rate} rpm</strong></span>}
                 {c.oxygen_saturation && <span className="vital">Saturación: <strong>{c.oxygen_saturation}%</strong></span>}
               </div>
             )}

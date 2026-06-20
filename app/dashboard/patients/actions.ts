@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
 import { canDoClinical } from '@/utils/permissions'
+import { normalizeName } from '@/utils/validation'
 import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -20,7 +21,59 @@ function sanitizePhone(phone: string) {
   return phone // Si ya tiene el formato o es inválido, devolver tal cual para que valide la DB
 }
 
-export async function createPatient(formData: FormData) {
+// Busca un posible paciente duplicado en la clínica: mismo DNI, o mismo nombre normalizado
+// (sin acentos/mayúsculas) + misma fecha de nacimiento. Devuelve la fila o null.
+async function findDuplicatePatient(
+  supabase: any,
+  clinicId: string,
+  firstName: string,
+  lastName: string,
+  birthDate: string,
+  idCard: string | null,
+) {
+  // 1. Por DNI exacto (si se proporcionó).
+  if (idCard) {
+    const { data } = await supabase
+      .from('patients')
+      .select('id, first_name, last_name, birth_date')
+      .eq('clinic_id', clinicId)
+      .eq('id_card', idCard)
+      .limit(1)
+      .maybeSingle()
+    if (data) return data
+  }
+
+  // 2. Por nombre normalizado + fecha de nacimiento (el DNI no siempre se captura).
+  if (!birthDate) return null
+  const { data: sameDob } = await supabase
+    .from('patients')
+    .select('id, first_name, last_name, birth_date')
+    .eq('clinic_id', clinicId)
+    .eq('birth_date', birthDate)
+  const target = normalizeName(`${firstName} ${lastName}`)
+  return (sameDob || []).find((p: any) => normalizeName(`${p.first_name} ${p.last_name}`) === target) || null
+}
+
+// El N° de expediente debe ser único dentro de la clínica. Devuelve el paciente que YA lo usa
+// (distinto de excludeId, para permitir editar el mismo paciente), o null. Comparación
+// case-insensitive (ilike sin comodines = match exacto sin distinguir mayúsculas).
+async function findPatientByRecordNumber(
+  supabase: any,
+  clinicId: string,
+  recordNumber: string,
+  excludeId?: string,
+) {
+  let q = supabase
+    .from('patients')
+    .select('id, first_name, last_name')
+    .eq('clinic_id', clinicId)
+    .ilike('record_number', recordNumber)
+  if (excludeId) q = q.neq('id', excludeId)
+  const { data } = await q.limit(1).maybeSingle()
+  return data || null
+}
+
+export async function createPatient(formData: FormData, force = false) {
   const supabase = await createClient()
 
   // 1. Obtener la clínica del doctor logueado
@@ -37,16 +90,40 @@ export async function createPatient(formData: FormData) {
     return { error: 'El usuario no está asociado a ninguna clínica.' }
   }
 
-  const rawPhone = formData.get('phone') as string
-  const sanitizedPhone = sanitizePhone(rawPhone)
+  const firstName = formData.get('first_name') as string
+  const lastName = formData.get('last_name') as string
+  const birthDate = formData.get('birth_date') as string
+  const idCard = (formData.get('id_card') as string || '').trim() || null
+  const recordNumber = (formData.get('record_number') as string || '').trim() || null
+
+  // 1.b N° de expediente único en la clínica (bloqueo): si ya lo usa otro paciente, avisar con su nombre.
+  if (recordNumber) {
+    const taken = await findPatientByRecordNumber(supabase, profile.clinic_id, recordNumber)
+    if (taken) {
+      return { error: `El N° de expediente "${recordNumber}" ya pertenece a ${taken.first_name} ${taken.last_name}.`.replace(/\s+/g, ' ').trim() }
+    }
+  }
+
+  // 1.c Validación anti-duplicados (aviso, no bloqueo): mismo DNI, o mismo nombre normalizado +
+  //     fecha de nacimiento, dentro de la clínica. Se omite si el usuario confirma con force.
+  if (!force) {
+    const dup = await findDuplicatePatient(supabase, profile.clinic_id, firstName, lastName, birthDate, idCard)
+    if (dup) {
+      return { duplicate: { id: dup.id, name: `${dup.first_name} ${dup.last_name}`.trim(), birthDate: dup.birth_date } }
+    }
+  }
+
+  const rawPhone = (formData.get('phone') as string || '').trim()
+  const sanitizedPhone = rawPhone ? sanitizePhone(rawPhone) : null
 
   const patientData = {
     clinic_id: profile.clinic_id,
-    first_name: formData.get('first_name') as string,
-    last_name: formData.get('last_name') as string,
-    id_card: formData.get('id_card') as string || null,
+    first_name: firstName,
+    last_name: lastName,
+    id_card: idCard,
+    record_number: recordNumber,
     gender: formData.get('gender') as string || null,
-    birth_date: formData.get('birth_date') as string,
+    birth_date: birthDate,
     phone: sanitizedPhone,
     email: formData.get('email') as string || null,
     address: formData.get('address') as string || null,
@@ -55,7 +132,7 @@ export async function createPatient(formData: FormData) {
     family_history: formData.get('family_history') as string || null,
     pathological_history: formData.get('pathological_history') as string || null,
     non_pathological_history: formData.get('non_pathological_history') as string || null,
-    is_pediatric: isPediatric(formData.get('birth_date') as string),
+    is_pediatric: isPediatric(birthDate),
     father_name: formData.get('father_name') as string || null,
     mother_name: formData.get('mother_name') as string || null,
   }
@@ -71,7 +148,7 @@ export async function createPatient(formData: FormData) {
   }
 
   revalidatePath('/dashboard/patients')
-  redirect(`/dashboard/patients/${data.id}`)
+  redirect(`/dashboard/patients/${data.id}?creado=1`)
 }
 
 export async function updatePatient(id: string, formData: FormData) {
@@ -88,14 +165,24 @@ export async function updatePatient(id: string, formData: FormData) {
     .single()
   if (!authProfile?.clinic_id) return { error: 'No autorizado' }
 
-  const rawPhone = formData.get('phone') as string
-  const sanitizedPhone = sanitizePhone(rawPhone)
+  const rawPhone = (formData.get('phone') as string || '').trim()
+  const sanitizedPhone = rawPhone ? sanitizePhone(rawPhone) : null
+  const recordNumber = (formData.get('record_number') as string || '').trim() || null
+
+  // N° de expediente único en la clínica (bloqueo), excluyendo a este mismo paciente.
+  if (recordNumber) {
+    const taken = await findPatientByRecordNumber(supabase, authProfile.clinic_id, recordNumber, id)
+    if (taken) {
+      return { error: `El N° de expediente "${recordNumber}" ya pertenece a ${taken.first_name} ${taken.last_name}.`.replace(/\s+/g, ' ').trim() }
+    }
+  }
 
   // Datos personales: editables por cualquier miembro de la clínica (incluida asistente/enfermera).
   const patientData: Record<string, any> = {
     first_name: formData.get('first_name') as string,
     last_name: formData.get('last_name') as string,
     id_card: formData.get('id_card') as string || null,
+    record_number: recordNumber,
     gender: formData.get('gender') as string || null,
     birth_date: formData.get('birth_date') as string,
     phone: sanitizedPhone,
@@ -372,13 +459,13 @@ export async function searchPatientsForAgenda(query: string) {
 
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, phone, birth_date, gender, id_card')
+    .select('id, first_name, last_name, phone, birth_date, gender, id_card, record_number')
     .eq('clinic_id', profile.clinic_id)
 
   // Por cada palabra, al menos uno de los campos debe contenerla
   words.forEach(word => {
     dbQuery = dbQuery.or(
-      `first_name.ilike.%${word}%,last_name.ilike.%${word}%,phone.ilike.%${word}%,id_card.ilike.%${word}%`
+      `first_name.ilike.%${word}%,last_name.ilike.%${word}%,phone.ilike.%${word}%,id_card.ilike.%${word}%,record_number.ilike.%${word}%`
     )
   })
 

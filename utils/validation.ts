@@ -10,6 +10,7 @@ export interface VitalsInput {
   height?: number | null
   headCircumference?: number | null
   heartRate?: number | null
+  respiratoryRate?: number | null
   oxygenSaturation?: number | null
 }
 
@@ -28,6 +29,7 @@ export const VITAL_RANGES: VitalRange[] = [
   { key: 'height', label: 'Talla', min: 10, max: 280, unit: 'cm' },
   { key: 'headCircumference', label: 'Perímetro cefálico', min: 10, max: 80, unit: 'cm' },
   { key: 'heartRate', label: 'Ritmo cardiaco', min: 10, max: 400, unit: 'bpm' },
+  { key: 'respiratoryRate', label: 'Frecuencia respiratoria', min: 3, max: 80, unit: 'rpm' },
   { key: 'oxygenSaturation', label: 'SpO2', min: 1, max: 100, unit: '%' },
 ]
 
@@ -66,4 +68,19 @@ export function sanitizeName(raw: string | null | undefined, fallback = 'Pacient
     .trim()
     .slice(0, 60)
   return cleaned || fallback
+}
+
+/**
+ * Normaliza un nombre para COMPARAR (no para mostrar): quita acentos/marcas, pasa a minúsculas,
+ * deja solo letras/números/espacios y colapsa espacios. Sirve para detectar pacientes duplicados
+ * de forma robusta a acentos, mayúsculas y espacios extra. Ej.: "  José  PÉREZ " → "jose perez".
+ */
+export function normalizeName(raw: string | null | undefined): string {
+  return (raw ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // quita los diacríticos (acentos)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

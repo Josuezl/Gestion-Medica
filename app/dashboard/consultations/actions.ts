@@ -36,6 +36,7 @@ export async function createConsultation(
   const heightVal = formData.get('height') as string
   const headCircVal = formData.get('head_circumference') as string
   const hrVal = formData.get('heart_rate') as string
+  const rrVal = formData.get('respiratory_rate') as string
   const oxVal = formData.get('oxygen_saturation') as string
 
   const temperature = tempVal ? parseFloat(tempVal) : null
@@ -43,11 +44,12 @@ export async function createConsultation(
   const height = heightVal ? parseFloat(heightVal) : null
   const headCircumference = headCircVal ? parseFloat(headCircVal) : null
   const heartRate = hrVal ? parseInt(hrVal, 10) : null
+  const respiratoryRate = rrVal ? parseInt(rrVal, 10) : null
   const oxygenSaturation = oxVal ? parseInt(oxVal, 10) : null
 
   // 2.b Validar rangos de los signos vitales (lógica en utils/validation.ts, testeable). Evita el
   //     críptico "numeric field overflow" cuando hay un error de dedo (p. ej. peso en gramos).
-  const vitalError = validateVitals({ temperature, weight, height, headCircumference, heartRate, oxygenSaturation })
+  const vitalError = validateVitals({ temperature, weight, height, headCircumference, heartRate, respiratoryRate, oxygenSaturation })
   if (vitalError) return { error: vitalError }
 
   // 3. Insertar la consulta
@@ -69,6 +71,7 @@ export async function createConsultation(
       height,
       head_circumference: headCircumference,
       heart_rate: heartRate,
+      respiratory_rate: respiratoryRate,
       oxygen_saturation: oxygenSaturation
     }])
     .select()

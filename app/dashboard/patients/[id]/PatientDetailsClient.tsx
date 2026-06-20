@@ -64,6 +64,7 @@ interface PatientDetailsClientProps {
   prescriptions: any[]
   labOrders?: any[]
   initialEdit?: boolean
+  justCreated?: boolean
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
@@ -76,6 +77,7 @@ export default function PatientDetailsClient({
   prescriptions,
   labOrders = [],
   initialEdit = false,
+  justCreated = false,
   currentUserId,
   currentUserRole,
   isOrgAdmin
@@ -99,6 +101,7 @@ export default function PatientDetailsClient({
   const [copiedFicha, setCopiedFicha] = useState(false)
   const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
+  const [showCreatedBanner, setShowCreatedBanner] = useState(justCreated)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
     setExpandedConsultations(prev => ({
@@ -181,6 +184,7 @@ export default function PatientDetailsClient({
             c.temperature ? `<span class="vital-tag">Temp: ${c.temperature}°C</span>` : '',
             c.weight ? `<span class="vital-tag">Peso: ${c.weight} kg</span>` : '',
             c.heart_rate ? `<span class="vital-tag">FC: ${c.heart_rate} bpm</span>` : '',
+            c.respiratory_rate ? `<span class="vital-tag">FR: ${c.respiratory_rate} rpm</span>` : '',
             c.oxygen_saturation ? `<span class="vital-tag">SpO2: ${c.oxygen_saturation}%</span>` : '',
           ].filter(Boolean).join('');
 
@@ -682,6 +686,21 @@ export default function PatientDetailsClient({
 
   return (
     <div style={styles.container}>
+      {showCreatedBanner && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', padding: '0.85rem 1rem', marginBottom: '1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', color: '#065f46', fontSize: '0.9rem' }}>
+          <div>
+            ✅ <strong>Paciente registrado.</strong>
+            {(!patient.phone || String(patient.phone).trim() === '') && (
+              <span style={{ display: 'block', marginTop: '0.25rem', color: '#92400e' }}>
+                ⚠️ No se registró teléfono — puedes agregarlo con el botón <strong>“Editar Paciente”</strong>.
+              </span>
+            )}
+          </div>
+          <button onClick={() => setShowCreatedBanner(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', padding: '2px', flexShrink: 0 }} title="Cerrar">
+            <X size={18} />
+          </button>
+        </div>
+      )}
       {/* Patient Profile Header Card */}
       <div className="card-glass" style={styles.headerCard}>
         <div style={styles.headerLayout}>
@@ -703,7 +722,7 @@ export default function PatientDetailsClient({
               {calculateAge(patient.birth_date)} años • Nacido el {new Date(patient.birth_date).toLocaleDateString('es-HN')} • 
               Género:
               <select
-                value={patient.gender || 'O'}
+                value={patient.gender || ''}
                 disabled={isUpdatingGender}
                 onChange={(e) => {
                   startGenderTransition(async () => {
@@ -725,16 +744,17 @@ export default function PatientDetailsClient({
                   opacity: isUpdatingGender ? 0.6 : 1
                 }}
               >
+                <option value="">Sin especificar</option>
                 <option value="M">Masculino</option>
                 <option value="F">Femenino</option>
-                <option value="O">Otro</option>
+                {patient.gender === 'O' && <option value="O">Otro</option>}
               </select>
             </p>
 
             <div style={styles.contactRow}>
               <span style={styles.contactItem}>
                 <Phone size={14} />
-                <span>{patient.phone}</span>
+                <span>{patient.phone ? patient.phone : <em style={{ color: 'var(--text-muted)' }}>Sin teléfono</em>}</span>
               </span>
               {patient.email ? (
                 <span style={styles.contactItem}>
@@ -745,6 +765,11 @@ export default function PatientDetailsClient({
               {patient.id_card ? (
                 <span style={styles.contactItem}>
                   <span>DNI: {patient.id_card}</span>
+                </span>
+              ) : null}
+              {patient.record_number ? (
+                <span style={styles.contactItem}>
+                  <span>Exp: {patient.record_number}</span>
                 </span>
               ) : null}
             </div>
@@ -874,12 +899,16 @@ export default function PatientDetailsClient({
                 <input className="form-input" name="id_card" defaultValue={patient.id_card} />
               </div>
               <div className="form-group">
+                <label className="form-label">N° de Expediente</label>
+                <input className="form-input" name="record_number" defaultValue={patient.record_number || ''} placeholder="Opcional" />
+              </div>
+              <div className="form-group">
                 <label className="form-label">Fecha de Nacimiento *</label>
                 <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date} onChange={(e) => setIsEditPediatric(isPediatric(e.target.value))} required />
               </div>
               <div className="form-group">
-                <label className="form-label">WhatsApp (Honduras) *</label>
-                <input className="form-input" name="phone" defaultValue={patient.phone.replace('+504', '')} placeholder="9988-7766" required />
+                <label className="form-label">WhatsApp (Honduras)</label>
+                <input className="form-input" name="phone" defaultValue={(patient.phone || '').replace('+504', '')} placeholder="9988-7766" />
               </div>
               <div className="form-group">
                 <label className="form-label">Correo Electrónico</label>
@@ -887,10 +916,11 @@ export default function PatientDetailsClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Género</label>
-                <select className="form-input" name="gender" defaultValue={patient.gender || 'O'}>
+                <select className="form-input" name="gender" defaultValue={patient.gender || ''}>
+                  <option value="">Sin especificar</option>
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
-                  <option value="O">Otro</option>
+                  {patient.gender === 'O' && <option value="O">Otro</option>}
                 </select>
               </div>
               {canClinical && (
@@ -1089,6 +1119,7 @@ export default function PatientDetailsClient({
                                 {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
                                 {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
                                 {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
+                                {consult.respiratory_rate && <span style={styles.vitalTag}>FR: {consult.respiratory_rate}rpm</span>}
                                 {consult.oxygen_saturation && <span style={styles.vitalTag}>SpO2: {consult.oxygen_saturation}%</span>}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
