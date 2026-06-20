@@ -7,8 +7,11 @@
 ## Contexto
 
 Ya están mitigados los 5 hallazgos **ALTA** (A1–A5, con A5 solo en Fase 1) y varios **Media/Baja** (M2, M3,
-M6, B5). Quedan pendientes los de abajo. Algunos son solo código (se despliegan por el flujo normal de Vercel),
-otros necesitan un **entorno de pruebas (staging)** o una **decisión tuya**.
+M4, M5, M6, B5, y **B1 Fase 1**). Quedan pendientes los de abajo. Algunos son solo código (se despliegan por el
+flujo normal de Vercel), otros necesitan un **entorno de pruebas (staging)** o una **decisión tuya**.
+
+> **Actualización 2026-06-20:** cerrada la **Fase 1 de B1** (6 extracciones de componentes con paridad
+> funcional absoluta; el modal de WhatsApp duplicado quedó unificado). Desplegado a `main`. Detalle en el ítem 8.
 
 ## Orden recomendado (resumen)
 
@@ -21,7 +24,7 @@ otros necesitan un **entorno de pruebas (staging)** o una **decisión tuya**.
 | 5 | **A5 Fase 2** — test de aislamiento RLS | Código (tests) | #4 (staging) | Medio | **Seguridad (alto)** |
 | 6 | **M1** — estandarizar políticas RLS | SQL | #4 (probar en staging) | Bajo | Robustez |
 | 7 | **M8 (resto)** — rate-limiting | Código + servicio | Upstash/Vercel KV | Medio | Anti-abuso |
-| 8 | **B1** — partir componentes monolíticos | Refactor | — | Alto | Mantenibilidad |
+| 8 | 🟡 **B1** — partir componentes monolíticos (**Fase 1 ✅**, Fase 2 pendiente) | Refactor | — | Alto | Mantenibilidad |
 | 9 | **B2** — sistema de diseño (quitar inline) | Refactor | — | Alto | Mantenibilidad |
 
 **Lógica del orden:** primero las mejoras de **solo código** que son seguras y dan valor inmediato (1–3);
@@ -98,12 +101,24 @@ dedicadas.
 - **Requiere:** servicio externo (cuenta Upstash/Vercel KV) → **acción tuya**.
 - **Riesgo:** bajo-medio (mal calibrado podría bloquear tráfico legítimo).
 
-### 8. B1 — Partir componentes monolíticos + quitar duplicación
+### 8. B1 — Partir componentes monolíticos + quitar duplicación — 🟡 Fase 1 ✅ (2026-06-20)
 - **Objetivo:** dividir `PatientDetailsClient` (~2145 líneas), `AgendaClient`, `NewConsultationClient`,
   `ConfigClient`; unificar las pestañas duplicadas (`PatientHistoryTabs` vs las de `PatientDetailsClient`).
-- **Enfoque:** **incremental**, un componente a la vez, con verificación funcional/visual (idealmente con la
-  suite de tests ya creciendo). **No** hacerlo de golpe.
-- **Riesgo:** alto de regresión → **sesiones dedicadas**.
+- **✅ Fase 1 hecha (paridad funcional absoluta, una extracción a la vez con `tsc` verde):**
+  - **B1.1** `LastValueRef` + `LabOrder*` ← NewConsultationClient.
+  - **B1.2** `LabCatalogCard` ← ConfigClient.
+  - **B1.3** `StatusDropdown` + `STATUS_CONFIG` ← AgendaClient (1123→1061).
+  - **B1.4/B1.5** `WhatsAppShareModal` compartido — **dedup** del modal duplicado (PatientHistoryTabs 988→840,
+    PatientDetailsClient 2145→2000).
+  - **B1.5** `LabOrdersTab` ← PatientDetailsClient (→1913).
+  - Verificado: `tsc --noEmit` + `next build` + **33 tests** verdes; desplegado a `main`.
+- **⏳ Fase 2 pendiente (más riesgo, requiere más threading de props/estado):**
+  - `PatientDetailsClient`: extraer los paneles `consultations`, `prescriptions` y `history` (cierran sobre
+    handlers de edición de receta, email, copiar/imprimir → custom hook + componentes presentacionales).
+  - `AgendaClient`: extraer el **formulario de cita** (modal de crear/editar) y las vistas día/semana/mes.
+  - `NewConsultationClient`: extraer el formulario de signos vitales / bloque de receta.
+- **Enfoque:** **incremental**, un componente a la vez, con `tsc` + build + tests en verde antes de avanzar.
+  **No** hacerlo de golpe. **Riesgo Fase 2:** medio-alto de regresión → idealmente con tests de UI creciendo.
 
 ### 9. B2 — Sistema de diseño (migrar estilos inline)
 - **Objetivo:** mover estilos inline a clases utilitarias en `globals.css`.
