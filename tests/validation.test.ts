@@ -7,7 +7,12 @@ describe('validateVitals', () => {
   })
 
   it('devuelve null con valores normales', () => {
-    expect(validateVitals({ temperature: 36.5, weight: 70, height: 165, heartRate: 72, oxygenSaturation: 98 })).toBeNull()
+    expect(validateVitals({ temperature: 36.5, weight: 70, height: 165, heartRate: 72, respiratoryRate: 16, oxygenSaturation: 98 })).toBeNull()
+  })
+
+  it('acepta frecuencia respiratoria normal y rechaza un valor imposible', () => {
+    expect(validateVitals({ respiratoryRate: 18 })).toBeNull()
+    expect(validateVitals({ respiratoryRate: 300 })).toContain('Frecuencia respiratoria')
   })
 
   it('ignora los valores null/undefined', () => {

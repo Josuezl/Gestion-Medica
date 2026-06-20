@@ -54,6 +54,25 @@ async function findDuplicatePatient(
   return (sameDob || []).find((p: any) => normalizeName(`${p.first_name} ${p.last_name}`) === target) || null
 }
 
+// El N° de expediente debe ser único dentro de la clínica. Devuelve el paciente que YA lo usa
+// (distinto de excludeId, para permitir editar el mismo paciente), o null. Comparación
+// case-insensitive (ilike sin comodines = match exacto sin distinguir mayúsculas).
+async function findPatientByRecordNumber(
+  supabase: any,
+  clinicId: string,
+  recordNumber: string,
+  excludeId?: string,
+) {
+  let q = supabase
+    .from('patients')
+    .select('id, first_name, last_name')
+    .eq('clinic_id', clinicId)
+    .ilike('record_number', recordNumber)
+  if (excludeId) q = q.neq('id', excludeId)
+  const { data } = await q.limit(1).maybeSingle()
+  return data || null
+}
+
 export async function createPatient(formData: FormData, force = false) {
   const supabase = await createClient()
 
@@ -75,8 +94,17 @@ export async function createPatient(formData: FormData, force = false) {
   const lastName = formData.get('last_name') as string
   const birthDate = formData.get('birth_date') as string
   const idCard = (formData.get('id_card') as string || '').trim() || null
+  const recordNumber = (formData.get('record_number') as string || '').trim() || null
 
-  // 1.b Validación anti-duplicados (aviso, no bloqueo): mismo DNI, o mismo nombre normalizado +
+  // 1.b N° de expediente único en la clínica (bloqueo): si ya lo usa otro paciente, avisar con su nombre.
+  if (recordNumber) {
+    const taken = await findPatientByRecordNumber(supabase, profile.clinic_id, recordNumber)
+    if (taken) {
+      return { error: `El N° de expediente "${recordNumber}" ya pertenece a ${taken.first_name} ${taken.last_name}.`.replace(/\s+/g, ' ').trim() }
+    }
+  }
+
+  // 1.c Validación anti-duplicados (aviso, no bloqueo): mismo DNI, o mismo nombre normalizado +
   //     fecha de nacimiento, dentro de la clínica. Se omite si el usuario confirma con force.
   if (!force) {
     const dup = await findDuplicatePatient(supabase, profile.clinic_id, firstName, lastName, birthDate, idCard)
@@ -93,7 +121,7 @@ export async function createPatient(formData: FormData, force = false) {
     first_name: firstName,
     last_name: lastName,
     id_card: idCard,
-    record_number: (formData.get('record_number') as string || '').trim() || null,
+    record_number: recordNumber,
     gender: formData.get('gender') as string || null,
     birth_date: birthDate,
     phone: sanitizedPhone,
@@ -139,13 +167,22 @@ export async function updatePatient(id: string, formData: FormData) {
 
   const rawPhone = (formData.get('phone') as string || '').trim()
   const sanitizedPhone = rawPhone ? sanitizePhone(rawPhone) : null
+  const recordNumber = (formData.get('record_number') as string || '').trim() || null
+
+  // N° de expediente único en la clínica (bloqueo), excluyendo a este mismo paciente.
+  if (recordNumber) {
+    const taken = await findPatientByRecordNumber(supabase, authProfile.clinic_id, recordNumber, id)
+    if (taken) {
+      return { error: `El N° de expediente "${recordNumber}" ya pertenece a ${taken.first_name} ${taken.last_name}.`.replace(/\s+/g, ' ').trim() }
+    }
+  }
 
   // Datos personales: editables por cualquier miembro de la clínica (incluida asistente/enfermera).
   const patientData: Record<string, any> = {
     first_name: formData.get('first_name') as string,
     last_name: formData.get('last_name') as string,
     id_card: formData.get('id_card') as string || null,
-    record_number: (formData.get('record_number') as string || '').trim() || null,
+    record_number: recordNumber,
     gender: formData.get('gender') as string || null,
     birth_date: formData.get('birth_date') as string,
     phone: sanitizedPhone,

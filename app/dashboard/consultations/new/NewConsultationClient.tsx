@@ -328,6 +328,10 @@ export default function NewConsultationClient({
                   <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
                 </div>
                 <div className="form-group">
+                  <label className="form-label">Frecuencia Respiratoria (rpm)</label>
+                  <input className="form-input" type="number" name="respiratory_rate" placeholder="Ref. 12-20" defaultValue={preclinical?.respiratory_rate ?? ''} />
+                </div>
+                <div className="form-group">
                   <label className="form-label">SpO2 (%)</label>
                   <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
                 </div>

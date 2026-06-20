@@ -10,6 +10,7 @@ export interface VitalsInput {
   height?: number | null
   headCircumference?: number | null
   heartRate?: number | null
+  respiratoryRate?: number | null
   oxygenSaturation?: number | null
 }
 
@@ -28,6 +29,7 @@ export const VITAL_RANGES: VitalRange[] = [
   { key: 'height', label: 'Talla', min: 10, max: 280, unit: 'cm' },
   { key: 'headCircumference', label: 'Perímetro cefálico', min: 10, max: 80, unit: 'cm' },
   { key: 'heartRate', label: 'Ritmo cardiaco', min: 10, max: 400, unit: 'bpm' },
+  { key: 'respiratoryRate', label: 'Frecuencia respiratoria', min: 3, max: 80, unit: 'rpm' },
   { key: 'oxygenSaturation', label: 'SpO2', min: 1, max: 100, unit: '%' },
 ]
 

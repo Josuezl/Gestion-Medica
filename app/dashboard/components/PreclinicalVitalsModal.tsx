@@ -104,6 +104,10 @@ export default function PreclinicalVitalsModal({ patient, appointmentId = null, 
                 <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={existing?.heart_rate ?? ''} />
               </div>
               <div className="form-group">
+                <label className="form-label">Frec. Respiratoria (rpm)</label>
+                <input className="form-input" type="number" name="respiratory_rate" placeholder="Ref. 12-20" defaultValue={existing?.respiratory_rate ?? ''} />
+              </div>
+              <div className="form-group">
                 <label className="form-label">SpO2 (%)</label>
                 <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={existing?.oxygen_saturation ?? ''} />
               </div>
