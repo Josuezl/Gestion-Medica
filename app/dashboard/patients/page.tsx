@@ -1,7 +1,8 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { canDoClinical } from '@/utils/permissions'
+import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
+import PatientVitalsButton from './PatientVitalsButton'
 import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
 
 // Calcular edad
@@ -46,11 +47,13 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   const clinicId = profile?.clinic_id
   // Asistente y enfermera no inician consultas: se oculta el botón por fila.
   const clinical = canDoClinical(profile?.role)
+  // Enfermera (y médico/admin) pueden tomar signos sin entrar al expediente.
+  const canVitals = canEnterVitals(profile?.role)
 
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, id_card, gender, birth_date, phone, blood_type', { count: 'exact' })
+    .select('id, first_name, last_name, id_card, gender, birth_date, phone, blood_type, is_pediatric', { count: 'exact' })
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
@@ -200,6 +203,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                             <Eye size={15} />
                             <span>Expediente</span>
                           </a>
+                          {canVitals && <PatientVitalsButton patient={patient} />}
                           {clinical && (
                             <a
                               href={`/dashboard/consultations/new?patientId=${patient.id}`}
