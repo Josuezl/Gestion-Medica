@@ -55,18 +55,18 @@ código es distinta y conviene dejarlo registrado:
 | A3 | Lógica de negocio | 🔴 Alta | ✅ Mitigado | `app/dashboard/consultations/actions.ts`, `app/superadmin/actions.ts` |
 | A4 | Seguridad / Arquitectura | 🔴 Alta | ✅ Mitigado | `app/dashboard/patients/actions.ts`, `app/dashboard/actions.ts` |
 | A5 | Calidad | 🔴 Alta | ✅ Mitigado (Fase 1) | Vitest + 28 pruebas unitarias; RLS (Fase 2) pendiente |
-| M1 | BD / RLS | 🟠 Media | Pendiente | `supabase/migrations/20260618010000_lab_orders.sql` |
+| M1 | BD / RLS | 🟠 Media | ⏸️ Diferido | `supabase/migrations/20260618010000_lab_orders.sql` |
 | M2 | Validación | 🟠 Media | ✅ Mitigado | `app/dashboard/actions.ts`, `app/dashboard/consultations/actions.ts` |
 | M3 | Seguridad | 🟠 Media | ✅ Mitigado | múltiples `actions.ts` (`error.message`) |
 | M4 | Privacidad | 🟠 Media | Pendiente | `app/prescriptions/view/[id]/page.tsx` |
 | M5 | Rendimiento | 🟠 Media | 🟡 Parcial | `app/dashboard/patients/[id]/page.tsx` |
 | M6 | Validación / Datos | 🟠 Media | ✅ Mitigado | `app/api/whatsapp-webhook/route.ts` |
-| M7 | BD / Auditoría | 🟠 Media | Pendiente | `supabase/schema.sql` (FK `audit_logs`) |
-| M8 | Operaciones | 🟠 Media | Pendiente | `.env.example`, endpoints `app/api/*` |
-| B1 | Mantenibilidad | 🔵 Baja | Pendiente | `PatientDetailsClient.tsx`, etc. |
-| B2 | Mantenibilidad | 🔵 Baja | Pendiente | estilos inline |
-| B3 | Rendimiento | 🔵 Baja | Pendiente | `app/superadmin/*` (RPC repetido) |
-| B4 | Seguridad | 🔵 Baja | Pendiente | bucket `signatures` público |
+| M7 | BD / Auditoría | 🟠 Media | ⏸️ Diferido | `supabase/schema.sql` (FK `audit_logs`) |
+| M8 | Operaciones | 🟠 Media | 🟡 Parcial | `.env.example`, endpoints `app/api/*` |
+| B1 | Mantenibilidad | 🔵 Baja | ⏸️ Diferido | `PatientDetailsClient.tsx`, etc. |
+| B2 | Mantenibilidad | 🔵 Baja | ⏸️ Diferido | estilos inline |
+| B3 | Rendimiento | 🔵 Baja | ☑️ Aceptado | `app/superadmin/*` (RPC repetido) |
+| B4 | Seguridad | 🔵 Baja | ☑️ Aceptado | bucket `signatures` público |
 | B5 | Bug funcional | 🔵 Baja | ✅ Mitigado | `admin_platform_summary()` (nombres de bucket erróneos) |
 
 Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (riesgo asumido)** · **No aplica**.
@@ -107,9 +107,9 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   versionadas (Supabase CLI) en lugar de DDL manual.
 - **Estado:** ✅ **Mitigado (2026-06-19).** Las 5 funciones quedaron versionadas **verbatim** en
   `supabase/migrations/20260619000000_versioned_security_functions.sql` (idempotentes; coinciden con
-  producción). Opcional no bloqueante: formalizar `optimize.sql` como migración de índices y adoptar
-  `supabase db dump` para el esquema completo. **Hallazgo nuevo derivado → B5** (bucket names erróneos en
-  `admin_platform_summary`).
+  producción). Índices formalizados como migración (`migrations/20260619020000_indexes.sql`, 2026-06-19).
+  Pendiente opcional: adoptar `supabase db dump` / CLI para el esquema completo. **Hallazgo nuevo derivado →
+  B5** (bucket names erróneos en `admin_platform_summary`).
 
 ### A3 — Escrituras multi-paso no atómicas con errores silenciados
 - **Evidencia:**
@@ -179,7 +179,11 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   frágil ante cambios de versión o si se reescriben políticas.
 - **Recomendación:** estandarizar todas las tablas a políticas explícitas por operación
   (`FOR INSERT WITH CHECK`, `FOR SELECT/UPDATE/DELETE USING`), igual que las tablas núcleo.
-- **Estado:** Pendiente.
+- **Estado:** ⏸️ **Diferido (2026-06-19).** Es robustez/consistencia **sin** beneficio de seguridad (el
+  *fallback* de Postgres ya protege contra escritura cross-tenant). Además, `locations` no tiene su política
+  versionada en el repo (vive solo en la BD), así que reescribirla a ciegas es arriesgado. Dado que estamos en
+  **producción** y el riesgo (romper RLS) supera al beneficio (cero), se difiere para hacerlo con un entorno de
+  staging. No es una vulnerabilidad.
 
 ### M2 — Validación de inputs dispersa y faltante
 - **Evidencia:** `updateAppointmentStatus` (`app/dashboard/actions.ts`) acepta cualquier string como `status`
@@ -235,8 +239,13 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 ### M7 — `audit_logs` se borra en cascada con la clínica
 - **Evidencia:** `supabase/schema.sql` — `audit_logs.clinic_id` con `ON DELETE CASCADE`.
 - **Riesgo:** al eliminar un tenant se destruye su bitácora de auditoría (viola inmutabilidad/retención).
-- **Recomendación:** `ON DELETE RESTRICT` o archivar la bitácora antes de borrar el tenant.
-- **Estado:** Pendiente.
+- **Recomendación (corregida 2026-06-19):** ~~`ON DELETE RESTRICT`~~ **NO** — al verificar se confirmó que
+  **sí existe borrado de tenants** (`superadmin/actions.ts:351` + los rollbacks de `provisionTenant`), y
+  `RESTRICT` **rompería esa función** en producción (no se podría borrar una clínica con bitácora). La opción
+  correcta es **archivar/mover los `audit_logs` antes de borrar el tenant** (cambio de código en el borrado),
+  no tocar el FK.
+- **Estado:** ⏸️ **Diferido (2026-06-19).** No se cambia el FK (rompería el borrado de tenants). Pendiente:
+  implementar el archivado de bitácora previo al borrado, como tarea de código separada.
 
 ### M8 — Higiene operativa
 - **Evidencia:** `CRON_SECRET` (usado en `app/api/send-reminders/route.ts`) no está documentado en
@@ -245,7 +254,10 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   *drift* entre repo y BD. (El endpoint es *fail-closed* si falta el secreto, lo cual mitiga.)
 - **Recomendación:** documentar todos los secretos en `.env.example`; añadir *rate-limiting*; versionar las
   migraciones.
-- **Estado:** Pendiente.
+- **Estado:** 🟡 **Parcial (2026-06-19).** Se documentaron los secretos faltantes en `.env.example`
+  (`CRON_SECRET`, `WHATSAPP_APP_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`) y se formalizaron los índices
+  como migración (`migrations/20260619020000_indexes.sql`). Pendiente: **rate-limiting** en endpoints públicos
+  (cambio mayor, se difiere) y adoptar Supabase CLI para todo el DDL.
 
 ---
 
@@ -253,10 +265,10 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 
 | ID | Hallazgo | Recomendación | Estado |
 |----|----------|----------------|--------|
-| B1 | Componentes monolíticos (`PatientDetailsClient` ~2145 líneas, `AgendaClient`, `NewConsultationClient`, `ConfigClient`) y duplicación (`PatientHistoryTabs` vs tabs de `PatientDetailsClient`). | Extraer subcomponentes; unificar las pestañas duplicadas. | Pendiente |
-| B2 | Estilos inline en vez de un sistema de diseño. | Migrar gradualmente a clases utilitarias en `globals.css`. | Pendiente |
-| B3 | `is_platform_admin()` se re-evalúa por RPC en cada acción de superadmin. | Aceptable; opcional cachear con TTL corto. | Pendiente |
-| B4 | Bucket `signatures` público con rutas predecibles (`clinic_id/doctor_id/...`). | Baja sensibilidad (la firma va impresa); opcional bucket privado + URL firmada. | Pendiente |
+| B1 | Componentes monolíticos (`PatientDetailsClient` ~2145 líneas, `AgendaClient`, `NewConsultationClient`, `ConfigClient`) y duplicación (`PatientHistoryTabs` vs tabs de `PatientDetailsClient`). | Extraer subcomponentes; unificar las pestañas duplicadas. | ⏸️ Diferido — refactor grande y arriesgado en producción; hacer en sesión dedicada con pruebas. |
+| B2 | Estilos inline en vez de un sistema de diseño. | Migrar gradualmente a clases utilitarias en `globals.css`. | ⏸️ Diferido — churn cosmético grande, bajo valor, riesgo de regresiones visuales. |
+| B3 | `is_platform_admin()` se re-evalúa por RPC en cada acción de superadmin. | Aceptable; opcional cachear con TTL corto. | ☑️ Aceptado — latencia marginal (acciones de superadmin son raras); cachear auth tiene más riesgo que beneficio. |
+| B4 | Bucket `signatures` público con rutas predecibles (`clinic_id/doctor_id/...`). | Baja sensibilidad (la firma va impresa); opcional bucket privado + URL firmada. | ☑️ Aceptado — **por diseño**: las páginas públicas (verificar/vista) renderizan la firma; un bucket privado las rompería. |
 | B5 | `admin_platform_summary()` calcula `almacenamiento_bytes` sobre buckets inexistentes (`recetas`/`estudios`/`firmas`) en vez de los reales (`prescriptions`/`medical-studies`/`signatures`) → el total del panel superadmin siempre da **0**. (Detectado al versionar A2.) | Corregir los nombres de bucket en la función. | ✅ Mitigado — `migrations/20260619010000_fix_admin_platform_summary_buckets.sql` (correr el SQL en Supabase) |
 
 ---
@@ -319,18 +331,18 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | A3 | Escrituras multi-paso no atómicas | Alta | ✅ Mitigado | 2026-06-19 | `warnings[]` en `createConsultation` + mostrados en cliente; `provisionTenant` ya compensaba |
 | A4 | RLS como único control de autorización | Alta | ✅ Mitigado | 2026-06-19 | `.eq('clinic_id')` + verificación de filas en update{Patient,PatientGender,AppointmentStatus} |
 | A5 | Sin pruebas automatizadas | Alta | ✅ Mitigado (Fase 1) | 2026-06-19 | Vitest + 28 tests (`tests/`, `npm test`). Fase 2 (RLS) pendiente: requiere BD de pruebas |
-| M1 | Inconsistencia de políticas RLS (lab_*/locations) | Media | Pendiente | — | — |
+| M1 | Inconsistencia de políticas RLS (lab_*/locations) | Media | ⏸️ Diferido | 2026-06-19 | Sin vuln; evitar DDL de RLS en prod sin staging; `locations` no versionado |
 | M2 | Validación de inputs faltante (enum/cotas/JSON) | Media | ✅ Mitigado | 2026-06-19 | enum + cota `duration` + `utils/validation.ts` con tests; zod queda opcional |
 | M3 | Fuga de `error.message` al cliente | Media | ✅ Mitigado | 2026-06-19 | `utils/errors.ts` (`safeErrorMessage`) en 14 sitios |
 | M4 | Minimización de datos en página pública | Media | Pendiente | — | — |
 | M5 | N+1 de signed URLs | Media | 🟡 Parcial | 2026-06-19 | Quitado el N+1 de recetas (era trabajo muerto); queda el de estudios |
 | M6 | Auto-registro WhatsApp sin validar nombre | Media | ✅ Mitigado | 2026-06-19 | `sanitizeName` (con tests) aplicado al webhook |
-| M7 | `audit_logs` ON DELETE CASCADE | Media | Pendiente | — | — |
-| M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | Pendiente | — | — |
-| B1 | Componentes monolíticos / duplicación | Baja | Pendiente | — | — |
-| B2 | Estilos inline | Baja | Pendiente | — | — |
-| B3 | RPC `is_platform_admin` repetido | Baja | Pendiente | — | — |
-| B4 | Bucket `signatures` público | Baja | Pendiente | — | — |
+| M7 | `audit_logs` ON DELETE CASCADE | Media | ⏸️ Diferido | 2026-06-19 | `RESTRICT` rompería el borrado de tenants (existe); requiere archivar logs antes de borrar |
+| M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | 🟡 Parcial | 2026-06-19 | `.env.example` completo + índices versionados; falta rate-limiting |
+| B1 | Componentes monolíticos / duplicación | Baja | ⏸️ Diferido | 2026-06-19 | Refactor grande/arriesgado; sesión dedicada |
+| B2 | Estilos inline | Baja | ⏸️ Diferido | 2026-06-19 | Churn cosmético, bajo valor |
+| B3 | RPC `is_platform_admin` repetido | Baja | ☑️ Aceptado | 2026-06-19 | Latencia marginal; cachear auth = más riesgo |
+| B4 | Bucket `signatures` público | Baja | ☑️ Aceptado | 2026-06-19 | Por diseño (páginas públicas lo renderizan) |
 | B5 | `admin_platform_summary()` usa nombres de bucket inexistentes (total=0) | Baja | ✅ Mitigado | 2026-06-19 | `migrations/20260619010000_...` (correr SQL) |
 
 ---
