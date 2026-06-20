@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
+import { canDoClinical } from '@/utils/permissions'
 import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -82,7 +83,7 @@ export async function updatePatient(id: string, formData: FormData) {
   if (!user) return { error: 'No autorizado' }
   const { data: authProfile } = await supabase
     .from('user_profiles')
-    .select('clinic_id')
+    .select('clinic_id, role')
     .eq('id', user.id)
     .single()
   if (!authProfile?.clinic_id) return { error: 'No autorizado' }
@@ -90,7 +91,8 @@ export async function updatePatient(id: string, formData: FormData) {
   const rawPhone = formData.get('phone') as string
   const sanitizedPhone = sanitizePhone(rawPhone)
 
-  const patientData = {
+  // Datos personales: editables por cualquier miembro de la clínica (incluida asistente/enfermera).
+  const patientData: Record<string, any> = {
     first_name: formData.get('first_name') as string,
     last_name: formData.get('last_name') as string,
     id_card: formData.get('id_card') as string || null,
@@ -99,14 +101,20 @@ export async function updatePatient(id: string, formData: FormData) {
     phone: sanitizedPhone,
     email: formData.get('email') as string || null,
     address: formData.get('address') as string || null,
-    blood_type: formData.get('blood_type') as string || null,
-    allergies: formData.get('allergies') as string || 'Ninguna conocida',
-    family_history: formData.get('family_history') as string || null,
-    pathological_history: formData.get('pathological_history') as string || null,
-    non_pathological_history: formData.get('non_pathological_history') as string || null,
     is_pediatric: isPediatric(formData.get('birth_date') as string),
     father_name: formData.get('father_name') as string || null,
     mother_name: formData.get('mother_name') as string || null,
+  }
+
+  // Datos clínicos (tipo de sangre, alergias, antecedentes): solo personal clínico (médico/admin).
+  // Defensa en profundidad (A4): aunque el formulario de asistente/enfermera no los envía, el
+  // servidor NO los modifica para ese rol (no confía en el cliente).
+  if (canDoClinical(authProfile.role)) {
+    patientData.blood_type = formData.get('blood_type') as string || null
+    patientData.allergies = formData.get('allergies') as string || 'Ninguna conocida'
+    patientData.family_history = formData.get('family_history') as string || null
+    patientData.pathological_history = formData.get('pathological_history') as string || null
+    patientData.non_pathological_history = formData.get('non_pathological_history') as string || null
   }
 
   const { data: updated, error } = await supabase

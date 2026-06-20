@@ -893,19 +893,21 @@ export default function PatientDetailsClient({
                   <option value="O">Otro</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Tipo de Sangre</label>
-                <select className="form-input" name="blood_type" defaultValue={patient.blood_type || ''}>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                </select>
-              </div>
+              {canClinical && (
+                <div className="form-group">
+                  <label className="form-label">Tipo de Sangre</label>
+                  <select className="form-input" name="blood_type" defaultValue={patient.blood_type || ''}>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+              )}
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                   <Activity size={16} color={isEditPediatric ? '#0d9488' : 'var(--text-muted)'} />
@@ -929,25 +931,31 @@ export default function PatientDetailsClient({
               )}
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
-              <textarea className="form-input" name="allergies" defaultValue={patient.allergies} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
-            </div>
+            {/* Datos clínicos: solo personal clínico (médico/admin). Asistente y enfermera editan
+                únicamente datos personales (no ven ni modifican el expediente). */}
+            {canClinical && (
+              <>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
+                  <textarea className="form-input" name="allergies" defaultValue={patient.allergies} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
+                </div>
 
-            <div style={styles.formGrid}>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Patológicos</label>
-                <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history} rows={3} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes No Patológicos</label>
-                <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history} rows={3} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Antecedentes Heredofamiliares</label>
-              <textarea className="form-input" name="family_history" defaultValue={patient.family_history} rows={3} />
-            </div>
+                <div style={styles.formGrid}>
+                  <div className="form-group">
+                    <label className="form-label">Antecedentes Patológicos</label>
+                    <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history} rows={3} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Antecedentes No Patológicos</label>
+                    <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history} rows={3} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Antecedentes Heredofamiliares</label>
+                  <textarea className="form-input" name="family_history" defaultValue={patient.family_history} rows={3} />
+                </div>
+              </>
+            )}
 
             <div style={styles.editActions}>
               <button type="submit" className="btn btn-primary" disabled={editPending}>
