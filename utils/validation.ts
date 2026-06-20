@@ -67,3 +67,18 @@ export function sanitizeName(raw: string | null | undefined, fallback = 'Pacient
     .slice(0, 60)
   return cleaned || fallback
 }
+
+/**
+ * Normaliza un nombre para COMPARAR (no para mostrar): quita acentos/marcas, pasa a minúsculas,
+ * deja solo letras/números/espacios y colapsa espacios. Sirve para detectar pacientes duplicados
+ * de forma robusta a acentos, mayúsculas y espacios extra. Ej.: "  José  PÉREZ " → "jose perez".
+ */
+export function normalizeName(raw: string | null | undefined): string {
+  return (raw ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // quita los diacríticos (acentos)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

@@ -15,6 +15,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   
   const resolvedSearchParams = searchParams ? await searchParams : {}
   const isEditing = resolvedSearchParams.edit === 'true'
+  const justCreated = resolvedSearchParams.creado === '1'
   
   const supabase = await createClient()
 
@@ -96,6 +97,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       initialEdit={isEditing}
+      justCreated={justCreated}
       currentUserId={user.id}
       currentUserRole={currentProfile?.role || ''}
       isOrgAdmin={!!currentProfile?.is_org_admin}

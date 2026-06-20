@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName } from '@/utils/validation'
+import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName, normalizeName } from '@/utils/validation'
 
 describe('validateVitals', () => {
   it('devuelve null cuando no se ingresó ningún vital', () => {
@@ -69,5 +69,26 @@ describe('sanitizeName', () => {
 
   it('limita la longitud a 60', () => {
     expect(sanitizeName('a'.repeat(200)).length).toBe(60)
+  })
+})
+
+describe('normalizeName (para detectar duplicados)', () => {
+  it('quita acentos, mayúsculas y espacios extra', () => {
+    expect(normalizeName('  José  PÉREZ ')).toBe('jose perez')
+    expect(normalizeName('María José Hernández')).toBe('maria jose hernandez')
+  })
+
+  it('dos escrituras del mismo nombre coinciden', () => {
+    expect(normalizeName('Juan Peréz')).toBe(normalizeName('JUAN PEREZ'))
+    expect(normalizeName('Ana  Gómez')).toBe(normalizeName('ana gomez'))
+  })
+
+  it('nombres distintos no coinciden', () => {
+    expect(normalizeName('Juan Perez') === normalizeName('Juan Peralta')).toBe(false)
+  })
+
+  it('tolera null/undefined', () => {
+    expect(normalizeName(null)).toBe('')
+    expect(normalizeName(undefined)).toBe('')
   })
 })

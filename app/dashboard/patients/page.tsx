@@ -53,7 +53,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, id_card, gender, birth_date, phone, blood_type, is_pediatric', { count: 'exact' })
+    .select('id, first_name, last_name, id_card, record_number, gender, birth_date, phone, blood_type, is_pediatric', { count: 'exact' })
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
@@ -61,7 +61,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     // Ej: "Juan Carlos Vaquedano" → busca cada palabra en todos los campos (AND entre palabras, OR entre campos)
     const words = searchQuery.trim().split(/\s+/).filter(Boolean)
     words.forEach(word => {
-      dbQuery = dbQuery.or(`first_name.ilike.%${word}%,last_name.ilike.%${word}%,id_card.ilike.%${word}%,phone.ilike.%${word}%`)
+      dbQuery = dbQuery.or(`first_name.ilike.%${word}%,last_name.ilike.%${word}%,id_card.ilike.%${word}%,phone.ilike.%${word}%,record_number.ilike.%${word}%`)
     })
   }
 
