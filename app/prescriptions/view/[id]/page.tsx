@@ -73,13 +73,8 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
 
   // 3. Si no hay código o no coincide, renderizar pantalla de bloqueo
   if (!codeMatches) {
-    // Cargar datos mínimos de la clínica para confianza del paciente
-    const { data: clinic } = await supabaseAdmin
-      .from('clinics')
-      .select('name')
-      .eq('id', prescription.clinic_id)
-      .single()
-
+    // M4: con código incorrecto/ausente NO se revela el nombre de la clínica ni otros metadatos
+    // (minimización de datos en página pública). Se muestra un portal neutro de ingreso de código.
     const hasError = !!inputCode // Si ingresó un código y no coincidió, es error
 
     return (
@@ -127,7 +122,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
           </div>
 
           <h3 style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 800, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {clinic?.name || 'Portal de Pacientes'}
+            Portal de Pacientes
           </h3>
           <h1 style={{ margin: '0 0 12px 0', fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
             Acceso Seguro a Receta

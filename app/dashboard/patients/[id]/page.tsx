@@ -60,7 +60,8 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
 
-  // 4. Cargar estudios médicos y generar URLs firmadas temporales
+  // 4. Cargar estudios médicos. Las URLs firmadas se generan BAJO DEMANDA (al hacer clic en
+  //    "Ver/Descargar"), no aquí, para evitar el N+1 a Storage por carga de página (M5).
   const { data: studies } = assistant
     ? { data: [] as any[] }
     : await supabase
@@ -68,24 +69,6 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
         .select('*')
         .eq('patient_id', patientId)
         .order('created_at', { ascending: false })
-
-  const studiesWithSignedUrls = await Promise.all(
-    (studies || []).map(async (study) => {
-      let signedUrl = '#'
-      try {
-        const { data } = await supabase.storage
-          .from('medical-studies')
-          .createSignedUrl(study.file_url, 900) // Válido por 15 minutos (900 seg)
-        signedUrl = data?.signedUrl || '#'
-      } catch (err) {
-        console.error('Error generando URL firmada:', err)
-      }
-      return {
-        ...study,
-        signedUrl
-      }
-    })
-  )
 
   // 5. Cargar recetas y generar URLs firmadas para sus PDFs
   const { data: prescriptions } = await supabase
@@ -109,7 +92,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     <PatientDetailsClient
       patient={patient}
       consultations={consultations || []}
-      studies={studiesWithSignedUrls}
+      studies={studies || []}
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       initialEdit={isEditing}

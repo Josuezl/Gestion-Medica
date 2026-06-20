@@ -58,8 +58,8 @@ código es distinta y conviene dejarlo registrado:
 | M1 | BD / RLS | 🟠 Media | ⏸️ Diferido | `supabase/migrations/20260618010000_lab_orders.sql` |
 | M2 | Validación | 🟠 Media | ✅ Mitigado | `app/dashboard/actions.ts`, `app/dashboard/consultations/actions.ts` |
 | M3 | Seguridad | 🟠 Media | ✅ Mitigado | múltiples `actions.ts` (`error.message`) |
-| M4 | Privacidad | 🟠 Media | Pendiente | `app/prescriptions/view/[id]/page.tsx` |
-| M5 | Rendimiento | 🟠 Media | 🟡 Parcial | `app/dashboard/patients/[id]/page.tsx` |
+| M4 | Privacidad | 🟠 Media | ✅ Mitigado | `app/prescriptions/view/[id]/page.tsx` |
+| M5 | Rendimiento | 🟠 Media | ✅ Mitigado | `app/dashboard/patients/[id]/page.tsx` |
 | M6 | Validación / Datos | 🟠 Media | ✅ Mitigado | `app/api/whatsapp-webhook/route.ts` |
 | M7 | BD / Auditoría | 🟠 Media | ⏸️ Diferido | `supabase/schema.sql` (FK `audit_logs`) |
 | M8 | Operaciones | 🟠 Media | 🟡 Parcial | `.env.example`, endpoints `app/api/*` |
@@ -213,7 +213,8 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   nombre de la clínica** en el formulario de ingreso de código.
 - **Riesgo:** divulgación menor de metadatos. (El UUID no es enumerable, así que no hay IDOR por el id.)
 - **Recomendación:** revisar qué datos se exponen antes de validar el código; mostrar lo mínimo.
-- **Estado:** Pendiente.
+- **Estado:** ✅ **Mitigado (2026-06-20).** Con código incorrecto/ausente, `/prescriptions/view/[id]` ya **no
+  carga ni muestra el nombre de la clínica**; muestra un "Portal de Pacientes" neutro.
 
 ### M5 — Patrón N+1 al firmar URLs de Storage
 - **Evidencia:** `app/dashboard/patients/[id]/page.tsx` genera *signed URLs* por fila (estudios y recetas).
@@ -221,9 +222,10 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   llamadas a Storage por carga de página**, que crecen con el historial del paciente.
 - **Riesgo:** latencia y consumo de cuota de Storage al escalar.
 - **Recomendación:** firmar bajo demanda (al hacer clic) o paginar/limitar el historial cargado de una vez.
-- **Estado:** 🟡 **Parcial (2026-06-19).** Se eliminó el N+1 de **recetas** en `patients/[id]/page.tsx` (era
-  trabajo muerto: la UI no usaba `pdf_url`). Queda el N+1 de **estudios** (`studiesWithSignedUrls`), que sí se
-  usa (descarga real de archivos); pendiente firmarlo bajo demanda/paginar.
+- **Estado:** ✅ **Mitigado (2026-06-20).** (1) Se eliminó el N+1 de **recetas** (era trabajo muerto). (2) El
+  N+1 de **estudios** se resolvió: las URLs firmadas ahora se generan **bajo demanda** vía la *server action*
+  `getStudySignedUrl` (al hacer clic en "Ver/Descargar"), no por cada fila al cargar. `patients/[id]/page.tsx`
+  y `consultations/new/page.tsx` ya no firman en bucle.
 
 ### M6 — Auto-registro de pacientes por WhatsApp con nombre de IA sin validar
 - **Evidencia:** `app/api/whatsapp-webhook/route.ts` crea pacientes usando el nombre extraído por Gemini del
@@ -334,8 +336,8 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | M1 | Inconsistencia de políticas RLS (lab_*/locations) | Media | ⏸️ Diferido | 2026-06-19 | Sin vuln; evitar DDL de RLS en prod sin staging; `locations` no versionado |
 | M2 | Validación de inputs faltante (enum/cotas/JSON) | Media | ✅ Mitigado | 2026-06-19 | enum + cota `duration` + `utils/validation.ts` con tests; zod queda opcional |
 | M3 | Fuga de `error.message` al cliente | Media | ✅ Mitigado | 2026-06-19 | `utils/errors.ts` (`safeErrorMessage`) en 14 sitios |
-| M4 | Minimización de datos en página pública | Media | Pendiente | — | — |
-| M5 | N+1 de signed URLs | Media | 🟡 Parcial | 2026-06-19 | Quitado el N+1 de recetas (era trabajo muerto); queda el de estudios |
+| M4 | Minimización de datos en página pública | Media | ✅ Mitigado | 2026-06-20 | Sin nombre de clínica con código incorrecto |
+| M5 | N+1 de signed URLs | Media | ✅ Mitigado | 2026-06-20 | Estudios firmados bajo demanda (`getStudySignedUrl`) |
 | M6 | Auto-registro WhatsApp sin validar nombre | Media | ✅ Mitigado | 2026-06-19 | `sanitizeName` (con tests) aplicado al webhook |
 | M7 | `audit_logs` ON DELETE CASCADE | Media | ⏸️ Diferido | 2026-06-19 | `RESTRICT` rompería el borrado de tenants (existe); requiere archivar logs antes de borrar |
 | M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | 🟡 Parcial | 2026-06-19 | `.env.example` completo + índices versionados; falta rate-limiting |

@@ -304,6 +304,40 @@ export async function deleteMedicalStudy(studyId: string) {
 }
 
 /**
+ * Devuelve una URL firmada (5 min) para ver/descargar un estudio, generada BAJO DEMANDA (al hacer
+ * clic), no por cada fila al cargar el expediente (evita el N+1 a Storage; hallazgo M5). Valida
+ * sesión + que el estudio sea de la clínica del usuario.
+ */
+export async function getStudySignedUrl(studyId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
+  const { data: study } = await supabase
+    .from('studies')
+    .select('file_url')
+    .eq('id', studyId)
+    .eq('clinic_id', authProfile.clinic_id)
+    .single()
+  if (!study?.file_url) return { error: 'Estudio no encontrado.' }
+
+  const { data, error } = await supabase.storage
+    .from('medical-studies')
+    .createSignedUrl(study.file_url, 300) // 5 minutos
+  if (error || !data?.signedUrl) {
+    return { error: safeErrorMessage('No se pudo generar el enlace del estudio.', 'getStudySignedUrl', error) }
+  }
+  return { url: data.signedUrl }
+}
+
+/**
  * Búsqueda dinámica de pacientes para el selector de citas (agenda).
  * Igual que la búsqueda de la página de Pacientes: divide la query en palabras
  * y exige que cada palabra aparezca en alguno de los campos (AND entre palabras,
