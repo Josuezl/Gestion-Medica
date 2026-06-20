@@ -38,9 +38,11 @@ import {
   Baby,
   Copy,
   Globe,
+  Stethoscope,
 } from 'lucide-react'
 import PediatricGrowthChart from '../../components/PediatricGrowthChart'
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
+import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
 
 // Utilidad para calcular edad
@@ -96,6 +98,7 @@ export default function PatientDetailsClient({
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
+  const [showVitalsModal, setShowVitalsModal] = useState(false)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
     setExpandedConsultations(prev => ({
@@ -799,6 +802,18 @@ export default function PatientDetailsClient({
                 {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               </button>
             </div>
+            {canTakeVitals && (
+              <button
+                type="button"
+                onClick={() => setShowVitalsModal(true)}
+                className="btn btn-secondary"
+                style={{ gap: '0.4rem' }}
+                title="Tomar signos vitales (pre-clínica)"
+              >
+                <Stethoscope size={16} />
+                Tomar signos
+              </button>
+            )}
             {canClinical && (
               <a
                 href={`/dashboard/consultations/new?patientId=${patient.id}`}
@@ -1585,6 +1600,15 @@ export default function PatientDetailsClient({
         appUrl={appUrl}
         onClose={() => setWhatsappModalPresc(null)}
       />
+
+      {showVitalsModal && (
+        <PreclinicalVitalsModal
+          patient={patient}
+          appointmentId={null}
+          onClose={() => setShowVitalsModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }

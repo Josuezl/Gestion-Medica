@@ -24,9 +24,11 @@ import {
   Edit2,
   FileText,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { doctorShortName } from '@/utils/doctorName'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import StatusDropdown, { STATUS_CONFIG } from './StatusDropdown'
+import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 
 // ============================================================================
 // TYPES
@@ -74,6 +76,7 @@ interface AgendaClientProps {
   doctors: Doctor[]
   locations: Location[]
   defaultLocationId?: string
+  preclinicalPatientIds?: string[]
   currentDoctor: { id: string; role: string; isOrgAdmin?: boolean }
 }
 
@@ -107,7 +110,7 @@ const getWeekDays = (date: Date) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export default function AgendaClient({ patients, initialAppointments, doctors, locations, defaultLocationId = 'all', currentDoctor }: AgendaClientProps) {
+export default function AgendaClient({ patients, initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -116,6 +119,10 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const isClinician = canDoClinical(currentDoctor.role)
   const canTakeVitals = canEnterVitals(currentDoctor.role)
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isClinician ? currentDoctor.id : 'all')
+  // Pacientes con pre-clínica pendiente de hoy (badge "Signos listos") y paciente del modal de signos.
+  const router = useRouter()
+  const preclinicalSet = useMemo(() => new Set(preclinicalPatientIds), [preclinicalPatientIds])
+  const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: any; appointmentId: string | null } | null>(null)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
   const [selectedLocationId, setSelectedLocationId] = useState<string>(
@@ -626,6 +633,12 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     </button>
                   )}
 
+                  {canTakeVitals && app.patients?.id && (
+                    <button onClick={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: preclinicalSet.has(app.patients.id) ? '#dcfce7' : '#f0f9ff', color: preclinicalSet.has(app.patients.id) ? '#166534' : '#0369a1', border: `1px solid ${preclinicalSet.has(app.patients.id) ? '#bbf7d0' : '#bae6fd'}` }} title={preclinicalSet.has(app.patients.id) ? 'Signos listos — editar' : 'Tomar signos vitales (pre-clínica)'}>
+                      <Stethoscope size={14} /> {preclinicalSet.has(app.patients.id) ? 'Signos listos' : 'Tomar signos'}
+                    </button>
+                  )}
+
                   {isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
                     <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
                       <Clipboard size={14} /> Iniciar Consulta
@@ -1060,6 +1073,16 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
 
       {/* MODAL */}
       {renderFormModal()}
+
+      {/* MODAL: pre-clínica (signos vitales) */}
+      {vitalsModalPatient && (
+        <PreclinicalVitalsModal
+          patient={vitalsModalPatient.patient}
+          appointmentId={vitalsModalPatient.appointmentId}
+          onClose={() => setVitalsModalPatient(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }
