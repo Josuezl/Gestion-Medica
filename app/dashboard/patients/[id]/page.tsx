@@ -94,25 +94,9 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 
-  const prescriptionsWithSignedUrls = await Promise.all(
-    (prescriptions || []).map(async (presc) => {
-      let signedUrl = null
-      if (presc.pdf_url) {
-        try {
-          const { data } = await supabase.storage
-            .from('prescriptions')
-            .createSignedUrl(presc.pdf_url, 900) // Válido por 15 minutos (900 seg)
-          signedUrl = data?.signedUrl
-        } catch (err) {
-          console.error('Error generando URL firmada para receta:', err)
-        }
-      }
-      return {
-        ...presc,
-        pdf_url: signedUrl || presc.pdf_url
-      }
-    })
-  )
+  // Nota: ya no se firman URLs del PDF almacenado de cada receta. La UI no usa `pdf_url`
+  // (imprime HTML, y el correo genera el PDF al vuelo), así que ese trabajo era inútil y además
+  // era el patrón N+1 a Storage por carga de página (hallazgo M5). Las recetas se pasan tal cual.
 
   // 6. Cargar órdenes de laboratorio del paciente (para la pestaña "Lab. Solicitados").
   const { data: labOrders } = await supabase
@@ -126,7 +110,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       patient={patient}
       consultations={consultations || []}
       studies={studiesWithSignedUrls}
-      prescriptions={prescriptionsWithSignedUrls}
+      prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       initialEdit={isEditing}
       currentUserId={user.id}

@@ -59,7 +59,7 @@ código es distinta y conviene dejarlo registrado:
 | M2 | Validación | 🟠 Media | Pendiente | `app/dashboard/actions.ts`, `app/dashboard/consultations/actions.ts` |
 | M3 | Seguridad | 🟠 Media | Pendiente | múltiples `actions.ts` (`error.message`) |
 | M4 | Privacidad | 🟠 Media | Pendiente | `app/prescriptions/view/[id]/page.tsx` |
-| M5 | Rendimiento | 🟠 Media | Pendiente | `app/dashboard/patients/[id]/page.tsx` |
+| M5 | Rendimiento | 🟠 Media | 🟡 Parcial | `app/dashboard/patients/[id]/page.tsx` |
 | M6 | Validación / Datos | 🟠 Media | Pendiente | `app/api/whatsapp-webhook/route.ts` |
 | M7 | BD / Auditoría | 🟠 Media | Pendiente | `supabase/schema.sql` (FK `audit_logs`) |
 | M8 | Operaciones | 🟠 Media | Pendiente | `.env.example`, endpoints `app/api/*` |
@@ -67,7 +67,7 @@ código es distinta y conviene dejarlo registrado:
 | B2 | Mantenibilidad | 🔵 Baja | Pendiente | estilos inline |
 | B3 | Rendimiento | 🔵 Baja | Pendiente | `app/superadmin/*` (RPC repetido) |
 | B4 | Seguridad | 🔵 Baja | Pendiente | bucket `signatures` público |
-| B5 | Bug funcional | 🔵 Baja | Pendiente | `admin_platform_summary()` (nombres de bucket erróneos) |
+| B5 | Bug funcional | 🔵 Baja | ✅ Mitigado | `admin_platform_summary()` (nombres de bucket erróneos) |
 
 Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (riesgo asumido)** · **No aplica**.
 
@@ -212,7 +212,9 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   llamadas a Storage por carga de página**, que crecen con el historial del paciente.
 - **Riesgo:** latencia y consumo de cuota de Storage al escalar.
 - **Recomendación:** firmar bajo demanda (al hacer clic) o paginar/limitar el historial cargado de una vez.
-- **Estado:** Pendiente.
+- **Estado:** 🟡 **Parcial (2026-06-19).** Se eliminó el N+1 de **recetas** en `patients/[id]/page.tsx` (era
+  trabajo muerto: la UI no usaba `pdf_url`). Queda el N+1 de **estudios** (`studiesWithSignedUrls`), que sí se
+  usa (descarga real de archivos); pendiente firmarlo bajo demanda/paginar.
 
 ### M6 — Auto-registro de pacientes por WhatsApp con nombre de IA sin validar
 - **Evidencia:** `app/api/whatsapp-webhook/route.ts` crea pacientes usando el nombre extraído por Gemini del
@@ -249,7 +251,7 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | B2 | Estilos inline en vez de un sistema de diseño. | Migrar gradualmente a clases utilitarias en `globals.css`. | Pendiente |
 | B3 | `is_platform_admin()` se re-evalúa por RPC en cada acción de superadmin. | Aceptable; opcional cachear con TTL corto. | Pendiente |
 | B4 | Bucket `signatures` público con rutas predecibles (`clinic_id/doctor_id/...`). | Baja sensibilidad (la firma va impresa); opcional bucket privado + URL firmada. | Pendiente |
-| B5 | `admin_platform_summary()` calcula `almacenamiento_bytes` sobre buckets inexistentes (`recetas`/`estudios`/`firmas`) en vez de los reales (`prescriptions`/`medical-studies`/`signatures`) → el total del panel superadmin siempre da **0**. (Detectado al versionar A2.) | Corregir los nombres de bucket en la función. | Pendiente |
+| B5 | `admin_platform_summary()` calcula `almacenamiento_bytes` sobre buckets inexistentes (`recetas`/`estudios`/`firmas`) en vez de los reales (`prescriptions`/`medical-studies`/`signatures`) → el total del panel superadmin siempre da **0**. (Detectado al versionar A2.) | Corregir los nombres de bucket en la función. | ✅ Mitigado — `migrations/20260619010000_fix_admin_platform_summary_buckets.sql` (correr el SQL en Supabase) |
 
 ---
 
@@ -315,7 +317,7 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | M2 | Validación de inputs faltante (enum/cotas/JSON) | Media | 🟡 Parcial | 2026-06-19 | Enum de estado de cita ✅ (con A4); falta cota de `duration` + aviso de `lab_order` inválido (hecho en A3) + zod |
 | M3 | Fuga de `error.message` al cliente | Media | Pendiente | — | — |
 | M4 | Minimización de datos en página pública | Media | Pendiente | — | — |
-| M5 | N+1 de signed URLs | Media | Pendiente | — | — |
+| M5 | N+1 de signed URLs | Media | 🟡 Parcial | 2026-06-19 | Quitado el N+1 de recetas (era trabajo muerto); queda el de estudios |
 | M6 | Auto-registro WhatsApp sin validar nombre | Media | Pendiente | — | — |
 | M7 | `audit_logs` ON DELETE CASCADE | Media | Pendiente | — | — |
 | M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | Pendiente | — | — |
@@ -323,7 +325,7 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | B2 | Estilos inline | Baja | Pendiente | — | — |
 | B3 | RPC `is_platform_admin` repetido | Baja | Pendiente | — | — |
 | B4 | Bucket `signatures` público | Baja | Pendiente | — | — |
-| B5 | `admin_platform_summary()` usa nombres de bucket inexistentes (total=0) | Baja | Pendiente | 2026-06-19 | Detectado al versionar A2 |
+| B5 | `admin_platform_summary()` usa nombres de bucket inexistentes (total=0) | Baja | ✅ Mitigado | 2026-06-19 | `migrations/20260619010000_...` (correr SQL) |
 
 ---
 

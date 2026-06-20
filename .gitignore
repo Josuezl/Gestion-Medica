@@ -49,3 +49,6 @@ scripts/migracion-access/node_modules/
 
 # Salidas locales del corrector de género (nombres de pacientes; no commitear)
 scripts/migracion-access/*.local.*
+
+# Scripts/archivos one-off locales (no commitear): convención *.local.*
+*.local.*
