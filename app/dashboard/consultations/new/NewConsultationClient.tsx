@@ -18,13 +18,14 @@ import {
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
-import { formatDateHN } from '@/utils/datetime'
+import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
 import { LastValueRef } from './LastValueRef'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 
 interface NewConsultationClientProps {
   patient: any
   appointmentId: string | null
+  preclinical?: any | null
   consultations?: any[]
   studies?: any[]
   prescriptions?: any[]
@@ -39,6 +40,7 @@ interface NewConsultationClientProps {
 export default function NewConsultationClient({
   patient,
   appointmentId,
+  preclinical = null,
   consultations = [],
   studies = [],
   prescriptions = [],
@@ -94,7 +96,7 @@ export default function NewConsultationClient({
 
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
-    const result = await createConsultation(patient.id, appointmentId, medicines, formData)
+    const result = await createConsultation(patient.id, appointmentId, medicines, formData, preclinical?.id ?? null)
 
     if (result && (result as any).error) {
       setError((result as any).error)
@@ -286,36 +288,48 @@ export default function NewConsultationClient({
                 <Heart size={18} color="var(--primary)" />
                 Signos Vitales
               </h3>
+              {preclinical && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.85rem', marginBottom: '1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', fontSize: '0.85rem', color: '#065f46' }}>
+                  <Stethoscope size={16} color="#059669" style={{ flexShrink: 0 }} />
+                  <span>
+                    🩺 Signos tomados en pre-clínica
+                    {(preclinical.recorded_by_profile?.first_name || preclinical.recorded_by_profile?.last_name)
+                      ? ` por ${[preclinical.recorded_by_profile?.first_name, preclinical.recorded_by_profile?.last_name].filter(Boolean).join(' ')}`
+                      : ''}
+                    {' · '}{formatDateTimeHN(preclinical.created_at)} — importados; ajústalos si es necesario.
+                  </span>
+                </div>
+              )}
               <div style={styles.vitalsGrid}>
                 <div className="form-group">
                   <label className="form-label">Presión Arterial</label>
-                  <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80" />
+                  <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80" defaultValue={preclinical?.blood_pressure || ''} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Temperatura (°C)</label>
-                  <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" />
+                  <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Peso (kg)</label>
-                  <input className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" />
+                  <input className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Talla (cm)</label>
-                  <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" />
+                  <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
                 </div>
                 {patient.is_pediatric && (
                   <div className="form-group">
                     <label className="form-label">Perímetro Cefálico (cm)</label>
-                    <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" />
+                    <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
                   </div>
                 )}
                 <div className="form-group">
                   <label className="form-label">Ritmo Cardiaco (bpm)</label>
-                  <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" />
+                  <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">SpO2 (%)</label>
-                  <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" />
+                  <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
                 </div>
               </div>
             </div>
