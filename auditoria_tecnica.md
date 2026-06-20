@@ -63,7 +63,7 @@ código es distinta y conviene dejarlo registrado:
 | M6 | Validación / Datos | 🟠 Media | ✅ Mitigado | `app/api/whatsapp-webhook/route.ts` |
 | M7 | BD / Auditoría | 🟠 Media | ⏸️ Diferido | `supabase/schema.sql` (FK `audit_logs`) |
 | M8 | Operaciones | 🟠 Media | 🟡 Parcial | `.env.example`, endpoints `app/api/*` |
-| B1 | Mantenibilidad | 🔵 Baja | ⏸️ Diferido | `PatientDetailsClient.tsx`, etc. |
+| B1 | Mantenibilidad | 🔵 Baja | ✅ Mitigado (Fase 1) | `PatientDetailsClient.tsx`, etc. |
 | B2 | Mantenibilidad | 🔵 Baja | ⏸️ Diferido | estilos inline |
 | B3 | Rendimiento | 🔵 Baja | ☑️ Aceptado | `app/superadmin/*` (RPC repetido) |
 | B4 | Seguridad | 🔵 Baja | ☑️ Aceptado | bucket `signatures` público |
@@ -267,7 +267,7 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 
 | ID | Hallazgo | Recomendación | Estado |
 |----|----------|----------------|--------|
-| B1 | Componentes monolíticos (`PatientDetailsClient` ~2145 líneas, `AgendaClient`, `NewConsultationClient`, `ConfigClient`) y duplicación (`PatientHistoryTabs` vs tabs de `PatientDetailsClient`). | Extraer subcomponentes; unificar las pestañas duplicadas. | ⏸️ Diferido — refactor grande y arriesgado en producción; hacer en sesión dedicada con pruebas. |
+| B1 | Componentes monolíticos (`PatientDetailsClient` ~2145 líneas, `AgendaClient`, `NewConsultationClient`, `ConfigClient`) y duplicación (`PatientHistoryTabs` vs tabs de `PatientDetailsClient`). | Extraer subcomponentes; unificar las pestañas duplicadas. | ✅ **Mitigado (Fase 1)** — 2026-06-20. Extracciones con **paridad funcional absoluta** (solo estructura; sin tocar lógica, mutaciones ni estilos), una por una con `tsc --noEmit` verde: **B1.1** `LastValueRef` + `LabOrder*` ← NewConsultationClient; **B1.2** `LabCatalogCard` ← ConfigClient; **B1.3** `StatusDropdown` + `STATUS_CONFIG` ← AgendaClient (1123→1061); **B1.4/B1.5** `WhatsAppShareModal` compartido (dedup del modal duplicado: PatientHistoryTabs 988→840, PatientDetailsClient 2145→2000); **B1.5** `LabOrdersTab` ← PatientDetailsClient (→1913). Build + 33 tests verdes. Fase 2 pendiente: seguir adelgazando `PatientDetailsClient` (paneles `consultations`/`prescriptions`/`history`) y `AgendaClient` (formulario de cita). |
 | B2 | Estilos inline en vez de un sistema de diseño. | Migrar gradualmente a clases utilitarias en `globals.css`. | ⏸️ Diferido — churn cosmético grande, bajo valor, riesgo de regresiones visuales. |
 | B3 | `is_platform_admin()` se re-evalúa por RPC en cada acción de superadmin. | Aceptable; opcional cachear con TTL corto. | ☑️ Aceptado — latencia marginal (acciones de superadmin son raras); cachear auth tiene más riesgo que beneficio. |
 | B4 | Bucket `signatures` público con rutas predecibles (`clinic_id/doctor_id/...`). | Baja sensibilidad (la firma va impresa); opcional bucket privado + URL firmada. | ☑️ Aceptado — **por diseño**: las páginas públicas (verificar/vista) renderizan la firma; un bucket privado las rompería. |
@@ -341,7 +341,7 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | M6 | Auto-registro WhatsApp sin validar nombre | Media | ✅ Mitigado | 2026-06-19 | `sanitizeName` (con tests) aplicado al webhook |
 | M7 | `audit_logs` ON DELETE CASCADE | Media | ⏸️ Diferido | 2026-06-19 | `RESTRICT` rompería el borrado de tenants (existe); requiere archivar logs antes de borrar |
 | M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | 🟡 Parcial | 2026-06-19 | `.env.example` completo + índices versionados; falta rate-limiting |
-| B1 | Componentes monolíticos / duplicación | Baja | ⏸️ Diferido | 2026-06-19 | Refactor grande/arriesgado; sesión dedicada |
+| B1 | Componentes monolíticos / duplicación | Baja | ✅ Mitigado (Fase 1) | 2026-06-20 | 6 extracciones presentacionales con paridad absoluta; `WhatsAppShareModal` deduplica el modal repetido; tsc/build/33 tests verdes |
 | B2 | Estilos inline | Baja | ⏸️ Diferido | 2026-06-19 | Churn cosmético, bajo valor |
 | B3 | RPC `is_platform_admin` repetido | Baja | ☑️ Aceptado | 2026-06-19 | Latencia marginal; cachear auth = más riesgo |
 | B4 | Bucket `signatures` público | Baja | ☑️ Aceptado | 2026-06-19 | Por diseño (páginas públicas lo renderizan) |
