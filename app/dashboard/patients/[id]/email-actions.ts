@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
+import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { canEditPrescription } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
@@ -112,24 +113,6 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
 
   if (!prescription) return { error: 'Receta no encontrada' }
 
-  // 5. PDF de la receta: URL firmada (botón) + bytes para adjuntarlo al correo.
-  //    El adjunto reutiliza el PDF ya guardado (no gasta almacenamiento extra).
-  let pdfUrl = '#'
-  let pdfBase64: string | null = null
-  if (prescription.pdf_url) {
-    const { data: signedData } = await supabase.storage
-      .from('prescriptions')
-      .createSignedUrl(prescription.pdf_url, 86400) // 24 horas
-    pdfUrl = signedData?.signedUrl || '#'
-
-    const { data: pdfBlob } = await supabase.storage
-      .from('prescriptions')
-      .download(prescription.pdf_url)
-    if (pdfBlob) {
-      pdfBase64 = Buffer.from(await pdfBlob.arrayBuffer()).toString('base64')
-    }
-  }
-
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
   const doctorName = doctorShortName(profile.first_name, profile.last_name, profile.gender)
   const patientName = `${patient.first_name} ${patient.last_name}`
@@ -144,6 +127,37 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
   }
 
   const emissionDate = formatDateTimeHN(prescription.created_at)
+
+  // 5. PDF de la receta: se GENERA AL VUELO solo para este envío (no se almacena → no gasta cuota).
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  let pdfBase64: string | null = null
+  try {
+    const pdfBuffer = await generatePrescriptionPDF({
+      clinicName,
+      clinicPhone: profile.practice_phone || profile.clinics?.phone || 'N/A',
+      clinicAddress: profile.practice_address || profile.clinics?.address || 'Honduras',
+      doctorName,
+      doctorSpecialty: profile.specialty || 'Medicina General',
+      doctorProfessionalId: profile.professional_id || 'N/A',
+      patientName,
+      patientAge: patient.birth_date ? calculateAge(patient.birth_date) : 0,
+      patientDni: patient.id_card || 'N/A',
+      date: emissionDate,
+      medicines: prescription.medicines || [],
+      notes: prescription.notes,
+      diagnosis: prescription.diagnosis || undefined,
+      verificationCode: prescription.verification_code,
+      siteUrl,
+      doctorSignatureUrl: profile.signature_url || undefined,
+    })
+    pdfBase64 = Buffer.from(pdfBuffer).toString('base64')
+  } catch (e) {
+    console.error('No se pudo generar el PDF de la receta para el correo:', e)
+  }
+  // El botón "Descargar/Ver receta" apunta a la vista pública (HTML), sin depender de Storage.
+  const pdfUrl = prescription.verification_code
+    ? `${siteUrl}/prescriptions/view/${prescriptionId}?code=${prescription.verification_code}`
+    : '#'
 
   // 6. Enviar correo con Resend (mismo formato que la receta impresa)
   const result = await sendPrescriptionEmail({

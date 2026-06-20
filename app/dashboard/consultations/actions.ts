@@ -2,11 +2,9 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { generatePrescriptionPDF } from '@/utils/pdf-generator'
-import { sendPrescriptionNotification } from '@/utils/whatsapp'
 import { requireRole } from '@/utils/auth-guard'
-import { doctorShortName } from '@/utils/doctorName'
-import { formatDateHN } from '@/utils/datetime'
+import { generateVerificationCode } from '@/utils/verification-code'
+import { validateVitals } from '@/utils/validation'
 
 export async function createConsultation(
   patientId: string,
@@ -45,22 +43,10 @@ export async function createConsultation(
   const heartRate = hrVal ? parseInt(hrVal, 10) : null
   const oxygenSaturation = oxVal ? parseInt(oxVal, 10) : null
 
-  // 2.b Validar rangos de los signos vitales. Evita el críptico "numeric field overflow"
-  //     de Postgres cuando hay un error de dedo (p. ej. peso en gramos) y le dice al médico
-  //     exactamente qué corregir. Los topes caben holgadamente en las columnas numéricas.
-  const vitalChecks: { label: string; value: number | null; min: number; max: number; unit: string }[] = [
-    { label: 'Temperatura', value: temperature, min: 25, max: 45, unit: '°C' },
-    { label: 'Peso', value: weight, min: 0.2, max: 600, unit: 'kg' },
-    { label: 'Talla', value: height, min: 10, max: 280, unit: 'cm' },
-    { label: 'Perímetro cefálico', value: headCircumference, min: 10, max: 80, unit: 'cm' },
-    { label: 'Ritmo cardiaco', value: heartRate, min: 10, max: 400, unit: 'bpm' },
-    { label: 'SpO2', value: oxygenSaturation, min: 1, max: 100, unit: '%' },
-  ]
-  for (const v of vitalChecks) {
-    if (v.value !== null && (Number.isNaN(v.value) || v.value < v.min || v.value > v.max)) {
-      return { error: `Revisa los signos vitales: el valor de ${v.label} (${v.value}) no es válido. Debe estar entre ${v.min} y ${v.max} ${v.unit}.` }
-    }
-  }
+  // 2.b Validar rangos de los signos vitales (lógica en utils/validation.ts, testeable). Evita el
+  //     críptico "numeric field overflow" cuando hay un error de dedo (p. ej. peso en gramos).
+  const vitalError = validateVitals({ temperature, weight, height, headCircumference, heartRate, oxygenSaturation })
+  if (vitalError) return { error: vitalError }
 
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
@@ -90,10 +76,16 @@ export async function createConsultation(
     return { error: `Error al registrar consulta: ${consultError.message}` }
   }
 
+  // La consulta (nota clínica) es la fuente de verdad y ya quedó guardada. Los pasos
+  // siguientes (receta, PDF, WhatsApp, orden de laboratorio, cita) son secundarios: si alguno
+  // falla NO se descarta la consulta, pero se acumula un aviso para informarle al médico en vez
+  // de reportar un éxito silencioso con estado parcial (hallazgo A3).
+  const warnings: string[] = []
+
   // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
   let prescriptionId: string | null = null
   if (medicines && medicines.length > 0) {
-    const verificationCode = `MC-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+    const verificationCode = generateVerificationCode('MC')
     const prescriptionNotes = formData.get('prescription_notes') as string || ''
     // El médico puede pedir que el diagnóstico de la consulta se imprima en la receta
     // (algunas aseguradoras lo exigen). Se guarda como snapshot solo si marca el check.
@@ -121,83 +113,13 @@ export async function createConsultation(
 
     if (prescriptionError) {
       console.error('Error al insertar receta en DB:', prescriptionError)
+      warnings.push('La consulta se guardó, pero la receta no pudo registrarse. Vuelve a generarla desde el expediente.')
     } else {
+      // Solo se crea el registro de la receta. El PDF NO se genera ni se almacena al guardar:
+      // imprimir usa HTML, y el envío por correo/WhatsApp es una acción manual del médico (el PDF
+      // del correo se genera al vuelo al enviar). Esto evita gastar Storage por cada consulta y
+      // hace el guardado más rápido (sin render de PDF, subida ni llamada a WhatsApp).
       prescriptionId = prescription.id
-      try {
-        // Cargar información completa de paciente, clínica y doctor para el PDF
-        const { data: patient } = await supabase.from('patients').select('*').eq('id', patientId).single()
-        const { data: clinic } = await supabase.from('clinics').select('*').eq('id', clinicId).single()
-        const { data: docProfile } = await supabase.from('user_profiles').select('*').eq('id', user.id).single()
-
-        const calculateAge = (birthDateString: string) => {
-          const today = new Date()
-          const birthDate = new Date(birthDateString)
-          let age = today.getFullYear() - birthDate.getFullYear()
-          const m = today.getMonth() - birthDate.getMonth()
-          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
-          return age
-        }
-
-        const formattedDate = formatDateHN(consultation.created_at)
-
-        // Generar el PDF
-        const pdfBuffer = await generatePrescriptionPDF({
-          clinicName: docProfile?.practice_name || clinic?.name || 'Consultorio Médico',
-          clinicPhone: docProfile?.practice_phone || clinic?.phone || 'N/A',
-          clinicAddress: docProfile?.practice_address || clinic?.address || 'Honduras',
-          doctorName: doctorShortName(docProfile?.first_name, docProfile?.last_name, docProfile?.gender),
-          doctorSpecialty: docProfile?.specialty || 'Medicina General',
-          doctorProfessionalId: docProfile?.professional_id || 'N/A',
-          patientName: `${patient?.first_name} ${patient?.last_name}`,
-          patientAge: patient ? calculateAge(patient.birth_date) : 0,
-          patientDni: patient?.id_card || 'N/A',
-          date: formattedDate,
-          medicines,
-          notes: prescriptionNotes,
-          diagnosis: prescriptionDiagnosis || undefined,
-          verificationCode,
-          siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
-          doctorSignatureUrl: docProfile?.signature_url || undefined
-        })
-
-        // Subir el PDF a Supabase Storage
-        const filePath = `${clinicId}/${patientId}/${prescription.id}.pdf`
-        const { error: uploadError } = await supabase.storage
-          .from('prescriptions')
-          .upload(filePath, Buffer.from(pdfBuffer), {
-            contentType: 'application/pdf',
-            upsert: true
-          })
-
-        if (uploadError) {
-          console.error('Error al subir PDF a Storage:', uploadError)
-        } else {
-          // Actualizar el registro de la receta con la ubicación del PDF
-          await supabase
-            .from('prescriptions')
-            .update({ pdf_url: filePath })
-            .eq('id', prescription.id)
-
-          // Generar URL firmada por 24 horas para enviar por WhatsApp
-          const { data: signedData } = await supabase.storage
-            .from('prescriptions')
-            .createSignedUrl(filePath, 86400) // 24 horas
-
-          if (signedData?.signedUrl && patient?.phone) {
-            const docName = doctorShortName(docProfile?.first_name, docProfile?.last_name, docProfile?.gender)
-            const patientName = `${patient.first_name} ${patient.last_name}`
-            await sendPrescriptionNotification(
-              patient.phone,
-              patientName,
-              docName,
-              signedData.signedUrl,
-              verificationCode
-            )
-          }
-        }
-      } catch (pdfErr) {
-        console.error('Error en el flujo de PDF de receta:', pdfErr)
-      }
     }
   }
 
@@ -211,7 +133,7 @@ export async function createConsultation(
       const tests = Array.isArray(parsed?.tests) ? parsed.tests : []
       const otherTests = (parsed?.otherTests || '').trim()
       if (tests.length > 0 || otherTests) {
-        const labVerificationCode = `LAB-${Math.random().toString(36).substring(2, 11).toUpperCase()}`
+        const labVerificationCode = generateVerificationCode('LAB')
         const { data: labOrder, error: labErr } = await supabase
           .from('lab_orders')
           .insert([{
@@ -225,12 +147,17 @@ export async function createConsultation(
           }])
           .select('id')
           .single()
-        if (labErr) console.error('Error al insertar orden de laboratorio:', labErr)
-        else labOrderId = labOrder.id
+        if (labErr) {
+          console.error('Error al insertar orden de laboratorio:', labErr)
+          warnings.push('La consulta se guardó, pero la orden de laboratorio no pudo registrarse.')
+        } else {
+          labOrderId = labOrder.id
+        }
       }
     }
   } catch (e) {
     console.error('Orden de laboratorio: lab_order inválido', e)
+    warnings.push('No se pudo procesar la orden de laboratorio (datos inválidos).')
   }
 
   // 5. Si viene de una cita agendada, actualizar su estado a COMPLETED
@@ -242,6 +169,7 @@ export async function createConsultation(
 
     if (apptError) {
       console.error('Error al actualizar estado de la cita:', apptError)
+      warnings.push('La consulta se guardó, pero no se pudo marcar la cita como completada.')
     }
   }
 
@@ -256,5 +184,6 @@ export async function createConsultation(
     prescriptionId,
     hasLabOrder: !!labOrderId,
     labOrderId,
+    warnings,
   }
 }

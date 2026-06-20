@@ -240,8 +240,15 @@ export default function NewConsultationClient({
       return
     }
 
-    // Si hay receta, incapacidad y/o orden de laboratorio, ofrecer imprimir antes de salir.
     const r = result as any
+
+    // Avisos de pasos secundarios que fallaron (la consulta sí se guardó). No bloquean el flujo,
+    // pero el médico debe enterarse en vez de recibir un "éxito" silencioso con estado parcial.
+    if (r?.warnings?.length) {
+      window.alert('La consulta se guardó, pero hubo avisos:\n\n• ' + r.warnings.join('\n• '))
+    }
+
+    // Si hay receta, incapacidad y/o orden de laboratorio, ofrecer imprimir antes de salir.
     if (r && (r.hasMedicalLeave || r.hasPrescription || r.hasLabOrder)) {
       setPrintModal({
         consultationId: r.consultationId,

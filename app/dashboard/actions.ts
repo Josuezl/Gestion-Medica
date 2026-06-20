@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { isValidAppointmentStatus } from '@/utils/validation'
 
 /**
  * ¿La clínica tiene clínicas (locations) activas? Si las tiene, la cita debe asignarse a
@@ -143,16 +144,35 @@ export async function updateAppointment(id: string, formData: FormData) {
 export async function updateAppointmentStatus(appointmentId: string, status: string) {
   const supabase = await createClient()
 
-  const { error } = await supabase
+  // Validar el estado contra el enum permitido (utils/validation.ts, testeable).
+  if (!isValidAppointmentStatus(status)) {
+    return { error: 'Estado de cita no válido.' }
+  }
+
+  // Defensa en profundidad (A4): sesión + acotar el UPDATE a la clínica del usuario.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
+  const { data: updated, error } = await supabase
     .from('appointments')
     .update({ status })
     .eq('id', appointmentId)
+    .eq('clinic_id', authProfile.clinic_id)
+    .select('id')
 
   if (error) {
     return { error: `Error al actualizar estado: ${error.message}` }
   }
+  if (!updated || updated.length === 0) {
+    return { error: 'No tienes permiso para modificar esta cita.' }
+  }
 
-  revalidatePath('/dashboard')
   revalidatePath('/dashboard')
   return { success: true }
 }

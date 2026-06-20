@@ -1,0 +1,55 @@
+/**
+ * Validaciones puras (sin BD ni red), centralizadas para poder probarlas y reutilizarlas.
+ * Las server actions delegan aquí en vez de tener la lógica embebida (más testeable, menos
+ * duplicación). Cubre los signos vitales y el estado de cita (hallazgos A4/A5/M2).
+ */
+
+export interface VitalsInput {
+  temperature?: number | null
+  weight?: number | null
+  height?: number | null
+  headCircumference?: number | null
+  heartRate?: number | null
+  oxygenSaturation?: number | null
+}
+
+interface VitalRange {
+  key: keyof VitalsInput
+  label: string
+  min: number
+  max: number
+  unit: string
+}
+
+/** Rangos médicos razonables; caben holgadamente en las columnas numéricas de la BD. */
+export const VITAL_RANGES: VitalRange[] = [
+  { key: 'temperature', label: 'Temperatura', min: 25, max: 45, unit: '°C' },
+  { key: 'weight', label: 'Peso', min: 0.2, max: 600, unit: 'kg' },
+  { key: 'height', label: 'Talla', min: 10, max: 280, unit: 'cm' },
+  { key: 'headCircumference', label: 'Perímetro cefálico', min: 10, max: 80, unit: 'cm' },
+  { key: 'heartRate', label: 'Ritmo cardiaco', min: 10, max: 400, unit: 'bpm' },
+  { key: 'oxygenSaturation', label: 'SpO2', min: 1, max: 100, unit: '%' },
+]
+
+/**
+ * Devuelve un mensaje de error si algún signo vital está fuera de rango, o `null` si todo OK.
+ * Los valores `null`/`undefined` (no ingresados) se ignoran.
+ */
+export function validateVitals(v: VitalsInput): string | null {
+  for (const r of VITAL_RANGES) {
+    const value = v[r.key]
+    if (value === null || value === undefined) continue
+    if (Number.isNaN(value) || value < r.min || value > r.max) {
+      return `Revisa los signos vitales: el valor de ${r.label} (${value}) no es válido. Debe estar entre ${r.min} y ${r.max} ${r.unit}.`
+    }
+  }
+  return null
+}
+
+/** Estados válidos de una cita. */
+export const VALID_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
+export type AppointmentStatus = (typeof VALID_APPOINTMENT_STATUSES)[number]
+
+export function isValidAppointmentStatus(status: string): boolean {
+  return (VALID_APPOINTMENT_STATUSES as readonly string[]).includes(status)
+}

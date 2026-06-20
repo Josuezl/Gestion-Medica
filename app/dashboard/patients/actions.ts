@@ -75,6 +75,17 @@ export async function createPatient(formData: FormData) {
 export async function updatePatient(id: string, formData: FormData) {
   const supabase = await createClient()
 
+  // Defensa en profundidad (A4): además de RLS, exigir sesión y acotar el UPDATE a la clínica
+  // del usuario. Así, aunque una política RLS fallara, no se puede editar pacientes de otra clínica.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
   const rawPhone = formData.get('phone') as string
   const sanitizedPhone = sanitizePhone(rawPhone)
 
@@ -97,13 +108,18 @@ export async function updatePatient(id: string, formData: FormData) {
     mother_name: formData.get('mother_name') as string || null,
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('patients')
     .update(patientData)
     .eq('id', id)
+    .eq('clinic_id', authProfile.clinic_id)
+    .select('id')
 
   if (error) {
     return { error: `Error al actualizar paciente: ${error.message}` }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'No tienes permiso para editar este paciente.' }
   }
 
   revalidatePath(`/dashboard/patients/${id}`)
@@ -112,13 +128,29 @@ export async function updatePatient(id: string, formData: FormData) {
 
 export async function updatePatientGender(id: string, gender: string) {
   const supabase = await createClient()
-  const { error } = await supabase
+
+  // Defensa en profundidad (A4): sesión + acotar a la clínica del usuario.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
+  const { data: updated, error } = await supabase
     .from('patients')
     .update({ gender })
     .eq('id', id)
+    .eq('clinic_id', authProfile.clinic_id)
+    .select('id')
 
   if (error) {
     return { error: `Error al actualizar género: ${error.message}` }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'No tienes permiso para editar este paciente.' }
   }
 
   // Revalidar las dos rutas donde se ve el género frecuentemente
