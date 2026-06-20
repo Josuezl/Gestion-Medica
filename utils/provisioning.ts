@@ -10,7 +10,7 @@ export interface ProvisionParams {
   lastName: string
   clinicId: string
   clinicName: string
-  role: 'DOCTOR' | 'ASSISTANT' | 'ADMIN'
+  role: 'DOCTOR' | 'ASSISTANT' | 'ADMIN' | 'NURSE'
   isOrgAdmin: boolean
   specialty?: string | null
   professionalId?: string | null

@@ -1,7 +1,8 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import { isAssistant } from '@/utils/permissions'
+import { canDoClinical } from '@/utils/permissions'
+import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import NewConsultationClient from './NewConsultationClient'
 
 interface PageProps {
@@ -30,8 +31,8 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('id', user.id)
     .single()
 
-  // Crear consultas es trabajo médico: los asistentes no tienen acceso.
-  if (isAssistant(currentProfile?.role)) {
+  // Crear consultas es trabajo médico: asistente y enfermera no tienen acceso.
+  if (!canDoClinical(currentProfile?.role)) {
     redirect('/dashboard')
   }
 
@@ -98,10 +99,15 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
   const lastLabOrder = labOrders && labOrders.length > 0 ? labOrders[0] : null
 
+  // 8. Pre-clínica pendiente de hoy (signos que tomó la enfermera): se precargan en el formulario.
+  //    Tolera que la tabla aún no exista (devuelve null) → la pantalla funciona igual que antes.
+  const preclinical = await getPendingPreclinical(patientId)
+
   return (
     <NewConsultationClient
       patient={patient}
       appointmentId={appointmentId}
+      preclinical={preclinical}
       consultations={consultations || []}
       studies={studies || []}
       prescriptions={prescriptions || []}

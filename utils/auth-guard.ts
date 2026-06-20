@@ -8,7 +8,7 @@ export interface AuthContext {
   profile: any
   clinicId: string
   clinicName: string
-  role: 'ADMIN' | 'DOCTOR' | 'ASSISTANT'
+  role: 'ADMIN' | 'DOCTOR' | 'ASSISTANT' | 'NURSE'
   isOrgAdmin: boolean
   planCode: string
 }

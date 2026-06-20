@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2 } from 'lucide-react'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, Stethoscope } from 'lucide-react'
 import LabCatalogCard from './LabCatalogCard'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -132,7 +132,8 @@ export default function ConfigClient({
   const allMembersAndInvites = [...teamMembers, ...invitations]
   
   const doctorCount = allMembersAndInvites.filter(m => m.role === 'DOCTOR' || m.role === 'ADMIN').length
-  const assistantCount = allMembersAndInvites.filter(m => m.role === 'ASSISTANT').length
+  // El personal de apoyo (asistente + enfermería) comparte el mismo cupo.
+  const assistantCount = allMembersAndInvites.filter(m => m.role === 'ASSISTANT' || m.role === 'NURSE').length
   
   const doctorLimitReached = doctorCount >= maxDoctors
   const assistantLimitReached = assistantCount >= maxAssistants
@@ -457,6 +458,7 @@ export default function ConfigClient({
                     <option value="DOCTOR">Médico Especialista</option>
                   )}
                   <option value="ASSISTANT">Asistente/Secretaria</option>
+                  <option value="NURSE">Auxiliar de Enfermería</option>
                 </select>
               </div>
               {canInviteDoctors && (
@@ -516,7 +518,8 @@ export default function ConfigClient({
                     <span className={`badge ${member.role === 'ADMIN' ? 'badge-info' : member.role === 'DOCTOR' ? 'badge-success' : 'badge-warning'}`}>
                       {member.role === 'ADMIN' && <Shield size={12} style={{ marginRight: '4px' }} />}
                       {member.role === 'DOCTOR' && <User size={12} style={{ marginRight: '4px' }} />}
-                      {member.role}
+                      {member.role === 'NURSE' && <Stethoscope size={12} style={{ marginRight: '4px' }} />}
+                      {member.role === 'NURSE' ? 'Auxiliar Enf.' : member.role}
                     </span>
                   </td>
                   <td data-label="Especialidad" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>

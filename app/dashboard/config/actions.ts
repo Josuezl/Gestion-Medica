@@ -30,7 +30,7 @@ export async function sendInvitation(formData: FormData) {
   if (!firstName || !lastName || !email || !role) {
     return { error: 'Nombre, apellido, correo y rol son requeridos.' }
   }
-  if (role !== 'DOCTOR' && role !== 'ASSISTANT') {
+  if (role !== 'DOCTOR' && role !== 'ASSISTANT' && role !== 'NURSE') {
     return { error: 'Rol no válido.' }
   }
 
@@ -50,18 +50,22 @@ export async function sendInvitation(formData: FormData) {
     .single()
 
   if (planData) {
-    const { count: currentUsers } = await supabase
+    const isDoctorRole = role === 'DOCTOR'
+    // El personal de apoyo (asistente + enfermería) comparte el cupo de "assistants".
+    let countQuery = supabase
       .from('user_profiles')
       .select('*', { count: 'exact', head: true })
       .eq('clinic_id', ctx.clinicId)
-      .eq('role', role)
+    countQuery = isDoctorRole ? countQuery.eq('role', 'DOCTOR') : countQuery.in('role', ['ASSISTANT', 'NURSE'])
+    const { count: currentUsers } = await countQuery
 
-    const maxAllowed = role === 'DOCTOR'
+    const maxAllowed = isDoctorRole
       ? effectiveLimit(clinicRow?.max_doctors_override, planData.max_doctors)
       : effectiveLimit(clinicRow?.max_assistants_override, planData.max_assistants)
 
     if (maxAllowed !== null && currentUsers !== null && currentUsers >= maxAllowed) {
-      return { error: `Has alcanzado el límite de ${maxAllowed} usuarios con rol ${role} para este tenant.` }
+      const label = isDoctorRole ? 'médicos' : 'personal de apoyo (asistentes/enfermería)'
+      return { error: `Has alcanzado el límite de ${maxAllowed} ${label} para este tenant.` }
     }
   }
 

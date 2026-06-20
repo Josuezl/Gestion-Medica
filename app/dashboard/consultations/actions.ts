@@ -11,7 +11,8 @@ export async function createConsultation(
   patientId: string,
   appointmentId: string | null,
   medicines: any[],
-  formData: FormData
+  formData: FormData,
+  preclinicalVitalsId: string | null = null
 ) {
   // 1. Verificar autorización y roles (Solo médicos y admin pueden crear consultas)
   const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO'])
@@ -174,9 +175,23 @@ export async function createConsultation(
     }
   }
 
+  // 5.b Si la consulta nació de una pre-clínica (signos tomados por enfermería), marcarla como
+  //     consumida (bitácora). Paso secundario: si falla, solo se avisa (no descarta la consulta).
+  if (preclinicalVitalsId) {
+    const { error: preError } = await supabase
+      .from('preclinical_vitals')
+      .update({ consumed_at: new Date().toISOString(), consultation_id: consultation.id })
+      .eq('id', preclinicalVitalsId)
+    if (preError) {
+      console.error('Error al marcar la pre-clínica como consumida:', preError)
+      warnings.push('La consulta se guardó, pero no se pudo cerrar la pre-clínica de enfermería.')
+    }
+  }
+
   // 6. Revalidar. La navegación la maneja el cliente (para ofrecer imprimir
   // la incapacidad médica en un modal si se llenó ese campo).
   revalidatePath(`/dashboard/patients/${patientId}`)
+  revalidatePath('/dashboard')
   return {
     success: true,
     consultationId: consultation.id,

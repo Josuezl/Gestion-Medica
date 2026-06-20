@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import AgendaClient from './AgendaClient'
+import { getPendingPreclinicalPatientIds } from './preclinical/actions'
 
 import { cookies } from 'next/headers'
 
@@ -73,6 +74,9 @@ export default async function DashboardPage() {
     .eq('is_active', true)
     .order('name', { ascending: true })
 
+  // 6. Pacientes con pre-clínica pendiente de hoy (para marcar las citas con "Signos listos")
+  const preclinicalPatientIds = await getPendingPreclinicalPatientIds()
+
   return (
     <AgendaClient
       patients={patients || []}
@@ -80,6 +84,7 @@ export default async function DashboardPage() {
       doctors={doctors || []}
       locations={locations || []}
       defaultLocationId={defaultLocationId}
+      preclinicalPatientIds={preclinicalPatientIds}
       currentDoctor={{
         id: profile?.id || '',
         role: profile?.role || 'DOCTOR',

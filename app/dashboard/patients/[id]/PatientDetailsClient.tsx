@@ -4,7 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
-import { isAssistant, canEditPrescription } from '@/utils/permissions'
+import { canDoClinical, canEditPrescription, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
 import { medicineDetail } from '@/utils/medicines'
@@ -38,9 +38,11 @@ import {
   Baby,
   Copy,
   Globe,
+  Stethoscope,
 } from 'lucide-react'
 import PediatricGrowthChart from '../../components/PediatricGrowthChart'
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
+import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
 
 // Utilidad para calcular edad
@@ -84,17 +86,19 @@ export default function PatientDetailsClient({
       setAppUrl(window.location.origin)
     }
   }, [])
-  // El asistente solo gestiona datos del paciente y recetas (sin trabajo clínico).
-  const assistant = isAssistant(currentUserRole)
+  // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
+  const canClinical = canDoClinical(currentUserRole)
+  const canTakeVitals = canEnterVitals(currentUserRole)
   const canEditPresc = canEditPrescription(currentUserRole)
   // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
   const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>(assistant ? 'prescriptions' : 'consultations')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
+  const [showVitalsModal, setShowVitalsModal] = useState(false)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
     setExpandedConsultations(prev => ({
@@ -798,7 +802,19 @@ export default function PatientDetailsClient({
                 {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               </button>
             </div>
-            {!assistant && (
+            {canTakeVitals && (
+              <button
+                type="button"
+                onClick={() => setShowVitalsModal(true)}
+                className="btn btn-secondary"
+                style={{ gap: '0.4rem' }}
+                title="Tomar signos vitales (pre-clínica)"
+              >
+                <Stethoscope size={16} />
+                Tomar signos
+              </button>
+            )}
+            {canClinical && (
               <a
                 href={`/dashboard/consultations/new?patientId=${patient.id}`}
                 className="btn btn-primary"
@@ -877,19 +893,21 @@ export default function PatientDetailsClient({
                   <option value="O">Otro</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label">Tipo de Sangre</label>
-                <select className="form-input" name="blood_type" defaultValue={patient.blood_type || ''}>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                </select>
-              </div>
+              {canClinical && (
+                <div className="form-group">
+                  <label className="form-label">Tipo de Sangre</label>
+                  <select className="form-input" name="blood_type" defaultValue={patient.blood_type || ''}>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+              )}
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                   <Activity size={16} color={isEditPediatric ? '#0d9488' : 'var(--text-muted)'} />
@@ -913,25 +931,31 @@ export default function PatientDetailsClient({
               )}
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
-              <textarea className="form-input" name="allergies" defaultValue={patient.allergies} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
-            </div>
+            {/* Datos clínicos: solo personal clínico (médico/admin). Asistente y enfermera editan
+                únicamente datos personales (no ven ni modifican el expediente). */}
+            {canClinical && (
+              <>
+                <div className="form-group">
+                  <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
+                  <textarea className="form-input" name="allergies" defaultValue={patient.allergies} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
+                </div>
 
-            <div style={styles.formGrid}>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Patológicos</label>
-                <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history} rows={3} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes No Patológicos</label>
-                <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history} rows={3} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Antecedentes Heredofamiliares</label>
-              <textarea className="form-input" name="family_history" defaultValue={patient.family_history} rows={3} />
-            </div>
+                <div style={styles.formGrid}>
+                  <div className="form-group">
+                    <label className="form-label">Antecedentes Patológicos</label>
+                    <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history} rows={3} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Antecedentes No Patológicos</label>
+                    <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history} rows={3} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Antecedentes Heredofamiliares</label>
+                  <textarea className="form-input" name="family_history" defaultValue={patient.family_history} rows={3} />
+                </div>
+              </>
+            )}
 
             <div style={styles.editActions}>
               <button type="submit" className="btn btn-primary" disabled={editPending}>
@@ -946,7 +970,7 @@ export default function PatientDetailsClient({
       <div style={styles.expedienteContent}>
         {/* Navigation Tabs */}
         <div style={styles.tabsRow}>
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'consultations' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('consultations')}
@@ -956,7 +980,7 @@ export default function PatientDetailsClient({
             </button>
           )}
 
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'history' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('history')}
@@ -982,7 +1006,7 @@ export default function PatientDetailsClient({
             <span>Lab. Solicitados</span>
           </button>
 
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'studies' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('studies')}
@@ -992,7 +1016,7 @@ export default function PatientDetailsClient({
             </button>
           )}
 
-          {!assistant && patient.is_pediatric && (
+          {canClinical && patient.is_pediatric && (
             <button
               style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('pediatrics')}
@@ -1584,6 +1608,15 @@ export default function PatientDetailsClient({
         appUrl={appUrl}
         onClose={() => setWhatsappModalPresc(null)}
       />
+
+      {showVitalsModal && (
+        <PreclinicalVitalsModal
+          patient={patient}
+          appointmentId={null}
+          onClose={() => setShowVitalsModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }

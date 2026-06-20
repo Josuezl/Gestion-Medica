@@ -1,6 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { isAssistant } from '@/utils/permissions'
+import { canDoClinical } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
 import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
 
@@ -44,8 +44,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     .single()
 
   const clinicId = profile?.clinic_id
-  // Los asistentes no inician consultas: se oculta el botón por fila.
-  const assistant = isAssistant(profile?.role)
+  // Asistente y enfermera no inician consultas: se oculta el botón por fila.
+  const clinical = canDoClinical(profile?.role)
 
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
@@ -200,7 +200,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                             <Eye size={15} />
                             <span>Expediente</span>
                           </a>
-                          {!assistant && (
+                          {clinical && (
                             <a
                               href={`/dashboard/consultations/new?patientId=${patient.id}`}
                               className="btn btn-primary"

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { isAssistant } from '@/utils/permissions'
+import { canDoClinical } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
@@ -34,8 +34,8 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     .eq('id', user.id)
     .single()
 
-  // El historial clínico es trabajo médico: los asistentes no pueden verlo.
-  if (isAssistant(profile?.role)) {
+  // El historial clínico es trabajo médico: asistente y enfermera no pueden verlo.
+  if (!canDoClinical(profile?.role)) {
     redirect('/dashboard')
   }
 

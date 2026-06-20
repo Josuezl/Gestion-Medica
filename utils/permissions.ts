@@ -1,20 +1,34 @@
 // Helpers de permisos por rol. Funciones puras (sin 'use server'): se pueden usar
 // tanto en Server Components / Server Actions como en componentes de cliente.
 //
-// Roles: 'ADMIN' | 'DOCTOR' | 'ASSISTANT'. El asistente (secretaria/recepción)
-// gestiona agenda y pacientes y entrega recetas, pero no hace ni ve trabajo clínico.
+// Roles: 'ADMIN' | 'DOCTOR' | 'ASSISTANT' | 'NURSE'.
+// - ADMIN/DOCTOR: trabajo clínico (crean consultas, ven el expediente).
+// - ASSISTANT (secretaria/recepción): gestiona agenda y datos del paciente, entrega recetas;
+//   no hace ni ve trabajo clínico.
+// - NURSE (auxiliar de enfermería): toma signos vitales (pre-clínica) y ve la agenda; tampoco
+//   hace ni ve trabajo clínico (igual de restringida que ASSISTANT en lo clínico).
 
 export function isAssistant(role?: string | null): boolean {
   return (role || '').toUpperCase().trim() === 'ASSISTANT'
 }
 
-// Puede crear consultas y ver el historial clínico (consultas, antecedentes,
-// estudios, pediatría). Verdadero para ADMIN y DOCTOR.
-export function canDoClinical(role?: string | null): boolean {
-  return !isAssistant(role)
+export function isNurse(role?: string | null): boolean {
+  return (role || '').toUpperCase().trim() === 'NURSE'
 }
 
-// Puede editar (modificar) recetas. El asistente solo puede verlas/enviarlas.
+// Puede crear consultas y ver el historial clínico (consultas, antecedentes,
+// estudios, pediatría). Verdadero para ADMIN y DOCTOR; falso para ASSISTANT y NURSE.
+export function canDoClinical(role?: string | null): boolean {
+  return !isAssistant(role) && !isNurse(role)
+}
+
+// Puede registrar signos vitales (pre-clínica): personal clínico (ADMIN/DOCTOR) + NURSE.
+// El asistente no toma signos.
+export function canEnterVitals(role?: string | null): boolean {
+  return canDoClinical(role) || isNurse(role)
+}
+
+// Puede editar (modificar) recetas. Solo personal clínico; asistente y enfermera solo ven/envían.
 export function canEditPrescription(role?: string | null): boolean {
-  return !isAssistant(role)
+  return canDoClinical(role)
 }

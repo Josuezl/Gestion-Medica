@@ -70,6 +70,8 @@ export default async function DashboardLayout({
     displayRole = profile.is_org_admin ? 'Médico (Administrador)' : 'Médico'
   } else if (profile?.role === 'ADMIN') {
     displayRole = 'Administrador'
+  } else if (profile?.role === 'NURSE') {
+    displayRole = 'Auxiliar de Enfermería'
   }
 
   return (
