@@ -1,7 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
-import { isAssistant } from '@/utils/permissions'
+import { canDoClinical } from '@/utils/permissions'
 import PatientDetailsClient from './PatientDetailsClient'
 
 interface PageProps {
@@ -47,12 +47,12 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     p_table_name: 'patients'
   })
 
-  // Los asistentes solo gestionan datos del paciente y recetas: no cargamos
+  // Asistente y enfermera solo gestionan datos del paciente y recetas: no cargamos
   // datos clínicos (consultas/estudios) para no enviarlos al cliente.
-  const assistant = isAssistant(currentProfile?.role)
+  const clinical = canDoClinical(currentProfile?.role)
 
   // 3. Cargar consultas de evolución (con recetas asociadas)
-  const { data: consultations } = assistant
+  const { data: consultations } = !clinical
     ? { data: [] as any[] }
     : await supabase
         .from('consultations')
@@ -62,7 +62,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
 
   // 4. Cargar estudios médicos. Las URLs firmadas se generan BAJO DEMANDA (al hacer clic en
   //    "Ver/Descargar"), no aquí, para evitar el N+1 a Storage por carga de página (M5).
-  const { data: studies } = assistant
+  const { data: studies } = !clinical
     ? { data: [] as any[] }
     : await supabase
         .from('studies')

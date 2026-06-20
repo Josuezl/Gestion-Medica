@@ -1,7 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
-import { isAssistant } from '@/utils/permissions'
+import { canDoClinical } from '@/utils/permissions'
 import NewConsultationClient from './NewConsultationClient'
 
 interface PageProps {
@@ -30,8 +30,8 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('id', user.id)
     .single()
 
-  // Crear consultas es trabajo médico: los asistentes no tienen acceso.
-  if (isAssistant(currentProfile?.role)) {
+  // Crear consultas es trabajo médico: asistente y enfermera no tienen acceso.
+  if (!canDoClinical(currentProfile?.role)) {
     redirect('/dashboard')
   }
 

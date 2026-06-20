@@ -25,6 +25,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
+import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import StatusDropdown, { STATUS_CONFIG } from './StatusDropdown'
 
 // ============================================================================
@@ -110,8 +111,11 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const isAssistant = currentDoctor.role === 'ASSISTANT'
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isAssistant ? 'all' : currentDoctor.id)
+  // Personal clínico (médico/admin) ve su propia agenda por defecto; el de apoyo (asistente/enfermera)
+  // ve la de todos. Solo el clínico inicia consultas; el clínico y la enfermera toman signos.
+  const isClinician = canDoClinical(currentDoctor.role)
+  const canTakeVitals = canEnterVitals(currentDoctor.role)
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isClinician ? currentDoctor.id : 'all')
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
   const [selectedLocationId, setSelectedLocationId] = useState<string>(
@@ -622,7 +626,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     </button>
                   )}
 
-                  {!isAssistant && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
+                  {isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
                     <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
                       <Clipboard size={14} /> Iniciar Consulta
                     </button>
@@ -952,7 +956,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     value={selectedDoctorId}
                     onChange={(e) => setSelectedDoctorId(e.target.value)}
                   >
-                    {currentDoctor.role === 'ASSISTANT' && <option value="all">Todos los doctores</option>}
+                    {!isClinician && <option value="all">Todos los doctores</option>}
                     {doctors.map(d => (
                       <option key={d.id} value={d.id}>{doctorShortName(d.first_name, d.last_name, d.gender)}</option>
                     ))}

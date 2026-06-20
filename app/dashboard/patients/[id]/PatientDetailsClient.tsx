@@ -4,7 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
 import { sendMedicalRecordByEmail, sendPrescriptionByEmail, updatePrescription } from './email-actions'
-import { isAssistant, canEditPrescription } from '@/utils/permissions'
+import { canDoClinical, canEditPrescription, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
 import { medicineDetail } from '@/utils/medicines'
@@ -84,13 +84,14 @@ export default function PatientDetailsClient({
       setAppUrl(window.location.origin)
     }
   }, [])
-  // El asistente solo gestiona datos del paciente y recetas (sin trabajo clínico).
-  const assistant = isAssistant(currentUserRole)
+  // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
+  const canClinical = canDoClinical(currentUserRole)
+  const canTakeVitals = canEnterVitals(currentUserRole)
   const canEditPresc = canEditPrescription(currentUserRole)
   // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
   const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>(assistant ? 'prescriptions' : 'consultations')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
@@ -798,7 +799,7 @@ export default function PatientDetailsClient({
                 {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               </button>
             </div>
-            {!assistant && (
+            {canClinical && (
               <a
                 href={`/dashboard/consultations/new?patientId=${patient.id}`}
                 className="btn btn-primary"
@@ -946,7 +947,7 @@ export default function PatientDetailsClient({
       <div style={styles.expedienteContent}>
         {/* Navigation Tabs */}
         <div style={styles.tabsRow}>
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'consultations' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('consultations')}
@@ -956,7 +957,7 @@ export default function PatientDetailsClient({
             </button>
           )}
 
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'history' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('history')}
@@ -982,7 +983,7 @@ export default function PatientDetailsClient({
             <span>Lab. Solicitados</span>
           </button>
 
-          {!assistant && (
+          {canClinical && (
             <button
               style={activeTab === 'studies' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('studies')}
@@ -992,7 +993,7 @@ export default function PatientDetailsClient({
             </button>
           )}
 
-          {!assistant && patient.is_pediatric && (
+          {canClinical && patient.is_pediatric && (
             <button
               style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('pediatrics')}
