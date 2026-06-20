@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { provisionUserAccount, resendUserInvite } from '@/utils/provisioning'
 import { provisionUserWithPassword } from '@/utils/provisioning-credentials'
 import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
+import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 
 /** Siembra el catálogo estándar de laboratorio para una clínica recién creada (best-effort). */
@@ -169,7 +170,7 @@ export async function setClinicPlan(clinicId: string, planCode: string) {
   if (!plan) return { error: 'El plan seleccionado no es válido.' }
 
   const { error } = await admin.from('clinics').update({ plan_code: planCode }).eq('id', clinicId)
-  if (error) return { error: `No se pudo cambiar el plan: ${error.message}` }
+  if (error) return { error: safeErrorMessage('No se pudo cambiar el plan.', 'setClinicPlan', error) }
 
   await logPlatformEvent(actorUserId, 'CHANGE_PLAN', {
     targetClinicId: clinicId,
@@ -225,7 +226,7 @@ export async function setClinicLimits(clinicId: string, limits: ClinicLimitsInpu
 
   const admin = createAdminClient()
   const { error } = await admin.from('clinics').update(update).eq('id', clinicId)
-  if (error) return { error: `No se pudieron guardar los límites: ${error.message}` }
+  if (error) return { error: safeErrorMessage('No se pudieron guardar los límites.', 'setClinicLimits', error) }
 
   await logPlatformEvent(actorUserId, 'SET_CLINIC_LIMITS', {
     targetClinicId: clinicId,

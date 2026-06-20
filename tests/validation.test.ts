@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES } from '@/utils/validation'
+import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName } from '@/utils/validation'
 
 describe('validateVitals', () => {
   it('devuelve null cuando no se ingresó ningún vital', () => {
@@ -46,5 +46,28 @@ describe('isValidAppointmentStatus', () => {
     expect(isValidAppointmentStatus('HACKEADO')).toBe(false)
     expect(isValidAppointmentStatus('')).toBe(false)
     expect(isValidAppointmentStatus('completed')).toBe(false)
+  })
+})
+
+describe('sanitizeName', () => {
+  it('conserva nombres con acentos, apóstrofo y guion', () => {
+    expect(sanitizeName('José María O\'Brien-López')).toBe('José María O\'Brien-López')
+  })
+
+  it('quita dígitos, emojis y caracteres extraños (conserva letras)', () => {
+    expect(sanitizeName('Ju4n 99 #! 🤖 Pérez')).toBe('Ju n Pérez')
+  })
+
+  it('colapsa espacios y recorta', () => {
+    expect(sanitizeName('   Ana    Sofía   ')).toBe('Ana Sofía')
+  })
+
+  it('usa el fallback cuando no queda nada útil', () => {
+    expect(sanitizeName('1234 😀', 'Paciente Nuevo')).toBe('Paciente Nuevo')
+    expect(sanitizeName(null)).toBe('Paciente')
+  })
+
+  it('limita la longitud a 60', () => {
+    expect(sanitizeName('a'.repeat(200)).length).toBe(60)
   })
 })

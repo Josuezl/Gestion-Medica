@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { sendSetPasswordEmail } from '@/utils/email-invitation'
+import { safeErrorMessage } from '@/utils/errors'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
@@ -68,7 +69,7 @@ export async function provisionUserAccount(params: ProvisionParams): Promise<Pro
   if (profileError) {
     // Revertir el usuario de Auth para no dejar cuentas huérfanas.
     await admin.auth.admin.deleteUser(userId)
-    return { error: `No se pudo configurar el perfil: ${profileError.message}` }
+    return { error: safeErrorMessage('No se pudo configurar el perfil del usuario.', 'provisionUserAccount', profileError) }
   }
 
   // 3. Enviar email con nuestro propio enlace hacia /auth/confirm.

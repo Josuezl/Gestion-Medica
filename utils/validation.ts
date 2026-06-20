@@ -53,3 +53,17 @@ export type AppointmentStatus = (typeof VALID_APPOINTMENT_STATUSES)[number]
 export function isValidAppointmentStatus(status: string): boolean {
   return (VALID_APPOINTMENT_STATUSES as readonly string[]).includes(status)
 }
+
+/**
+ * Normaliza un nombre de persona de origen NO confiable (p. ej. extraído por IA del mensaje de
+ * WhatsApp): deja solo letras (con acentos), espacios y `.'-`, colapsa espacios y limita la
+ * longitud. Devuelve `fallback` si no queda nada útil (hallazgo M6 / calidad de datos).
+ */
+export function sanitizeName(raw: string | null | undefined, fallback = 'Paciente'): string {
+  const cleaned = (raw || '')
+    .replace(/[^\p{L}\p{M}\s.'-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+  return cleaned || fallback
+}

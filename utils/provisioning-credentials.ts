@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { sendWelcomeCredentialsEmail } from '@/utils/email-invitation'
+import { safeErrorMessage } from '@/utils/errors'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
@@ -61,7 +62,7 @@ export async function provisionUserWithPassword(
 
   if (profileError) {
     await admin.auth.admin.deleteUser(userId)
-    return { error: `No se pudo configurar el perfil: ${profileError.message}` }
+    return { error: safeErrorMessage('No se pudo configurar el perfil del usuario.', 'provisionUserWithPassword', profileError) }
   }
 
   const emailResult = await sendWelcomeCredentialsEmail({

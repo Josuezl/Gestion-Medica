@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { generateVerificationCode } from '@/utils/verification-code'
 import { validateVitals } from '@/utils/validation'
+import { safeErrorMessage } from '@/utils/errors'
 
 export async function createConsultation(
   patientId: string,
@@ -73,7 +74,7 @@ export async function createConsultation(
     .single()
 
   if (consultError) {
-    return { error: `Error al registrar consulta: ${consultError.message}` }
+    return { error: safeErrorMessage('No se pudo registrar la consulta. Inténtalo de nuevo.', 'createConsultation', consultError) }
   }
 
   // La consulta (nota clínica) es la fuente de verdad y ya quedó guardada. Los pasos

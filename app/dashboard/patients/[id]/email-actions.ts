@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { canEditPrescription } from '@/utils/permissions'
+import { safeErrorMessage } from '@/utils/errors'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 
@@ -241,7 +242,7 @@ export async function updatePrescription(
     .eq('id', prescriptionId)
 
   if (error) {
-    return { error: `Error al actualizar receta: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo actualizar la receta. Inténtalo de nuevo.', 'updatePrescription', error) }
   }
 
   // Registrar en bitácora de auditoría

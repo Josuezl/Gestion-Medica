@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
+import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -65,7 +66,7 @@ export async function createPatient(formData: FormData) {
     .single()
 
   if (error) {
-    return { error: `Error al registrar paciente: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo registrar el paciente. Inténtalo de nuevo.', 'createPatient', error) }
   }
 
   revalidatePath('/dashboard/patients')
@@ -116,7 +117,7 @@ export async function updatePatient(id: string, formData: FormData) {
     .select('id')
 
   if (error) {
-    return { error: `Error al actualizar paciente: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo actualizar el paciente. Inténtalo de nuevo.', 'updatePatient', error) }
   }
   if (!updated || updated.length === 0) {
     return { error: 'No tienes permiso para editar este paciente.' }
@@ -147,7 +148,7 @@ export async function updatePatientGender(id: string, gender: string) {
     .select('id')
 
   if (error) {
-    return { error: `Error al actualizar género: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo actualizar el género. Inténtalo de nuevo.', 'updatePatientGender', error) }
   }
   if (!updated || updated.length === 0) {
     return { error: 'No tienes permiso para editar este paciente.' }
@@ -247,7 +248,7 @@ export async function recordMedicalStudy(patientId: string, name: string, filePa
 
   if (dbError) {
     await supabase.storage.from('medical-studies').remove([filePath])
-    return { error: `Error al registrar estudio: ${dbError.message}` }
+    return { error: safeErrorMessage('No se pudo registrar el estudio. Inténtalo de nuevo.', 'recordMedicalStudy', dbError) }
   }
 
   revalidatePath(`/dashboard/patients/${patientId}`)
@@ -279,7 +280,7 @@ export async function deleteMedicalStudy(studyId: string) {
     .eq('id', studyId)
     .select('id, file_url, patient_id')
 
-  if (delError) return { error: `Error al eliminar: ${delError.message}` }
+  if (delError) return { error: safeErrorMessage('No se pudo eliminar el estudio. Inténtalo de nuevo.', 'deleteMedicalStudy', delError) }
   if (!deleted || deleted.length === 0) {
     return { error: 'No tienes permiso para eliminar este estudio.' }
   }

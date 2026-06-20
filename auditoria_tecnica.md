@@ -56,11 +56,11 @@ código es distinta y conviene dejarlo registrado:
 | A4 | Seguridad / Arquitectura | 🔴 Alta | ✅ Mitigado | `app/dashboard/patients/actions.ts`, `app/dashboard/actions.ts` |
 | A5 | Calidad | 🔴 Alta | ✅ Mitigado (Fase 1) | Vitest + 28 pruebas unitarias; RLS (Fase 2) pendiente |
 | M1 | BD / RLS | 🟠 Media | Pendiente | `supabase/migrations/20260618010000_lab_orders.sql` |
-| M2 | Validación | 🟠 Media | Pendiente | `app/dashboard/actions.ts`, `app/dashboard/consultations/actions.ts` |
-| M3 | Seguridad | 🟠 Media | Pendiente | múltiples `actions.ts` (`error.message`) |
+| M2 | Validación | 🟠 Media | ✅ Mitigado | `app/dashboard/actions.ts`, `app/dashboard/consultations/actions.ts` |
+| M3 | Seguridad | 🟠 Media | ✅ Mitigado | múltiples `actions.ts` (`error.message`) |
 | M4 | Privacidad | 🟠 Media | Pendiente | `app/prescriptions/view/[id]/page.tsx` |
 | M5 | Rendimiento | 🟠 Media | 🟡 Parcial | `app/dashboard/patients/[id]/page.tsx` |
-| M6 | Validación / Datos | 🟠 Media | Pendiente | `app/api/whatsapp-webhook/route.ts` |
+| M6 | Validación / Datos | 🟠 Media | ✅ Mitigado | `app/api/whatsapp-webhook/route.ts` |
 | M7 | BD / Auditoría | 🟠 Media | Pendiente | `supabase/schema.sql` (FK `audit_logs`) |
 | M8 | Operaciones | 🟠 Media | Pendiente | `.env.example`, endpoints `app/api/*` |
 | B1 | Mantenibilidad | 🔵 Baja | Pendiente | `PatientDetailsClient.tsx`, etc. |
@@ -190,14 +190,19 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 - **Riesgo:** integridad de datos (estados inválidos, valores absurdos) y pérdida silenciosa de la orden.
 - **Recomendación:** validar el enum de estado; acotar numéricos; devolver error si `lab_order` es inválido;
   adoptar validación por esquema (p. ej. **zod**) compartida entre formularios y *server actions*.
-- **Estado:** Pendiente.
+- **Estado:** ✅ **Mitigado (2026-06-19).** Validación de **vitales** y **enum de estado** centralizada en
+  `utils/validation.ts` (con tests); `createAppointment`/`updateAppointment` validan estado + **cota de
+  `duration`** (5–480 min); `lab_order` inválido ahora avisa (A3). `updateAppointment` además se endureció con
+  sesión + scope de clínica (como A4). Pendiente opcional (mayor): adoptar **zod** en formularios/actions.
 
 ### M3 — Fuga de detalle de errores de Supabase al cliente
 - **Evidencia:** varias *server actions* devuelven `\`...: ${error.message}\`` (p. ej. crear cita, actualizar
   estado), exponiendo nombres de columnas/constraints de la BD.
 - **Riesgo:** divulgación de estructura interna; ayuda al reconocimiento de un atacante.
 - **Recomendación:** registrar el error detallado en servidor y devolver mensajes genéricos al cliente.
-- **Estado:** Pendiente.
+- **Estado:** ✅ **Mitigado (2026-06-19).** Nuevo helper `utils/errors.ts` (`safeErrorMessage`) que registra el
+  detalle en servidor y devuelve un mensaje genérico; aplicado en los **14 sitios** que filtraban
+  `error.message` (pacientes, citas, consultas, recetas, superadmin, provisioning).
 
 ### M4 — Minimización de datos en páginas públicas
 - **Evidencia:** `app/prescriptions/view/[id]/page.tsx` carga por UUID y, con código incorrecto, **muestra el
@@ -224,7 +229,8 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
   parametriza, así que no hay SQLi.)
 - **Recomendación:** validar/normalizar el nombre (longitud, caracteres permitidos) y considerar marcar estos
   registros como "pendientes de revisión".
-- **Estado:** Pendiente.
+- **Estado:** ✅ **Mitigado (2026-06-19).** `sanitizeName` en `utils/validation.ts` (con tests): deja solo
+  letras/acentos/espacios y `.'-`, colapsa espacios y limita a 60 chars; aplicado al auto-registro del webhook.
 
 ### M7 — `audit_logs` se borra en cascada con la clínica
 - **Evidencia:** `supabase/schema.sql` — `audit_logs.clinic_id` con `ON DELETE CASCADE`.
@@ -314,11 +320,11 @@ Leyenda de Estado: **Pendiente** · **En curso** · **Mitigado** · **Aceptado (
 | A4 | RLS como único control de autorización | Alta | ✅ Mitigado | 2026-06-19 | `.eq('clinic_id')` + verificación de filas en update{Patient,PatientGender,AppointmentStatus} |
 | A5 | Sin pruebas automatizadas | Alta | ✅ Mitigado (Fase 1) | 2026-06-19 | Vitest + 28 tests (`tests/`, `npm test`). Fase 2 (RLS) pendiente: requiere BD de pruebas |
 | M1 | Inconsistencia de políticas RLS (lab_*/locations) | Media | Pendiente | — | — |
-| M2 | Validación de inputs faltante (enum/cotas/JSON) | Media | 🟡 Parcial | 2026-06-19 | Enum de estado de cita ✅ (con A4); falta cota de `duration` + aviso de `lab_order` inválido (hecho en A3) + zod |
-| M3 | Fuga de `error.message` al cliente | Media | Pendiente | — | — |
+| M2 | Validación de inputs faltante (enum/cotas/JSON) | Media | ✅ Mitigado | 2026-06-19 | enum + cota `duration` + `utils/validation.ts` con tests; zod queda opcional |
+| M3 | Fuga de `error.message` al cliente | Media | ✅ Mitigado | 2026-06-19 | `utils/errors.ts` (`safeErrorMessage`) en 14 sitios |
 | M4 | Minimización de datos en página pública | Media | Pendiente | — | — |
 | M5 | N+1 de signed URLs | Media | 🟡 Parcial | 2026-06-19 | Quitado el N+1 de recetas (era trabajo muerto); queda el de estudios |
-| M6 | Auto-registro WhatsApp sin validar nombre | Media | Pendiente | — | — |
+| M6 | Auto-registro WhatsApp sin validar nombre | Media | ✅ Mitigado | 2026-06-19 | `sanitizeName` (con tests) aplicado al webhook |
 | M7 | `audit_logs` ON DELETE CASCADE | Media | Pendiente | — | — |
 | M8 | Higiene operativa (CRON_SECRET, rate-limit, DDL manual) | Media | Pendiente | — | — |
 | B1 | Componentes monolíticos / duplicación | Baja | Pendiente | — | — |

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { analyzePatientMessage } from '@/utils/gemini'
+import { sanitizeName } from '@/utils/validation'
 
 const isValidDate = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 const isValidTime = (t?: string) => !!t && /^([01]\d|2[0-3]):[0-5]\d$/.test(t)
@@ -180,8 +181,9 @@ export async function POST(request: NextRequest) {
       
       // 7.1 Si el paciente no está registrado, crearlo automáticamente con ficha básica
       if (!patient) {
-        const rawName = aiResult.patient_name || 'Paciente Nuevo'
-        const nameParts = rawName.split(' ')
+        // El nombre lo extrae la IA del mensaje (origen no confiable): se normaliza/limita (M6).
+        const cleanName = sanitizeName(aiResult.patient_name, 'Paciente Nuevo')
+        const nameParts = cleanName.split(' ')
         const firstName = nameParts[0] || 'Paciente'
         const lastName = nameParts.slice(1).join(' ') || 'Registrado por Bot'
 

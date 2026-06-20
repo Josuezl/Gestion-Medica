@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { isValidAppointmentStatus } from '@/utils/validation'
+import { safeErrorMessage } from '@/utils/errors'
 
 /**
  * ¿La clínica tiene clínicas (locations) activas? Si las tiene, la cita debe asignarse a
@@ -53,6 +54,12 @@ export async function createAppointment(formData: FormData) {
     return { error: 'Por favor selecciona fecha y hora para la cita.' }
   }
 
+  // Validar estado y duración (M2).
+  if (!isValidAppointmentStatus(status)) return { error: 'Estado de cita no válido.' }
+  if (!Number.isFinite(duration) || duration < 5 || duration > 480) {
+    return { error: 'La duración de la cita debe estar entre 5 y 480 minutos.' }
+  }
+
   if (!locationId && await clinicHasActiveLocations(supabase, profile.clinic_id)) {
     return { error: 'Selecciona una clínica para la cita.' }
   }
@@ -77,7 +84,7 @@ export async function createAppointment(formData: FormData) {
     .insert([appointmentData])
 
   if (error) {
-    return { error: `Error al crear la cita: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo crear la cita. Inténtalo de nuevo.', 'createAppointment', error) }
   }
 
   revalidatePath('/dashboard')
@@ -87,6 +94,16 @@ export async function createAppointment(formData: FormData) {
 
 export async function updateAppointment(id: string, formData: FormData) {
   const supabase = await createClient()
+
+  // Sesión + clínica (defensa en profundidad, igual que las demás mutaciones).
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id')
+    .eq('id', user.id)
+    .single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
 
   const patientId = formData.get('patient_id') as string || null
   const doctorId = formData.get('doctor_id') as string
@@ -106,6 +123,12 @@ export async function updateAppointment(id: string, formData: FormData) {
     return { error: 'Debes seleccionar un paciente registrado para la cita.' }
   }
 
+  // Validar estado y duración (M2).
+  if (!isValidAppointmentStatus(status)) return { error: 'Estado de cita no válido.' }
+  if (!Number.isFinite(duration) || duration < 5 || duration > 480) {
+    return { error: 'La duración de la cita debe estar entre 5 y 480 minutos.' }
+  }
+
   if (!locationId) {
     const { data: appt } = await supabase
       .from('appointments')
@@ -119,7 +142,7 @@ export async function updateAppointment(id: string, formData: FormData) {
 
   const scheduledAt = new Date(`${dateStr}T${timeStr}:00-06:00`).toISOString()
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('appointments')
     .update({
       patient_id: patientId,
@@ -131,9 +154,14 @@ export async function updateAppointment(id: string, formData: FormData) {
       status
     })
     .eq('id', id)
+    .eq('clinic_id', authProfile.clinic_id)
+    .select('id')
 
   if (error) {
-    return { error: `Error al actualizar la cita: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo actualizar la cita. Inténtalo de nuevo.', 'updateAppointment', error) }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: 'No tienes permiso para modificar esta cita.' }
   }
 
   revalidatePath('/dashboard')
@@ -167,7 +195,7 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
     .select('id')
 
   if (error) {
-    return { error: `Error al actualizar estado: ${error.message}` }
+    return { error: safeErrorMessage('No se pudo actualizar el estado de la cita.', 'updateAppointmentStatus', error) }
   }
   if (!updated || updated.length === 0) {
     return { error: 'No tienes permiso para modificar esta cita.' }
