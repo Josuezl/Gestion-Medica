@@ -48,8 +48,8 @@ export function validateVitals(v: VitalsInput): string | null {
   return null
 }
 
-/** Estados válidos de una cita. */
-export const VALID_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
+/** Estados válidos de una cita. Deben coincidir con STATUS_CONFIG (UI) y el CHECK de la BD. */
+export const VALID_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
 export type AppointmentStatus = (typeof VALID_APPOINTMENT_STATUSES)[number]
 
 export function isValidAppointmentStatus(status: string): boolean {
