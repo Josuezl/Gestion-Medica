@@ -1,6 +1,7 @@
-// Catálogo estándar de exámenes de laboratorio (basado en la orden de laboratorio de ejemplo).
+// Catálogo estándar de exámenes de laboratorio.
+// Fuente: catálogo validado por el médico del tenant 'Centro Neurológico y Cardiovascular'.
 // Es la fuente única para sembrar el catálogo de una clínica: el botón "Cargar catálogo estándar"
-// en Configuración (clínicas existentes) y provisionTenant (clínicas nuevas).
+// en Configuración (clínicas existentes) y la provisión de clínicas nuevas.
 // El orden de las categorías y de los exámenes define cómo se ven en el modal y en la impresión.
 
 export interface LabCatalogCategory {
@@ -12,7 +13,7 @@ export const DEFAULT_LAB_CATALOG: LabCatalogCategory[] = [
   {
     category: 'HEMATOLOGÍA',
     tests: [
-      'Biometría Hemática Completa',
+      'Hemograma completo',
       'Hematocrito/Hemoglobina',
       'Leucocitos y Fórmula',
       'Eritrosedimentación',
@@ -40,7 +41,14 @@ export const DEFAULT_LAB_CATALOG: LabCatalogCategory[] = [
   },
   {
     category: 'SEROINMUNOLOGÍA',
-    tests: ['H.I.V', 'VDRL', 'Aglutinaciones', 'ASTO', 'PCR', 'LATEX R.F'],
+    tests: [
+      'H.I.V',
+      'VDRL',
+      'Aglutinaciones',
+      'ASTO',
+      'PCR',
+      'LATEX R.F',
+    ],
   },
   {
     category: 'COAGULACIÓN',
@@ -74,6 +82,12 @@ export const DEFAULT_LAB_CATALOG: LabCatalogCategory[] = [
       'Albúminas',
       'Globulinas',
       'Hemoglobina Glicosilada',
+      'Sodio',
+      'Potasio',
+      'Cloro',
+      'Magnesio',
+      'Calcio',
+      'Fósforo',
     ],
   },
   {
@@ -137,22 +151,41 @@ export const DEFAULT_LAB_CATALOG: LabCatalogCategory[] = [
   },
   {
     category: 'PANEL DE HEPATITIS',
-    tests: ['Hepatitis A - HAV IgG', 'Hepatitis A - HAV IgM', 'Hepatitis B - HBsAG', 'Hepatitis C - HCV'],
+    tests: [
+      'Hepatitis A - HAV IgG',
+      'Hepatitis A - HAV IgM',
+      'Hepatitis B - HBsAG',
+      'Hepatitis C - HCV',
+    ],
   },
   {
     category: 'DROGAS DE ABUSO',
-    tests: ['Marihuana', 'Cocaína'],
+    tests: [
+      'Marihuana',
+      'Cocaína',
+    ],
   },
   {
     category: 'LIQUIDOS',
-    tests: ['Espermatograma', 'Citoquímico'],
+    tests: [
+      'Espermatograma',
+      'Citoquímico',
+    ],
   },
   {
     category: 'OTROS',
-    tests: ['Helicobacter Pylori', 'Dengue IgG/IgM', 'Antitiroglobulinas (TG)'],
+    tests: [
+      'Helicobacter Pylori',
+      'Dengue IgG/IgM',
+      'Antitiroglobulinas (TG)',
+    ],
   },
   {
     category: 'MICROBIOLOGÍA',
-    tests: ['Gram', 'Eosinófilos en moco nasal', 'Cultivo para Streptococcus beta Hemolíticos Grupo A'],
+    tests: [
+      'Gram',
+      'Eosinófilos en moco nasal',
+      'Cultivo para Streptococcus beta Hemolíticos Grupo A',
+    ],
   },
 ]
