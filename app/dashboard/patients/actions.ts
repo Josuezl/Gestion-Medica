@@ -73,6 +73,40 @@ async function findPatientByRecordNumber(
   return data || null
 }
 
+/**
+ * Sugiere el siguiente N° de expediente para la clínica del usuario: toma el record_number con el
+ * valor numérico más alto (entre los más recientes) y le suma 1, conservando prefijo/sufijo y el
+ * relleno de ceros (ej. 6984SM -> 6985SM, EXP-00123 -> EXP-00124). null si aún no se usan.
+ */
+export async function suggestNextRecordNumber(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase
+    .from('user_profiles').select('clinic_id').eq('id', user.id).single()
+  if (!profile?.clinic_id) return null
+
+  const { data } = await supabase
+    .from('patients')
+    .select('record_number')
+    .eq('clinic_id', profile.clinic_id)
+    .not('record_number', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1000)
+  if (!data || data.length === 0) return null
+
+  let best: RegExpMatchArray | null = null
+  let bestNum = -1
+  for (const row of data) {
+    const m = String((row as any).record_number).match(/^(.*?)(\d+)(\D*)$/)
+    if (!m) continue
+    const n = parseInt(m[2], 10)
+    if (n > bestNum) { bestNum = n; best = m }
+  }
+  if (!best) return null
+  return `${best[1]}${String(bestNum + 1).padStart(best[2].length, '0')}${best[3]}`
+}
+
 export async function createPatient(formData: FormData, force = false) {
   const supabase = await createClient()
 

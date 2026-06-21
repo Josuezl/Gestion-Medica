@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { createPatient } from '../actions'
+import { createPatient, suggestNextRecordNumber } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import { 
   User, 
@@ -30,12 +30,19 @@ export default function NewPatientPage() {
   // (/dashboard/patients/new?nombre=...). Controlado + efecto de montaje para no romper la hidratación.
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  // N° de expediente: se sugiere el siguiente (último + 1) al abrir el formulario.
+  const [recordNumber, setRecordNumber] = useState('')
+  const [recordSuggested, setRecordSuggested] = useState(false)
   useEffect(() => {
     const nombre = new URLSearchParams(window.location.search).get('nombre')?.trim()
-    if (!nombre) return
-    const parts = nombre.split(/\s+/)
-    setFirstName(parts[0] || '')
-    setLastName(parts.slice(1).join(' '))
+    if (nombre) {
+      const parts = nombre.split(/\s+/)
+      setFirstName(parts[0] || '')
+      setLastName(parts.slice(1).join(' '))
+    }
+    suggestNextRecordNumber()
+      .then(next => { if (next) { setRecordNumber(next); setRecordSuggested(true) } })
+      .catch(() => {})
   }, [])
 
   function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -173,8 +180,14 @@ export default function NewPatientPage() {
                   name="record_number"
                   type="text"
                   placeholder="Ej. EXP-00123"
+                  value={recordNumber}
+                  onChange={(e) => { setRecordNumber(e.target.value); setRecordSuggested(false) }}
                 />
-                <p style={styles.inputHelp}>Opcional — si tu clínica maneja número de expediente.</p>
+                <p style={styles.inputHelp}>
+                  {recordSuggested
+                    ? 'Sugerido (último N° + 1). Puedes cambiarlo.'
+                    : 'Opcional — si tu clínica maneja número de expediente.'}
+                </p>
               </div>
 
               <div className="form-group">
