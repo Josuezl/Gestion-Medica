@@ -71,6 +71,14 @@ export default async function PatientsPage({ searchParams }: PageProps) {
 
   const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1
 
+  // Conteos para la cabecera: toda la clínica, independientes de la búsqueda/paginación.
+  // Adultos = total − pediátricos (is_pediatric es booleano NOT NULL).
+  const [{ count: totalPatients }, { count: pediatricPatients }] = await Promise.all([
+    supabase.from('patients').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId || ''),
+    supabase.from('patients').select('id', { count: 'exact', head: true }).eq('clinic_id', clinicId || '').eq('is_pediatric', true),
+  ])
+  const adultPatients = (totalPatients ?? 0) - (pediatricPatients ?? 0)
+
   return (
     <div style={styles.container}>
       {/* Header Row */}
@@ -78,6 +86,17 @@ export default async function PatientsPage({ searchParams }: PageProps) {
         <div>
           <h2 style={styles.title}>Expedientes de Pacientes</h2>
           <p style={styles.subtitle}>Busca, edita y gestiona las historias clínicas electrónicas</p>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.35rem', padding: '0.25rem 0.7rem', borderRadius: '999px', background: '#f1f5f9', color: '#0f172a', fontSize: '0.82rem', fontWeight: 600 }}>
+              <strong>{(totalPatients ?? 0).toLocaleString('es-HN')}</strong> pacientes
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.35rem', padding: '0.25rem 0.7rem', borderRadius: '999px', background: '#eef2ff', color: '#3730a3', fontSize: '0.82rem', fontWeight: 600 }}>
+              <strong>{adultPatients.toLocaleString('es-HN')}</strong> adultos
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: '0.35rem', padding: '0.25rem 0.7rem', borderRadius: '999px', background: '#ccfbf1', color: '#0f766e', fontSize: '0.82rem', fontWeight: 600 }}>
+              <strong>{(pediatricPatients ?? 0).toLocaleString('es-HN')}</strong> pediátricos
+            </span>
+          </div>
         </div>
         <a href="/dashboard/patients/new" className="btn btn-primary" style={{ gap: '0.5rem' }}>
           <Plus size={18} />
