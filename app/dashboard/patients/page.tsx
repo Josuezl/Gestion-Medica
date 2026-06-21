@@ -53,7 +53,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   // 2. Consultar pacientes en el servidor con filtrado si existe búsqueda
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, id_card, record_number, gender, birth_date, phone, blood_type, is_pediatric', { count: 'exact' })
+    .select('id, first_name, last_name, id_card, record_number, gender, birth_date, phone, blood_type, is_pediatric, dob_status', { count: 'exact' })
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
@@ -162,9 +162,11 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                       </td>
                       <td data-label="Edad / Género">
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={styles.ageText}>{age} años</span>
+                          <span style={{ ...styles.ageText, ...(patient.dob_status === 'unknown' ? { color: '#b45309' } : {}) }}>
+                            {patient.dob_status === 'unknown' ? 'Sin fecha' : `${age} años`}
+                          </span>
                           <span style={styles.genderSub}>
-                            {patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}
+                            {patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : patient.gender === 'O' ? 'Otro' : 'Sin especificar'}
                           </span>
                         </div>
                       </td>

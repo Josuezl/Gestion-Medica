@@ -459,7 +459,7 @@ export async function searchPatientsForAgenda(query: string) {
 
   let dbQuery = supabase
     .from('patients')
-    .select('id, first_name, last_name, phone, birth_date, gender, id_card, record_number')
+    .select('id, first_name, last_name, phone, birth_date, gender, id_card, record_number, dob_status')
     .eq('clinic_id', profile.clinic_id)
 
   // Por cada palabra, al menos uno de los campos debe contenerla

@@ -730,7 +730,11 @@ export default function PatientDetailsClient({
             </div>
             
             <p style={{ ...styles.demographicsSub, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {calculateAge(patient.birth_date)} años • Nacido el {parseLocalDate(patient.birth_date).toLocaleDateString('es-HN')} •
+              {patient.dob_status === 'unknown' ? (
+                <span style={{ color: '#b45309', fontWeight: 700 }}>⚠️ Fecha de nacimiento por confirmar</span>
+              ) : (
+                <>{calculateAge(patient.birth_date)} años{patient.dob_status === 'estimated' ? ' (estimada)' : ''} • Nacido el {parseLocalDate(patient.birth_date).toLocaleDateString('es-HN')}</>
+              )} •
               Género:
               <select
                 value={patient.gender || ''}

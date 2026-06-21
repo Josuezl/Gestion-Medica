@@ -876,6 +876,15 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               </div>
             </div>
 
+            {(() => {
+              const sel = patientSearchResults.find(p => p.id === selectedPatientId) as any
+              return sel && sel.dob_status === 'unknown' ? (
+                <div style={{ padding: '0.6rem 0.75rem', borderRadius: '10px', background: 'rgba(180, 83, 9, 0.08)', border: '1px solid rgba(180, 83, 9, 0.35)', color: '#b45309', fontSize: '0.82rem', fontWeight: 600 }}>
+                  ⚠️ Este paciente no tiene fecha de nacimiento registrada. Actualízala con urgencia: afecta el cálculo de edad y de dosis.
+                </div>
+              ) : null
+            })()}
+
             <div className="form-group">
               <label className="form-label">Doctor *</label>
               <select name="doctor_id" className="form-input" required defaultValue={editAppointment?.doctor_id || (selectedDoctorId !== 'all' ? selectedDoctorId : currentDoctor.id)}>
