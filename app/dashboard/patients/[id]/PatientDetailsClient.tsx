@@ -57,6 +57,17 @@ function calculateAge(birthDateString: string) {
   return age
 }
 
+// Convierte 'YYYY-MM-DD' a Date en hora LOCAL para evitar el corrimiento de un día que provoca
+// `new Date('YYYY-MM-DD')` (se interpreta como UTC y, en zonas como Honduras UTC-6, retrocede al
+// día anterior). Los timestamps con hora/zona se dejan al parseo normal.
+function parseLocalDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }
+  return new Date(value)
+}
+
 interface PatientDetailsClientProps {
   patient: any
   consultations: any[]
@@ -170,7 +181,7 @@ export default function PatientDetailsClient({
 
     const formatDate = (dateStr: string) => {
       if (!dateStr) return 'N/A';
-      return new Date(dateStr).toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' });
+      return parseLocalDate(dateStr).toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric' });
     };
 
     const consultationsHtml = consultations.length === 0
@@ -719,7 +730,7 @@ export default function PatientDetailsClient({
             </div>
             
             <p style={{ ...styles.demographicsSub, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {calculateAge(patient.birth_date)} años • Nacido el {new Date(patient.birth_date).toLocaleDateString('es-HN')} • 
+              {calculateAge(patient.birth_date)} años • Nacido el {parseLocalDate(patient.birth_date).toLocaleDateString('es-HN')} •
               Género:
               <select
                 value={patient.gender || ''}
@@ -914,6 +925,10 @@ export default function PatientDetailsClient({
                 <label className="form-label">Correo Electrónico</label>
                 <input className="form-input" type="email" name="email" defaultValue={patient.email} />
               </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Dirección</label>
+                <input className="form-input" name="address" defaultValue={patient.address || ''} placeholder="Barrio/Colonia, ciudad" />
+              </div>
               <div className="form-group">
                 <label className="form-label">Género</label>
                 <select className="form-input" name="gender" defaultValue={patient.gender || ''}>
@@ -927,6 +942,7 @@ export default function PatientDetailsClient({
                 <div className="form-group">
                   <label className="form-label">Tipo de Sangre</label>
                   <select className="form-input" name="blood_type" defaultValue={patient.blood_type || ''}>
+                    <option value="">Sin especificar</option>
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
                     <option value="A+">A+</option>
