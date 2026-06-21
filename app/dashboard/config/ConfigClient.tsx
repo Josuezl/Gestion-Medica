@@ -257,7 +257,7 @@ export default function ConfigClient({
                   <label className="form-label">Rol</label>
                   <select className="form-input" value={editMember.role} onChange={e => setEditMember({ ...editMember, role: e.target.value })}>
                     <option value="DOCTOR">Médico</option>
-                    <option value="ASSISTANT">Asistente/Secretaria</option>
+                    <option value="ASSISTANT">Asistente</option>
                     <option value="NURSE">Auxiliar de Enfermería</option>
                   </select>
                 </div>
@@ -399,7 +399,7 @@ export default function ConfigClient({
           {/* Progress Bar Doctores */}
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontWeight: 600 }}>Médicos Especialistas</span>
+              <span style={{ fontWeight: 600 }}>Personal Médico</span>
               <span>{doctorCount} / {maxDoctors} miembros</span>
             </div>
             <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -420,7 +420,7 @@ export default function ConfigClient({
           {/* Progress Bar Asistentes */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontWeight: 600 }}>Asistentes / Secretarias</span>
+              <span style={{ fontWeight: 600 }}>Asistentes / Auxiliar de Enfermería</span>
               <span>{assistantCount} / {maxAssistants} miembros</span>
             </div>
             <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -466,9 +466,9 @@ export default function ConfigClient({
                 <label className="form-label">Rol</label>
                 <select name="role" className="form-input" required defaultValue={canInviteDoctors ? 'DOCTOR' : 'ASSISTANT'}>
                   {canInviteDoctors && (
-                    <option value="DOCTOR">Médico Especialista</option>
+                    <option value="DOCTOR">Médico</option>
                   )}
-                  <option value="ASSISTANT">Asistente/Secretaria</option>
+                  <option value="ASSISTANT">Asistente</option>
                   <option value="NURSE">Auxiliar de Enfermería</option>
                 </select>
               </div>
