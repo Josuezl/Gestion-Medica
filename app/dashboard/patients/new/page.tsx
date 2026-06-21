@@ -291,20 +291,14 @@ export default function NewPatientPage() {
                 <label className="form-label" htmlFor="phone">
                   Teléfono Celular (WhatsApp)
                 </label>
-                <div style={styles.phoneInputWrapper}>
-                  <span style={styles.phoneAddon}>+504</span>
-                  <input
-                    className="form-input"
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    placeholder="9988-7766"
-                    pattern="[389][0-9]{7}"
-                    title="Por favor ingresa un número celular de Honduras de 8 dígitos que comience con 3, 8 o 9"
-                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                  />
-                </div>
-                <p style={styles.inputHelp}>Opcional — número de Honduras de 8 dígitos para recordatorios y recetas. Puedes agregarlo después.</p>
+                <input
+                  className="form-input"
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="Ej. 9988-7766 o +1 555 123 4567"
+                />
+                <p style={styles.inputHelp}>Opcional — local de 8 dígitos (se asume Honduras +504) o internacional con código de país (+…). Para recordatorios y recetas.</p>
               </div>
 
               <div className="form-group">

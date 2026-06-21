@@ -10,15 +10,17 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 // Utilidad para limpiar el teléfono al formato de Honduras (+504)
-function sanitizePhone(phone: string) {
-  const cleaned = phone.replace(/\D/g, '') // Eliminar no-dígitos
-  if (cleaned.length === 8) {
-    return `+504${cleaned}`
-  }
-  if (cleaned.startsWith('504') && cleaned.length === 11) {
-    return `+${cleaned}`
-  }
-  return phone // Si ya tiene el formato o es inválido, devolver tal cual para que valide la DB
+// Normaliza el teléfono SIN guiones/espacios. Acepta números internacionales:
+// con '+' se respeta el código de país; un número local de 8 dígitos asume Honduras (+504).
+function sanitizePhone(phone: string): string | null {
+  const trimmed = phone.trim()
+  if (!trimmed) return null
+  const hasPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/\D/g, '') // solo dígitos
+  if (!digits) return null
+  if (hasPlus) return `+${digits}`               // internacional: respeta su código de país
+  if (digits.length === 8) return `+504${digits}` // Honduras local (compat anterior)
+  return digits                                   // otro formato: se guarda solo con dígitos
 }
 
 // Busca un posible paciente duplicado en la clínica: mismo DNI, o mismo nombre normalizado
