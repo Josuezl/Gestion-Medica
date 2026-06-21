@@ -46,6 +46,9 @@ next-env.d.ts
 # respaldos Access con datos de pacientes (nunca commitear)
 /Migracion*
 
+# datos reales de clínicas: Excel/SQL/CSV con PII de pacientes (nunca commitear)
+/San Martin/
+
 # dependencias del script de migración
 scripts/migracion-access/node_modules/
 
