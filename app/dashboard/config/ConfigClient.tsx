@@ -123,6 +123,7 @@ export default function ConfigClient({
       practicePhone: editMember.practicePhone,
       practiceAddress: editMember.practiceAddress,
       signatureUrl: editMember.signatureUrl,
+      role: editMember.role,
     })
     setMemberSaving(false)
     if (res?.error) setMemberError(res.error)
@@ -251,7 +252,17 @@ export default function ConfigClient({
                   <option value="F">Femenino (Dra.)</option>
                 </select>
               </div>
-              {editMember.role !== 'ASSISTANT' && (
+              {['DOCTOR', 'ASSISTANT', 'NURSE'].includes(editMember.role) && (
+                <div className="form-group">
+                  <label className="form-label">Rol</label>
+                  <select className="form-input" value={editMember.role} onChange={e => setEditMember({ ...editMember, role: e.target.value })}>
+                    <option value="DOCTOR">Médico</option>
+                    <option value="ASSISTANT">Asistente/Secretaria</option>
+                    <option value="NURSE">Auxiliar de Enfermería</option>
+                  </select>
+                </div>
+              )}
+              {(editMember.role === 'DOCTOR' || editMember.role === 'ADMIN') && (
                 <>
                   <div className="form-group">
                     <label className="form-label">Especialidad</label>
@@ -265,7 +276,7 @@ export default function ConfigClient({
               )}
             </div>
 
-            {editMember.role !== 'ASSISTANT' && (
+            {(editMember.role === 'DOCTOR' || editMember.role === 'ADMIN') && (
               <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem' }}>Datos para receta (opcional)</div>
                 <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -288,7 +299,7 @@ export default function ConfigClient({
               </div>
             )}
 
-            {editMember.role !== 'ASSISTANT' && (
+            {(editMember.role === 'DOCTOR' || editMember.role === 'ADMIN') && (
               <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <Stamp size={15} /> Firma y sello (opcional)

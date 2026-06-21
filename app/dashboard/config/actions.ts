@@ -105,6 +105,7 @@ export interface TeamMemberUpdate {
   practicePhone: string
   practiceAddress: string
   signatureUrl?: string
+  role?: string // 'DOCTOR' | 'ASSISTANT' | 'NURSE' (opcional: cambia el rol del miembro)
 }
 
 /**
@@ -150,8 +151,9 @@ export async function uploadMemberSignature(memberId: string, formData: FormData
 }
 
 /**
- * Edición de los datos de un médico/asistente existente por el org-admin (no cambia el rol).
- * Sirve, entre otras cosas, para fijar el género y que se muestre "Dra." en vez de "Dr.".
+ * Edición de los datos de un miembro existente por el org-admin, incluido CAMBIAR su rol
+ * entre Médico, Asistente y Auxiliar de Enfermería (NURSE). El tope de médicos/asistentes lo
+ * valida el trigger enforce_user_limits. Sirve también para fijar el género ("Dra." vs "Dr.").
  */
 export async function updateTeamMember(memberId: string, data: TeamMemberUpdate) {
   const ctx = await requireOrgAdmin()
@@ -163,21 +165,27 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
 
   const gender = ['M', 'F', 'O'].includes(data.gender) ? data.gender : null
 
+  const updates: Record<string, any> = {
+    first_name: firstName,
+    last_name: lastName,
+    specialty: (data.specialty || '').trim() || null,
+    professional_id: (data.professionalId || '').trim() || null,
+    gender,
+    practice_name: (data.practiceName || '').trim() || null,
+    practice_phone: (data.practicePhone || '').trim() || null,
+    practice_address: (data.practiceAddress || '').trim() || null,
+    signature_url: (data.signatureUrl || '').trim() || null,
+  }
+  // Cambio de rol opcional. Solo roles de personal (el ADMIN/org-admin no se gestiona aquí).
+  if (data.role && ['DOCTOR', 'ASSISTANT', 'NURSE'].includes(data.role)) {
+    updates.role = data.role
+  }
+
   const supabase = await createClient()
   // Solo se actualiza si el miembro pertenece a la misma clínica del admin (aislamiento de tenant).
   const { data: updated, error } = await supabase
     .from('user_profiles')
-    .update({
-      first_name: firstName,
-      last_name: lastName,
-      specialty: (data.specialty || '').trim() || null,
-      professional_id: (data.professionalId || '').trim() || null,
-      gender,
-      practice_name: (data.practiceName || '').trim() || null,
-      practice_phone: (data.practicePhone || '').trim() || null,
-      practice_address: (data.practiceAddress || '').trim() || null,
-      signature_url: (data.signatureUrl || '').trim() || null,
-    })
+    .update(updates)
     .eq('id', memberId)
     .eq('clinic_id', ctx.clinicId)
     .select('id')
