@@ -352,6 +352,9 @@ export async function provisionTenantWithTeam(formData: FormData) {
     return { error: `No se pudo crear la sede: ${locationError?.message}` }
   }
 
+  // 2.b Catálogo estándar de laboratorio (best-effort), igual que provisionTenant.
+  await seedLabCatalogForClinic(admin, clinic.id)
+
   // 3. Crear cada miembro del equipo.
   const results: { name: string; email: string; error?: string; emailError?: string }[] = []
   let ownerUserId: string | undefined
