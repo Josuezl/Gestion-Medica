@@ -121,11 +121,11 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
         <Metric title="Pacientes totales" value={(kpis.pacientes_total ?? 0).toLocaleString('es-HN')} icon={<Users size={20} />} accent="#64748b" />
       </div>
 
-      {/* Un reporte por fila, más grande */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+      {/* Dos reportes por fila (grandes pero sin ocupar toda la pantalla) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.5rem' }}>
         <ChartCard title="Consultas por médico">
           {porMedico.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={porMedico} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
                 <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
@@ -141,7 +141,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
 
         <ChartCard title="Pacientes atendidos por especialidad">
           {porEspecialidad.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={porEspecialidad} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
                 <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
@@ -157,9 +157,9 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
 
         <ChartCard title="Citas por estado">
           {citasEstado.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={380}>
+            <ResponsiveContainer width="100%" height={340}>
               <PieChart>
-                <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={80} outerRadius={140} paddingAngle={2} label={pieLabel} labelLine={false}>
+                <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={115} paddingAngle={2} label={pieLabel} labelLine={false}>
                   {citasEstado.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
@@ -174,9 +174,9 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Por género</p>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={105} label={pieLabel} labelLine={false}>
+                    <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
                       {generoData.map((d: any) => <Cell key={d.k} fill={GENDER_COLORS[d.k]} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
@@ -186,9 +186,9 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
               </div>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Adultos vs pediátricos</p>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
-                    <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={105} label={pieLabel} labelLine={false}>
+                    <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
                       {edadData.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
