@@ -2,7 +2,7 @@
 
 import React from 'react'
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, LabelList,
+  BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { STATUS_CONFIG } from '../StatusDropdown'
@@ -19,7 +19,6 @@ const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Femenino', N
 
 const title = (g?: string | null) => (g === 'F' ? 'Dra.' : 'Dr.')
 const parseLocal = (d: string) => { const [y, m, day] = d.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, day) }
-const diaLabel = (d: string) => parseLocal(d).toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })
 const fechaLarga = (d: string) => parseLocal(d).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
 
@@ -37,14 +36,14 @@ function Metric({ title, value, icon, accent }: { title: string; value: string |
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding: '1.25rem' }}>
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>{title}</h3>
+    <div className="card" style={{ padding: '1.5rem' }}>
+      <h3 style={{ margin: '0 0 1.25rem', fontSize: '1.1rem' }}>{title}</h3>
       {children}
     </div>
   )
 }
 
-const Empty = () => <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Sin datos en este periodo.</div>
+const Empty = () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Sin datos en este periodo.</div>
 
 export default function ReportsClient({ report, periodo, selectedDate, rpcMissing }: { report: any; periodo: string | null; selectedDate: string | null; rpcMissing: boolean }) {
   const onPickDate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,19 +52,13 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   }
 
   const Header = (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-      <div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Reportes</h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.1rem 0 0.6rem' }}>
-          Estadística operativa — {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}
-        </p>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#475569' }}>
-          Ver un día específico:
-          <input type="date" value={selectedDate || ''} max={todayStr} onChange={onPickDate}
-                 style={{ padding: '0.35rem 0.6rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem' }} />
-        </label>
-      </div>
-      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+    <div>
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Reportes</h2>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.1rem 0 0.7rem' }}>
+        Estadística operativa — {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}
+      </p>
+      {/* Controles: periodos + calendario, juntos */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
         {PERIODS.map(p => {
           const active = !selectedDate && periodo === p.key
           return (
@@ -76,6 +69,12 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
             </a>
           )
         })}
+        <span style={{ color: '#cbd5e1', margin: '0 0.15rem' }}>|</span>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem', color: '#475569' }}>
+          Día específico:
+          <input type="date" value={selectedDate || ''} max={todayStr} onChange={onPickDate}
+                 style={{ padding: '0.35rem 0.6rem', borderRadius: 999, border: '1px solid', borderColor: selectedDate ? 'var(--primary)' : '#e2e8f0', fontSize: '0.82rem', color: selectedDate ? 'var(--primary)' : '#475569', fontWeight: 600 }} />
+        </label>
       </div>
     </div>
   )
@@ -96,8 +95,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   const noShowRate = kpis.citas > 0 ? Math.round((kpis.no_show / kpis.citas) * 100) : 0
 
   const porMedico = (report.por_medico || []).map((d: any) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), total: d.total }))
-  const serie = (report.serie || []).map((d: any) => ({ ...d, label: diaLabel(d.dia) }))
-  const lineLabels = serie.length <= 8 // con muchos puntos las etiquetas estorban
+  const porEspecialidad = (report.por_especialidad || []).map((d: any) => ({ name: d.especialidad, total: d.total }))
   const citasEstado = (report.citas_estado || []).map((d: any) => ({
     name: STATUS_CONFIG[d.status]?.label || d.status, total: d.total, color: STATUS_CONFIG[d.status]?.dotColor || '#94a3b8',
   }))
@@ -123,52 +121,49 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
         <Metric title="Pacientes totales" value={(kpis.pacientes_total ?? 0).toLocaleString('es-HN')} icon={<Users size={20} />} accent="#64748b" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.5rem' }}>
+      {/* Un reporte por fila, más grande */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
         <ChartCard title="Consultas por médico">
           {porMedico.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={porMedico} margin={{ top: 20, right: 16, left: 0, bottom: 8 }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={porMedico} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
-                <XAxis dataKey="name" fontSize={11} interval={0} angle={-12} textAnchor="end" height={50} />
+                <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
                 <YAxis allowDecimals={false} fontSize={12} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Bar dataKey="total" name="Consultas" fill="#0d9488" radius={[6, 6, 0, 0]}>
-                  <LabelList dataKey="total" position="top" style={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }} />
+                <Bar dataKey="total" name="Consultas" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={90}>
+                  <LabelList dataKey="total" position="top" style={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
 
-        <ChartCard title="Tendencia (consultas y citas)">
-          {serie.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={serie} margin={{ top: 20, right: 16, left: 0, bottom: 8 }}>
+        <ChartCard title="Pacientes atendidos por especialidad">
+          {porEspecialidad.length === 0 ? <Empty /> : (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={porEspecialidad} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
-                <XAxis dataKey="label" fontSize={11} />
+                <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
                 <YAxis allowDecimals={false} fontSize={12} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: '0.75rem' }} />
-                <Line dataKey="consultas" name="Consultas" stroke="#0d9488" strokeWidth={2.5} dot={{ r: 3 }}>
-                  {lineLabels && <LabelList dataKey="consultas" position="top" style={{ fill: '#0d9488', fontSize: 11, fontWeight: 700 }} />}
-                </Line>
-                <Line dataKey="citas" name="Citas" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 3 }}>
-                  {lineLabels && <LabelList dataKey="citas" position="bottom" style={{ fill: '#4f46e5', fontSize: 11, fontWeight: 700 }} />}
-                </Line>
-              </LineChart>
+                <Bar dataKey="total" name="Pacientes" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={90}>
+                  <LabelList dataKey="total" position="top" style={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }} />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
 
         <ChartCard title="Citas por estado">
           {citasEstado.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={380}>
               <PieChart>
-                <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} label={pieLabel} labelLine={false}>
+                <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={80} outerRadius={140} paddingAngle={2} label={pieLabel} labelLine={false}>
                   {citasEstado.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
+                <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -176,28 +171,28 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
 
         <ChartCard title="Pacientes: demografía">
           {generoData.length === 0 && edadData.length === 0 ? <Empty /> : (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 150 }}>
-                <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.25rem' }}>Por género</p>
-                <ResponsiveContainer width="100%" height={210}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Por género</p>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={pieLabel} labelLine={false}>
+                    <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={105} label={pieLabel} labelLine={false}>
                       {generoData.map((d: any) => <Cell key={d.k} fill={GENDER_COLORS[d.k]} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                    <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
+                    <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ flex: 1, minWidth: 150 }}>
-                <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.25rem' }}>Adultos vs pediátricos</p>
-                <ResponsiveContainer width="100%" height={210}>
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Adultos vs pediátricos</p>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={pieLabel} labelLine={false}>
+                    <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={105} label={pieLabel} labelLine={false}>
                       {edadData.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                    <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
+                    <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
