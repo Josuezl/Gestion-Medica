@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { createAppointment, updateAppointmentStatus, updateAppointment } from './actions'
+import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import { 
   Calendar as CalendarIcon, 
@@ -226,6 +226,14 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   // --- Actions ---
   const handleStatusChange = async (appId: string, newStatus: string) => {
     await updateAppointmentStatus(appId, newStatus)
+  }
+
+  const handleDeleteAppointment = async (app: Appointment) => {
+    const name = `${app.patients?.first_name || ''} ${app.patients?.last_name || ''}`.trim() || 'este paciente'
+    if (!window.confirm(`¿Estás seguro que quieres eliminar esta cita programada de ${name}? Esta acción no se puede deshacer.`)) return
+    const res = await deleteAppointment(app.id)
+    if (res?.error) { alert(res.error); return }
+    router.refresh()
   }
 
   const handleOpenForm = (date?: Date, hour?: string, app?: Appointment) => {
@@ -699,11 +707,9 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     </svg>
                   </button>
                   
-                  {!['CANCELLED', 'NO_SHOW', 'COMPLETED'].includes(app.status) && (
-                    <button onClick={() => handleStatusChange(app.id, 'CANCELLED')} className="btn btn-secondary" style={{ padding: '0.4rem', borderRadius: '50%', backgroundColor: '#ffffff', color: '#e11d48', border: '1px solid #ffe4e6' }}>
-                      <X size={16} />
-                    </button>
-                  )}
+                  <button onClick={() => handleDeleteAppointment(app)} className="btn btn-secondary" style={{ padding: '0.4rem', borderRadius: '50%', backgroundColor: '#ffffff', color: '#e11d48', border: '1px solid #ffe4e6' }} title="Eliminar cita">
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
             )

@@ -204,3 +204,28 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
   revalidatePath('/dashboard')
   return { success: true }
 }
+
+/**
+ * Elimina (borra) una cita por completo. A diferencia de cancelar (que la deja como CANCELLED y sigue
+ * contando en reportes), esto la quita del dashboard Y de los reportes. Acotado a la clínica del usuario.
+ */
+export async function deleteAppointment(appointmentId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+  const { data: authProfile } = await supabase
+    .from('user_profiles').select('clinic_id').eq('id', user.id).single()
+  if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
+  // Desvincular signos pre-clínicos que apunten a esta cita (evita romper la FK al borrar).
+  await supabase.from('preclinical_vitals').update({ appointment_id: null })
+    .eq('appointment_id', appointmentId).eq('clinic_id', authProfile.clinic_id)
+
+  const { data: deleted, error } = await supabase
+    .from('appointments').delete().eq('id', appointmentId).eq('clinic_id', authProfile.clinic_id).select('id')
+  if (error) return { error: safeErrorMessage('No se pudo eliminar la cita.', 'deleteAppointment', error) }
+  if (!deleted || deleted.length === 0) return { error: 'No tienes permiso para eliminar esta cita.' }
+
+  revalidatePath('/dashboard')
+  return { success: true }
+}
