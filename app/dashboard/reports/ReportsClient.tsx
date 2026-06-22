@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import { STATUS_CONFIG } from '../StatusDropdown'
 import { createClient } from '@/utils/supabase/client'
-import { BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle, X, Loader2 } from 'lucide-react'
+import { BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle, X, Loader2, Download } from 'lucide-react'
 
 const PERIODS = [
   { key: 'hoy', label: 'Hoy' },
@@ -22,7 +22,7 @@ const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
   consultas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }],
   citas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }, { key: 'estado', label: 'Estado' }],
   no_show: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }],
-  pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }],
+  pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }, { key: 'creado_por', label: 'Creado por' }],
 }
 
 const title = (g?: string | null) => (g === 'F' ? 'Dra.' : 'Dr.')
@@ -74,6 +74,27 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
     setDetail({ tipo, label, rows: null })
     const { data } = await supabase.rpc('clinic_report_detail', { p_tipo: tipo, p_days: days, p_date: selectedDate })
     setDetail({ tipo, label, rows: Array.isArray(data) ? data : [] })
+  }
+
+  // Exporta el detalle visible a un CSV (con BOM UTF-8) que abre en Excel.
+  const downloadExcel = () => {
+    if (!detail?.rows?.length) return
+    const c = DETAIL_COLS[detail.tipo] || []
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const cell = (r: any, key: string) =>
+      key === 'fecha' ? fmtFecha(r.fecha)
+        : key === 'estado' ? (STATUS_CONFIG[r.estado]?.label || r.estado)
+        : (r[key] ?? '')
+    const csv = '﻿' + [
+      c.map(x => esc(x.label)).join(','),
+      ...detail.rows.map((r: any) => c.map(x => esc(cell(r, x.key))).join(',')),
+    ].join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${detail.label}_${selectedDate || PERIOD_LABELS[periodo || 'hoy']}.csv`.replace(/[\s/]+/g, '_')
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
   }
 
   const onPickDate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,11 +257,18 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
              onClick={() => setDetail(null)}>
           <div className="card" style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '1.25rem' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
                 {detail.label} <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.85rem' }}>· {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}</span>
               </h3>
-              <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} title="Cerrar"><X size={20} /></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {detail.rows && detail.rows.length > 0 && (
+                  <button onClick={downloadExcel} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.7rem', fontSize: '0.8rem' }} title="Descargar en Excel (CSV)">
+                    <Download size={15} /> Exportar a Excel
+                  </button>
+                )}
+                <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} title="Cerrar"><X size={20} /></button>
+              </div>
             </div>
             {detail.rows === null ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /></div>

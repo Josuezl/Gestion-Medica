@@ -154,6 +154,7 @@ export async function createPatient(formData: FormData, force = false) {
 
   const patientData = {
     clinic_id: profile.clinic_id,
+    created_by: user.id,
     first_name: firstName,
     last_name: lastName,
     id_card: idCard,
