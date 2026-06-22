@@ -162,7 +162,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
         .qr-cap-text { font-size: 8.5px; color: #64748b; margin: 2px 0 0; max-width: 150px; line-height: 1.35; }
         .qr-code { font-size: 9px; font-weight: 700; color: #0d9488; margin: 3px 0 0; letter-spacing: 0.06em; }
         .sign { text-align: center; min-width: 200px; }
-        .sign img { max-height: 88px; max-width: 250px; object-fit: contain; display: block; margin: 0 auto 3px; }
+        .sign img { max-height: 135px; max-width: 340px; object-fit: contain; display: block; margin: 0 auto 4px; }
         .sign-empty { height: 70px; }
         .sign-line { border-top: 1px solid #334155; padding-top: 3px; }
         .sign-name { margin: 0; font-size: 11.5px; font-weight: 700; color: #0f172a; }

@@ -148,7 +148,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
         .qr-cap-text { font-size: 9px; color: #64748b; margin: 2px 0 0; line-height: 1.3; }
         .qr-code { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; color: #0d9488; margin: 4px 0 0; letter-spacing: 0.04em; }
         .sign { text-align: center; min-width: 200px; }
-        .sign img { max-height: 92px; max-width: 270px; object-fit: contain; display: block; margin: 0 auto 4px; }
+        .sign img { max-height: 135px; max-width: 340px; object-fit: contain; display: block; margin: 0 auto 4px; }
         .sign-empty { height: 74px; }
         .sign-line { border-top: 1px solid #334155; padding-top: 4px; }
         .sign-name { margin: 0; font-size: 12.5px; font-weight: 700; color: #0f172a; }
