@@ -5,8 +5,9 @@ import { getPendingPreclinicalPatientIds } from './preclinical/actions'
 
 import { cookies } from 'next/headers'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ patientId?: string; nuevaCita?: string }> }) {
   const supabase = await createClient()
+  const sp = await searchParams
 
   // 1. Validar autenticación
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,6 +20,18 @@ export default async function DashboardPage() {
     .single()
 
   const clinicId = profile?.clinic_id
+
+  // Si venimos de "crear paciente → agendar cita", pre-seleccionar ese paciente en el modal de cita.
+  let preSelectedPatient: { id: string; name: string } | null = null
+  if (sp.patientId && clinicId) {
+    const { data: p } = await supabase
+      .from('patients')
+      .select('id, first_name, last_name')
+      .eq('id', sp.patientId)
+      .eq('clinic_id', clinicId)
+      .maybeSingle()
+    if (p) preSelectedPatient = { id: p.id, name: `${p.first_name} ${p.last_name}`.trim() }
+  }
 
   // Obtener la clínica seleccionada en el inicio de sesión
   const cookieStore = await cookies()
@@ -85,6 +98,8 @@ export default async function DashboardPage() {
       locations={locations || []}
       defaultLocationId={defaultLocationId}
       preclinicalPatientIds={preclinicalPatientIds}
+      preSelectedPatient={preSelectedPatient}
+      autoOpenAppointment={sp.nuevaCita === '1'}
       currentDoctor={{
         id: profile?.id || '',
         role: profile?.role || 'DOCTOR',

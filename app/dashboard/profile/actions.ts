@@ -1,0 +1,73 @@
+'use server'
+
+import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { safeErrorMessage } from '@/utils/errors'
+
+/**
+ * Actualiza el perfil del USUARIO ACTUAL (solo el suyo). Nunca toca role/clinic_id/is_org_admin.
+ * Los campos clínicos (especialidad, colegiación, datos de receta) solo aplican a médicos.
+ */
+export async function updateOwnProfile(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado.' }
+
+  const { data: me } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  const clinical = me?.role === 'DOCTOR' || me?.role === 'ADMIN'
+
+  const firstName = (formData.get('first_name') as string || '').trim()
+  const lastName = (formData.get('last_name') as string || '').trim()
+  if (!firstName || !lastName) return { error: 'Nombre y apellido son requeridos.' }
+  const g = formData.get('gender') as string
+  const gender = ['M', 'F', 'O'].includes(g) ? g : null
+
+  const updates: Record<string, any> = {
+    first_name: firstName,
+    last_name: lastName,
+    gender,
+    phone: (formData.get('phone') as string || '').trim() || null,
+  }
+  if (clinical) {
+    updates.specialty = (formData.get('specialty') as string || '').trim() || null
+    updates.professional_id = (formData.get('professional_id') as string || '').trim() || null
+    updates.practice_name = (formData.get('practice_name') as string || '').trim() || null
+    updates.practice_phone = (formData.get('practice_phone') as string || '').trim() || null
+    updates.practice_address = (formData.get('practice_address') as string || '').trim() || null
+  }
+
+  // Defensa en profundidad: acotar el UPDATE a la propia fila (id = usuario autenticado).
+  const { error } = await supabase.from('user_profiles').update(updates).eq('id', user.id)
+  if (error) return { error: safeErrorMessage('No se pudo guardar tu información.', 'updateOwnProfile', error) }
+
+  revalidatePath('/dashboard/profile')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+/**
+ * Cambia la contraseña del usuario actual. Verifica la contraseña ACTUAL re-autenticando
+ * (signInWithPassword) antes de actualizarla.
+ */
+export async function changeOwnPassword(formData: FormData) {
+  const current = (formData.get('current_password') as string) || ''
+  const next = (formData.get('new_password') as string) || ''
+  const confirm = (formData.get('confirm_password') as string) || ''
+
+  if (next.length < 8) return { error: 'La nueva contraseña debe tener al menos 8 caracteres.' }
+  if (next !== confirm) return { error: 'La nueva contraseña y su confirmación no coinciden.' }
+  if (!current) return { error: 'Ingresa tu contraseña actual.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return { error: 'No autorizado.' }
+
+  // Verificar la contraseña actual (re-autenticación). Mismo usuario → mantiene la sesión.
+  const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: current })
+  if (signInErr) return { error: 'La contraseña actual es incorrecta.' }
+
+  const { error } = await supabase.auth.updateUser({ password: next })
+  if (error) return { error: safeErrorMessage('No se pudo cambiar la contraseña.', 'changeOwnPassword', error) }
+
+  return { success: true }
+}

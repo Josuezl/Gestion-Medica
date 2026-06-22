@@ -77,6 +77,8 @@ interface AgendaClientProps {
   locations: Location[]
   defaultLocationId?: string
   preclinicalPatientIds?: string[]
+  preSelectedPatient?: { id: string; name: string } | null
+  autoOpenAppointment?: boolean
   currentDoctor: { id: string; role: string; isOrgAdmin?: boolean }
 }
 
@@ -110,7 +112,7 @@ const getWeekDays = (date: Date) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export default function AgendaClient({ patients, initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], currentDoctor }: AgendaClientProps) {
+export default function AgendaClient({ patients, initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -243,6 +245,17 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     else setSelectedHourForForm('08:00')
     setShowForm(true)
   }
+
+  // Al venir de "Registrar Paciente" → "Sí, agendar cita": abre el modal con el paciente ya seleccionado.
+  useEffect(() => {
+    if (autoOpenAppointment && preSelectedPatient?.id) {
+      setEditAppointment(null)
+      setSelectedPatientId(preSelectedPatient.id)
+      setPatientSearch(preSelectedPatient.name)
+      setShowForm(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handlePrev = () => {
     const d = new Date(selectedDate)

@@ -706,6 +706,15 @@ export default function PatientDetailsClient({
                 ⚠️ No se registró teléfono — puedes agregarlo con el botón <strong>“Editar Paciente”</strong>.
               </span>
             )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.7rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600 }}>¿Agendar una cita para {patient.first_name}?</span>
+              <a href={`/dashboard?patientId=${patient.id}&nuevaCita=1`} className="btn btn-primary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <Calendar size={14} /> Sí, agendar cita
+              </a>
+              <button type="button" onClick={() => setShowCreatedBanner(false)} className="btn btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}>
+                Ahora no
+              </button>
+            </div>
           </div>
           <button onClick={() => setShowCreatedBanner(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', padding: '2px', flexShrink: 0 }} title="Cerrar">
             <X size={18} />
