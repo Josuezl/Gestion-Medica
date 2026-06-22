@@ -19,9 +19,9 @@ const GENDER_COLORS: Record<string, string> = { M: '#3b82f6', F: '#ec4899', ND: 
 const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Femenino', ND: 'Sin definir' }
 
 const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
-  consultas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }],
-  citas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'estado', label: 'Estado' }],
-  no_show: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }],
+  consultas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }],
+  citas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }, { key: 'estado', label: 'Estado' }],
+  no_show: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }],
   pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }],
 }
 
@@ -48,6 +48,7 @@ function Metric({ title, value, icon, accent, onClick }: { title: string; value:
       <div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{title}</div>
         <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
+        {onClick && <div style={{ fontSize: '0.7rem', color: accent, fontWeight: 700, marginTop: '0.2rem' }}>Click para ver detalle →</div>}
       </div>
     </div>
   )
