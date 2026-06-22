@@ -35,7 +35,7 @@ begin
     -- Serie diaria del periodo: consultas, pacientes nuevos y citas por día
     'serie', coalesce((
       select jsonb_agg(jsonb_build_object(
-               'dia', d::text,
+               'dia', d::date::text,
                'consultas', (select count(*) from consultations c where c.clinic_id = v_clinic and (c.created_at at time zone v_tz)::date = d),
                'pacientes_nuevos', (select count(*) from patients p where p.clinic_id = v_clinic and (p.created_at at time zone v_tz)::date = d),
                'citas', (select count(*) from appointments a where a.clinic_id = v_clinic and (a.scheduled_at at time zone v_tz)::date = d)

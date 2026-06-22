@@ -14,7 +14,8 @@ const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Femenino', N
 
 const title = (g?: string | null) => (g === 'F' ? 'Dra.' : 'Dr.')
 const diaLabel = (d: string) => {
-  const [y, m, day] = d.split('-').map(Number)
+  // d puede venir como 'YYYY-MM-DD' o 'YYYY-MM-DD 00:00:00+00'; tomar solo la fecha.
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
   return new Date(y, m - 1, day).toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })
 }
 
