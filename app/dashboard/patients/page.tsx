@@ -206,25 +206,6 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                       </td>
                       <td data-label="Acciones" style={{ textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
-                          <a
-                            href={`/dashboard/patients/${patient.id}?edit=true`}
-                            className="btn btn-secondary"
-                            style={styles.viewBtn}
-                            title="Editar Información"
-                          >
-                            <Edit size={15} />
-                            <span>Editar</span>
-                          </a>
-                          <a
-                            href={`/dashboard/patients/${patient.id}`}
-                            className="btn btn-secondary"
-                            style={styles.viewBtn}
-                            title="Ver Expediente Completo"
-                          >
-                            <Eye size={15} />
-                            <span>Expediente</span>
-                          </a>
-                          {canVitals && <PatientVitalsButton patient={patient} />}
                           {clinical && (
                             <a
                               href={`/dashboard/consultations/new?patientId=${patient.id}`}
@@ -236,6 +217,25 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                               <span>Consulta</span>
                             </a>
                           )}
+                          <a
+                            href={`/dashboard/patients/${patient.id}`}
+                            className="btn btn-secondary"
+                            style={styles.viewBtn}
+                            title="Ver Expediente Completo"
+                          >
+                            <Eye size={15} />
+                            <span>Expediente</span>
+                          </a>
+                          <a
+                            href={`/dashboard/patients/${patient.id}?edit=true`}
+                            className="btn btn-secondary"
+                            style={styles.viewBtn}
+                            title="Editar Información"
+                          >
+                            <Edit size={15} />
+                            <span>Editar</span>
+                          </a>
+                          {canVitals && <PatientVitalsButton patient={patient} />}
                         </div>
                       </td>
                     </tr>
@@ -407,6 +407,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '0.5rem',
     justifyContent: 'flex-end',
+    flexWrap: 'wrap',
   },
   viewBtn: {
     padding: '0.4rem 0.8rem',
