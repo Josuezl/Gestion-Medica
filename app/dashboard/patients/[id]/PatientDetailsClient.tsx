@@ -697,28 +697,28 @@ export default function PatientDetailsClient({
 
   return (
     <div style={styles.container}>
+      {/* Modal tras registrar: ofrece agendar cita (llama más la atención que un banner). */}
       {showCreatedBanner && (
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem', padding: '0.85rem 1rem', marginBottom: '1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', color: '#065f46', fontSize: '0.9rem' }}>
-          <div>
-            ✅ <strong>Paciente registrado.</strong>
-            {(!patient.phone || String(patient.phone).trim() === '') && (
-              <span style={{ display: 'block', marginTop: '0.25rem', color: '#92400e' }}>
-                ⚠️ No se registró teléfono — puedes agregarlo con el botón <strong>“Editar Paciente”</strong>.
-              </span>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.7rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 600 }}>¿Agendar una cita para {patient.first_name}?</span>
-              <a href={`/dashboard?patientId=${patient.id}&nuevaCita=1`} className="btn btn-primary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Calendar size={14} /> Sí, agendar cita
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', padding: '1.75rem', maxWidth: '440px', width: '100%', boxShadow: '0 20px 50px rgba(15,23,42,0.3)' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 0.5rem', color: '#0f172a' }}>✅ Paciente registrado</h3>
+            <p style={{ fontSize: '0.92rem', color: '#475569', lineHeight: 1.55, margin: '0 0 1.5rem' }}>
+              <strong>{patient.first_name} {patient.last_name}</strong> se registró correctamente. ¿Quieres agendarle una cita ahora?
+              {(!patient.phone || String(patient.phone).trim() === '') && (
+                <span style={{ display: 'block', marginTop: '0.6rem', color: '#92400e', fontSize: '0.85rem' }}>
+                  ⚠️ No se registró teléfono — puedes agregarlo con “Editar Paciente”.
+                </span>
+              )}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <a href={`/dashboard?patientId=${patient.id}&nuevaCita=1`} className="btn btn-primary" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                <Calendar size={16} /> Sí, agendar cita
               </a>
-              <button type="button" onClick={() => setShowCreatedBanner(false)} className="btn btn-secondary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}>
+              <button type="button" onClick={() => setShowCreatedBanner(false)} className="btn btn-secondary" style={{ width: '100%' }}>
                 Ahora no
               </button>
             </div>
           </div>
-          <button onClick={() => setShowCreatedBanner(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', padding: '2px', flexShrink: 0 }} title="Cerrar">
-            <X size={18} />
-          </button>
         </div>
       )}
       {/* Patient Profile Header Card */}
