@@ -1,12 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   BarChart, Bar, PieChart, Pie, Cell, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { STATUS_CONFIG } from '../StatusDropdown'
-import { BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
+import { BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle, X, Loader2 } from 'lucide-react'
 
 const PERIODS = [
   { key: 'hoy', label: 'Hoy' },
@@ -17,14 +18,32 @@ const PERIOD_LABELS: Record<string, string> = { hoy: 'Hoy', '7': 'Últimos 7 dí
 const GENDER_COLORS: Record<string, string> = { M: '#3b82f6', F: '#ec4899', ND: '#9ca3af' }
 const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Femenino', ND: 'Sin definir' }
 
+const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
+  consultas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }],
+  citas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'estado', label: 'Estado' }],
+  no_show: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }],
+  pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }],
+}
+
 const title = (g?: string | null) => (g === 'F' ? 'Dra.' : 'Dr.')
 const parseLocal = (d: string) => { const [y, m, day] = d.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, day) }
 const fechaLarga = (d: string) => parseLocal(d).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+// 'YYYY-MM-DDTHH:MM:SS' (hora local de la BD) → 'DD/MM/YYYY HH:MM' sin reinterpretar zona horaria.
+const fmtFecha = (s: string) => {
+  if (!s) return '—'
+  const [d, t] = String(s).split('T')
+  const [y, m, day] = (d || '').split('-')
+  const hm = (t || '').slice(0, 5)
+  return day ? `${day}/${m}/${y}${hm ? ' ' + hm : ''}` : String(s)
+}
 
-function Metric({ title, value, icon, accent }: { title: string; value: string | number; icon: React.ReactNode; accent: string }) {
+function Metric({ title, value, icon, accent, onClick }: { title: string; value: string | number; icon: React.ReactNode; accent: string; onClick?: () => void }) {
   return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', padding: '1.1rem 1.25rem' }}>
+    <div className="card" onClick={onClick} title={onClick ? 'Ver detalle' : undefined}
+      style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', padding: '1.1rem 1.25rem', cursor: onClick ? 'pointer' : 'default', transition: 'box-shadow .15s, transform .15s' }}
+      onMouseEnter={onClick ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 18px rgba(15,23,42,0.12)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' } : undefined}
+      onMouseLeave={onClick ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = ''; (e.currentTarget as HTMLDivElement).style.transform = '' } : undefined}>
       <div style={{ width: 42, height: 42, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${accent}1a`, color: accent, flexShrink: 0 }}>{icon}</div>
       <div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{title}</div>
@@ -46,6 +65,16 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 const Empty = () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Sin datos en este periodo.</div>
 
 export default function ReportsClient({ report, periodo, selectedDate, rpcMissing }: { report: any; periodo: string | null; selectedDate: string | null; rpcMissing: boolean }) {
+  const supabase = createClient()
+  const days = periodo === '30' ? 30 : periodo === '7' ? 7 : 1
+  const [detail, setDetail] = useState<{ tipo: string; label: string; rows: any[] | null } | null>(null)
+
+  const openDetail = async (tipo: string, label: string) => {
+    setDetail({ tipo, label, rows: null })
+    const { data } = await supabase.rpc('clinic_report_detail', { p_tipo: tipo, p_days: days, p_date: selectedDate })
+    setDetail({ tipo, label, rows: Array.isArray(data) ? data : [] })
+  }
+
   const onPickDate = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value
     window.location.href = v ? `/dashboard/reports?fecha=${v}` : '/dashboard/reports?periodo=hoy'
@@ -57,7 +86,6 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.1rem 0 0.7rem' }}>
         Estadística operativa — {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}
       </p>
-      {/* Controles: periodos + calendario, juntos */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
         {PERIODS.map(p => {
           const active = !selectedDate && periodo === p.key
@@ -108,20 +136,21 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   ].filter(d => d.total > 0)
 
   const pieLabel = (e: any) => `${e.value}`
+  const cols = detail ? DETAIL_COLS[detail.tipo] || [] : []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {Header}
 
+      {/* KPIs — clickeables: abren el detalle de lo que cuentan */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-        <Metric title="Consultas" value={kpis.consultas ?? 0} icon={<BarChart3 size={20} />} accent="#0d9488" />
-        <Metric title="Citas" value={kpis.citas ?? 0} icon={<CalendarCheck size={20} />} accent="#4f46e5" />
-        <Metric title="Pacientes nuevos" value={kpis.pacientes_nuevos ?? 0} icon={<UserPlus size={20} />} accent="#0ea5e9" />
-        <Metric title="No-asistencia" value={`${noShowRate}%`} icon={<AlertTriangle size={20} />} accent="#f59e0b" />
-        <Metric title="Pacientes totales" value={(kpis.pacientes_total ?? 0).toLocaleString('es-HN')} icon={<Users size={20} />} accent="#64748b" />
+        <Metric title="Consultas" value={kpis.consultas ?? 0} icon={<BarChart3 size={20} />} accent="#0d9488" onClick={() => openDetail('consultas', 'Consultas')} />
+        <Metric title="Citas" value={kpis.citas ?? 0} icon={<CalendarCheck size={20} />} accent="#4f46e5" onClick={() => openDetail('citas', 'Citas')} />
+        <Metric title="Pacientes nuevos" value={kpis.pacientes_nuevos ?? 0} icon={<UserPlus size={20} />} accent="#0ea5e9" onClick={() => openDetail('pacientes_nuevos', 'Pacientes nuevos')} />
+        <Metric title="No-asistencia" value={`${noShowRate}%`} icon={<AlertTriangle size={20} />} accent="#f59e0b" onClick={() => openDetail('no_show', 'Citas no asistidas')} />
+        <Metric title="Pacientes totales" value={(kpis.pacientes_total ?? 0).toLocaleString('es-HN')} icon={<Users size={20} />} accent="#64748b" onClick={() => { window.location.href = '/dashboard/patients' }} />
       </div>
 
-      {/* Dos reportes por fila (grandes pero sin ocupar toda la pantalla) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.5rem' }}>
         <ChartCard title="Consultas por médico">
           {porMedico.length === 0 ? <Empty /> : (
@@ -200,6 +229,52 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
           )}
         </ChartCard>
       </div>
+
+      {/* Modal de detalle del KPI */}
+      {detail && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+             onClick={() => setDetail(null)}>
+          <div className="card" style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '1.25rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
+                {detail.label} <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.85rem' }}>· {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}</span>
+              </h3>
+              <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} title="Cerrar"><X size={20} /></button>
+            </div>
+            {detail.rows === null ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /></div>
+            ) : detail.rows.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>Sin registros en este periodo.</div>
+            ) : (
+              <div style={{ overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
+                      {cols.map(c => <th key={c.key} style={{ padding: '0.5rem 0.6rem', position: 'sticky', top: 0, background: '#fff' }}>{c.label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detail.rows.map((r: any, i: number) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        {cols.map(c => (
+                          <td key={c.key} style={{ padding: '0.5rem 0.6rem' }}>
+                            {c.key === 'fecha' ? fmtFecha(r.fecha)
+                              : c.key === 'estado' ? (STATUS_CONFIG[r.estado]?.label || r.estado)
+                              : (r[c.key] || '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {detail.rows.length >= 500 && (
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', textAlign: 'center', marginTop: '0.5rem' }}>Mostrando los 500 más recientes.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
