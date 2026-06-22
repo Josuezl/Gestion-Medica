@@ -100,10 +100,10 @@ export default async function DashboardLayout({
             <SidebarLink href="/dashboard/consultations" label="Historial de Consultas" icon={<FileText size={20} />} />
           )}
           <SidebarLink href="/dashboard/reports" label="Reportes" icon={<BarChart3 size={20} />} />
+          <SidebarLink href="/dashboard/profile" label="Usuario" icon={<UserIcon size={20} />} />
           {profile?.is_org_admin && (
             <SidebarLink href="/dashboard/config" label="Configuración" icon={<Settings size={20} />} />
           )}
-          <SidebarLink href="/dashboard/profile" label="Usuario" icon={<UserIcon size={20} />} />
         </nav>
 
         <div style={styles.sidebarFooter}>
