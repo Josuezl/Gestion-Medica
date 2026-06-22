@@ -604,6 +604,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               <div key={app.id} className="appt-card" style={{
                 display: 'flex',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                rowGap: '0.6rem',
                 backgroundColor: '#f8fafc',
                 borderRadius: '12px',
                 padding: '0.75rem 1rem',
@@ -631,27 +633,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   )}
                 </div>
                 
-                <div className="appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <StatusDropdown status={app.status} onChange={(s) => handleStatusChange(app.id, s)} />
-                  
-                  {app.status === 'PENDING' && (
-                    <button onClick={() => handleStatusChange(app.id, 'CONFIRMED')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b' }}>
-                      <CheckCircle size={14} color="#1e293b" /> Confirmar
-                    </button>
-                  )}
-                  
-                  {app.status === 'CONFIRMED' && (
-                    <button onClick={() => handleStatusChange(app.id, 'WAITING')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>
-                      <User size={14} /> Llegó
-                    </button>
-                  )}
-
-                  {canTakeVitals && app.patients?.id && (
-                    <button onClick={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: preclinicalSet.has(app.patients.id) ? '#dcfce7' : '#f0f9ff', color: preclinicalSet.has(app.patients.id) ? '#166534' : '#0369a1', border: `1px solid ${preclinicalSet.has(app.patients.id) ? '#bbf7d0' : '#bae6fd'}` }} title={preclinicalSet.has(app.patients.id) ? 'Signos listos — editar' : 'Tomar signos vitales (pre-clínica)'}>
-                      <Stethoscope size={14} /> {preclinicalSet.has(app.patients.id) ? 'Signos listos' : 'Tomar signos'}
-                    </button>
-                  )}
-
+                <div className="appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: '0.5rem' }}>
                   {isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
                     <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
                       <Clipboard size={14} /> Iniciar Consulta
@@ -661,6 +643,26 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                   {app.patients?.id && (
                     <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#4f46e5', border: '1px solid #4f46e5', color: '#ffffff' }} title="Abrir expediente del paciente">
                       <FileText size={14} color="#ffffff" /> Expediente
+                    </button>
+                  )}
+
+                  <StatusDropdown status={app.status} onChange={(s) => handleStatusChange(app.id, s)} />
+
+                  {app.status === 'PENDING' && (
+                    <button onClick={() => handleStatusChange(app.id, 'CONFIRMED')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b' }}>
+                      <CheckCircle size={14} color="#1e293b" /> Confirmar
+                    </button>
+                  )}
+
+                  {app.status === 'CONFIRMED' && (
+                    <button onClick={() => handleStatusChange(app.id, 'WAITING')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>
+                      <User size={14} /> Llegó
+                    </button>
+                  )}
+
+                  {canTakeVitals && app.patients?.id && (
+                    <button onClick={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: preclinicalSet.has(app.patients.id) ? '#dcfce7' : '#f0f9ff', color: preclinicalSet.has(app.patients.id) ? '#166534' : '#0369a1', border: `1px solid ${preclinicalSet.has(app.patients.id) ? '#bbf7d0' : '#bae6fd'}` }} title={preclinicalSet.has(app.patients.id) ? 'Signos listos — editar' : 'Tomar signos vitales (pre-clínica)'}>
+                      <Stethoscope size={14} /> {preclinicalSet.has(app.patients.id) ? 'Signos listos' : 'Tomar signos'}
                     </button>
                   )}
 

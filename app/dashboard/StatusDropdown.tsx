@@ -11,7 +11,7 @@ export const STATUS_CONFIG: Record<string, { label: string, color: string, dotCo
   CANCELLED: { label: 'Cancelada', color: '#fee2e2', dotColor: '#ef4444', class: 'status-cancelled' },
   CONFIRMED: { label: 'Confirmada', color: '#dcfce7', dotColor: '#22c55e', class: 'status-confirmed' },
   NO_SHOW: { label: 'No se presento', color: '#f3f4f6', dotColor: '#6b7280', class: 'status-no-show' },
-  WAITING: { label: 'En Sala', color: '#fef3c7', dotColor: '#f59e0b', class: 'status-waiting' },
+  WAITING: { label: 'En sala de espera', color: '#fef3c7', dotColor: '#f59e0b', class: 'status-waiting' },
   IN_PROGRESS: { label: 'En consulta', color: '#dbeafe', dotColor: '#3b82f6', class: 'status-in-progress' },
   COMPLETED: { label: 'Realizada', color: '#d1fae5', dotColor: '#10b981', class: 'status-completed' },
 }
