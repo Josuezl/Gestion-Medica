@@ -62,6 +62,9 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
+  // Si el médico usa SU PROPIO logo, este suele incluir su nombre/especialidad → se ocultan del
+  // encabezado. Con el logo global de la clínica (o sin logo) sí se muestran.
+  const usingOwnLogo = !!(doctor as any).practice_logo_url
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   const c: any = consultation
@@ -115,7 +118,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
 
         /* Cabecera centrada (igual a la receta) */
         .header { text-align: center; }
-        .header-logo { display: block; margin: 0 auto 4px; max-height: 88px; max-width: 52%; object-fit: contain; }
+        .header-logo { display: block; margin: 0 auto 4px; max-height: 100px; max-width: 60%; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 3px 0 0; font-size: 10px; color: #64748b; }
         .doc-block { margin-top: 7px; }
@@ -182,10 +185,12 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
               <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
             )}
             <p className="clinic-detail">Tel: {doctor.practice_phone || clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{doctor.practice_address || clinic.address || 'Honduras'}</p>
-            <div className="doc-block">
-              <h2 className="doctor-name">{docName}</h2>
-              <p className="doctor-specialty">{docSpecialty}</p>
-            </div>
+            {!usingOwnLogo && (
+              <div className="doc-block">
+                <h2 className="doctor-name">{docName}</h2>
+                <p className="doctor-specialty">{docSpecialty}</p>
+              </div>
+            )}
           </div>
 
           <p className="doc-title">Incapacidad Médica</p>
