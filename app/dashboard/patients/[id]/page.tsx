@@ -102,6 +102,16 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     .neq('medical_leave', '')
     .order('created_at', { ascending: false })
 
+  // 8. Cargar referencias médicas (consultas con `referral`). Misma lógica que incapacidades:
+  //    para todos los roles, solo columnas no sensibles.
+  const { data: referrals } = await supabase
+    .from('consultations')
+    .select('id, created_at, verification_code, referral, user_profiles(first_name, last_name, gender)')
+    .eq('patient_id', patientId)
+    .not('referral', 'is', null)
+    .neq('referral', '')
+    .order('created_at', { ascending: false })
+
   return (
     <PatientDetailsClient
       patient={patient}
@@ -110,6 +120,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       medicalLeaves={medicalLeaves || []}
+      referrals={referrals || []}
       showRecordNumber={showRecordNumber}
       initialEdit={isEditing}
       justCreated={justCreated}

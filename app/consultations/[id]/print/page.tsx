@@ -8,6 +8,7 @@ import { formatDateTimeHN } from '@/utils/datetime'
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 function calculateAge(birthDateString: string) {
@@ -19,9 +20,12 @@ function calculateAge(birthDateString: string) {
   return age
 }
 
-export default async function PrintConsultationSummaryPage({ params }: PageProps) {
+export default async function PrintConsultationSummaryPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params
   const consultationId = resolvedParams.id
+  const resolvedSearchParams = searchParams ? await searchParams : {}
+  // Modo "referencia": muestra solo Motivo de Consulta + Motivo de Referencia (en vez del resumen completo).
+  const isReferral = resolvedSearchParams?.doc === 'referral'
 
   const supabase = await createClient()
 
@@ -58,7 +62,8 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const qrDataUrl = await QRCode.toDataURL(`${SITE_URL}/verificar/${consultation.verification_code}`, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
+  const verifyUrl = `${SITE_URL}/verificar/${consultation.verification_code}${isReferral ? '?doc=referral' : ''}`
+  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
@@ -71,12 +76,20 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   const hc = c.head_circumference
   const hasVitals = c.weight || c.height || c.blood_pressure || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
-  const sections = [
-    { title: 'Motivo de Consulta', value: c.reason_for_visit },
-    { title: 'Sintomatología / Anamnesis', value: c.symptoms },
-    { title: 'Diagnóstico', value: c.diagnosis },
-    { title: 'Plan de Tratamiento / Recomendaciones', value: c.treatment_plan },
-  ].filter(s => s.value && String(s.value).trim() !== '')
+  const sections = (isReferral
+    ? [
+        { title: 'Motivo de Consulta', value: c.reason_for_visit },
+        { title: 'Motivo de Referencia', value: c.referral },
+      ]
+    : [
+        { title: 'Motivo de Consulta', value: c.reason_for_visit },
+        { title: 'Sintomatología / Anamnesis', value: c.symptoms },
+        { title: 'Diagnóstico', value: c.diagnosis },
+        { title: 'Plan de Tratamiento / Recomendaciones', value: c.treatment_plan },
+      ]
+  ).filter(s => s.value && String(s.value).trim() !== '')
+  // En referencia no se muestran vitales ni la incapacidad.
+  const showVitals = hasVitals && !isReferral
 
   return (
     <>
@@ -193,7 +206,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
             )}
           </div>
 
-          <p className="doc-title">Incapacidad Médica</p>
+          <p className="doc-title">{isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}</p>
           <div className="divider" />
 
           {/* Paciente */}
@@ -219,7 +232,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
                 </span>
               </div>
             </div>
-            {hasVitals && (
+            {showVitals && (
               <div className="vitals">
                 {c.weight && <span className="vital">Peso: <strong>{c.weight} kg</strong></span>}
                 {c.height && <span className="vital">Talla: <strong>{c.height} cm</strong></span>}
@@ -242,7 +255,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
               </div>
             ))}
 
-            {c.medical_leave && String(c.medical_leave).trim() !== '' && (
+            {!isReferral && c.medical_leave && String(c.medical_leave).trim() !== '' && (
               <div className="section">
                 <h3 className="section-title">Incapacidad Médica</h3>
                 <p className="section-body">{c.medical_leave}</p>

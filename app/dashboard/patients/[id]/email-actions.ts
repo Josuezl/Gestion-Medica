@@ -342,6 +342,81 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
 }
 
 /**
+ * Server Action: Enviar una referencia médica por correo (enlace verificable, sin PDF).
+ * El documento muestra Motivo de consulta + Motivo de referencia.
+ */
+export async function sendReferralByEmail(patientId: string, consultationId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*, clinics(*)')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
+
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single()
+  if (!patient) return { error: 'Paciente no encontrado' }
+  if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado.' }
+
+  const { data: consultation } = await supabase
+    .from('consultations')
+    .select('*, user_profiles(first_name, last_name, gender)')
+    .eq('id', consultationId)
+    .single()
+  if (!consultation) return { error: 'Consulta no encontrada' }
+  if (consultation.clinic_id !== profile.clinic_id) return { error: 'No autorizado' }
+  if (!consultation.referral || String(consultation.referral).trim() === '') {
+    return { error: 'Esta consulta no tiene una referencia registrada.' }
+  }
+  if (!consultation.verification_code) return { error: 'La referencia no tiene código de verificación.' }
+
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
+  const cd: any = consultation.user_profiles
+  const doctorName = cd
+    ? doctorShortName(cd.first_name, cd.last_name, cd.gender)
+    : doctorShortName(profile.first_name, profile.last_name, profile.gender)
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const summary: { label: string; value: string }[] = []
+  if (consultation.reason_for_visit) summary.push({ label: 'Motivo de consulta', value: consultation.reason_for_visit })
+  summary.push({ label: 'Motivo de referencia', value: consultation.referral })
+
+  const result = await sendDocumentLinkEmail({
+    toEmail: patient.email,
+    subject: `Referencia Médica - ${consultation.verification_code} | ${clinicName}`,
+    docTitle: 'Referencia Médica',
+    clinicName,
+    clinicPhone: profile.practice_phone || profile.clinics?.phone,
+    clinicAddress: profile.practice_address || profile.clinics?.address,
+    doctorName,
+    doctorSpecialty: profile.specialty,
+    patientName: `${patient.first_name} ${patient.last_name}`,
+    date: formatDateTimeHN(consultation.created_at),
+    verificationCode: consultation.verification_code,
+    verifyUrl: `${siteUrl}/verificar/${consultation.verification_code}?doc=referral`,
+    summary,
+  })
+
+  if (!result.success) return { error: result.error || 'Error al enviar correo.' }
+
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_REFERRAL_EMAIL',
+    p_record_id: consultationId,
+    p_table_name: 'consultations'
+  })
+
+  return { success: true }
+}
+
+/**
  * Server Action: Actualizar medicamentos e indicaciones de una receta existente
  */
 export async function updatePrescription(

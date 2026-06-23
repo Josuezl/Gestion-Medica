@@ -62,6 +62,7 @@ export default function NewConsultationClient({
     prescriptionId: string | null
     labOrderId: string | null
     hasMedicalLeave: boolean
+    hasReferral: boolean
     hasPrescription: boolean
     hasLabOrder: boolean
   } | null>(null)
@@ -113,12 +114,13 @@ export default function NewConsultationClient({
     }
 
     // Si hay receta, incapacidad y/o orden de laboratorio, ofrecer imprimir antes de salir.
-    if (r && (r.hasMedicalLeave || r.hasPrescription || r.hasLabOrder)) {
+    if (r && (r.hasMedicalLeave || r.hasReferral || r.hasPrescription || r.hasLabOrder)) {
       setPrintModal({
         consultationId: r.consultationId,
         prescriptionId: r.prescriptionId ?? null,
         labOrderId: r.labOrderId ?? null,
         hasMedicalLeave: !!r.hasMedicalLeave,
+        hasReferral: !!r.hasReferral,
         hasPrescription: !!r.hasPrescription,
         hasLabOrder: !!r.hasLabOrder,
       })
@@ -172,6 +174,17 @@ export default function NewConsultationClient({
                 >
                   <Printer size={16} />
                   Imprimir Incapacidad
+                </button>
+              )}
+              {printModal.hasReferral && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                  onClick={() => window.open(`/consultations/${printModal.consultationId}/print?doc=referral`, '_blank')}
+                >
+                  <Printer size={16} />
+                  Imprimir Referencia
                 </button>
               )}
               {printModal.hasLabOrder && printModal.labOrderId && (
@@ -588,6 +601,23 @@ export default function NewConsultationClient({
                   className="form-input"
                   name="medical_leave"
                   placeholder="Días de incapacidad y motivo (si aplica)..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* 7. Referencia Médica (referir a otro médico/hospital) */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={styles.sectionTitle}>
+                <Activity size={18} color="var(--primary)" />
+                Referencia Médica
+              </h3>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <textarea
+                  className="form-input"
+                  name="referral"
+                  placeholder="Motivo de la referencia y a quién/dónde se refiere (si aplica)..."
                   rows={3}
                 />
               </div>

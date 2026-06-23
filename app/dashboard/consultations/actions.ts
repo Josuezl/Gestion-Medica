@@ -27,6 +27,7 @@ export async function createConsultation(
   const symptoms = formData.get('symptoms') as string || null
   const physicalExam = formData.get('physical_exam') as string || null
   const medicalLeave = formData.get('medical_leave') as string || null
+  const referral = formData.get('referral') as string || null
   const diagnosis = formData.get('diagnosis') as string
   const treatmentPlan = formData.get('treatment_plan') as string
 
@@ -63,6 +64,7 @@ export async function createConsultation(
       symptoms,
       physical_exam: physicalExam,
       medical_leave: medicalLeave,
+      referral,
       diagnosis,
       treatment_plan: treatmentPlan,
       blood_pressure: bp,
@@ -226,6 +228,7 @@ export async function createConsultation(
     success: true,
     consultationId: consultation.id,
     hasMedicalLeave: !!(medicalLeave && medicalLeave.trim()),
+    hasReferral: !!(referral && referral.trim()),
     hasPrescription: !!(medicines && medicines.length > 0 && prescriptionId),
     prescriptionId,
     hasLabOrder: !!labOrderId,

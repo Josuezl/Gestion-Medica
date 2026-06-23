@@ -16,7 +16,7 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
   patient: any
   appUrl: string
   onClose: () => void
-  docType?: 'prescription' | 'laborder' | 'incapacidad'
+  docType?: 'prescription' | 'laborder' | 'incapacidad' | 'referral'
 }) {
   if (!presc) return null
 
@@ -28,16 +28,22 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
     onClose()
   }
 
+  // El enlace público; la referencia agrega ?doc=referral para que /verificar muestre esa vista.
+  const verifyLink = `${appUrl}/verificar/${presc.verification_code}${docType === 'referral' ? '?doc=referral' : ''}`
+
   // Texto descriptivo del documento según el tipo.
   const docNoun = docType === 'laborder'
     ? 'la siguiente orden de laboratorio'
     : docType === 'incapacidad'
       ? 'su incapacidad médica'
-      : 'la siguiente receta médica'
+      : docType === 'referral'
+        ? 'su referencia médica'
+        : 'la siguiente receta médica'
 
+  const docLabel = docType === 'laborder' ? 'orden de laboratorio' : docType === 'referral' ? 'referencia médica' : 'incapacidad médica'
   const intro = docType === 'prescription'
     ? 'Seleccione el nivel de seguridad para compartir la receta médica con el paciente:'
-    : `Se compartirá con el paciente un enlace al documento verificado (${docType === 'laborder' ? 'orden de laboratorio' : 'incapacidad médica'}).`
+    : `Se compartirá con el paciente un enlace al documento verificado (${docLabel}).`
 
   return (
     <div style={{
@@ -138,7 +144,7 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
             /* Lab / Incapacidad: una sola opción → enlace público verificable */
             <button
               onClick={() => {
-                const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${appUrl}/verificar/${presc.verification_code}`
+                const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${verifyLink}`
                 openWhatsApp(text)
               }}
               style={{

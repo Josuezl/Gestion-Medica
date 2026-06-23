@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
-import { sendMedicalRecordByEmail, sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, updatePrescription } from './email-actions'
+import { sendMedicalRecordByEmail, sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, updatePrescription } from './email-actions'
 import { canDoClinical, canEditPrescription, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
@@ -76,6 +76,7 @@ interface PatientDetailsClientProps {
   prescriptions: any[]
   labOrders?: any[]
   medicalLeaves?: any[]
+  referrals?: any[]
   showRecordNumber?: boolean
   initialEdit?: boolean
   justCreated?: boolean
@@ -91,6 +92,7 @@ export default function PatientDetailsClient({
   prescriptions,
   labOrders = [],
   medicalLeaves = [],
+  referrals = [],
   showRecordNumber = false,
   initialEdit = false,
   justCreated = false,
@@ -111,12 +113,12 @@ export default function PatientDetailsClient({
   // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
   const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'incapacidades' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
-  const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' } | null>(null)
+  const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' } | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
   const [showCreatedBanner, setShowCreatedBanner] = useState(justCreated)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
@@ -155,6 +157,9 @@ export default function PatientDetailsClient({
   }
   const handleWhatsAppLeaveShare = (leave: any) => {
     setWhatsappShare({ doc: leave, docType: 'incapacidad' })
+  }
+  const handleWhatsAppReferralShare = (ref: any) => {
+    setWhatsappShare({ doc: ref, docType: 'referral' })
   }
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [editingPrescription, setEditingPrescription] = useState<string | null>(null)
@@ -676,6 +681,8 @@ export default function PatientDetailsClient({
   const [labEmailMsg, setLabEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingLeaveEmail, setSendingLeaveEmail] = useState<string | null>(null)
   const [leaveEmailMsg, setLeaveEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
+  const [sendingReferralEmail, setSendingReferralEmail] = useState<string | null>(null)
+  const [referralEmailMsg, setReferralEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
 
   const handleSendFichaEmail = async () => {
     setSendingFichaEmail(true)
@@ -743,6 +750,23 @@ export default function PatientDetailsClient({
       setLeaveEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.', id: consultationId })
     }
     setSendingLeaveEmail(null)
+  }
+
+  const handleSendReferralEmail = async (consultationId: string) => {
+    setSendingReferralEmail(consultationId)
+    setReferralEmailMsg(null)
+    try {
+      const result = await sendReferralByEmail(patient.id, consultationId)
+      if (result.error) {
+        setReferralEmailMsg({ type: 'error', text: result.error, id: consultationId })
+      } else {
+        setReferralEmailMsg({ type: 'success', text: `✅ Referencia enviada a ${patient.email}`, id: consultationId })
+        setTimeout(() => setReferralEmailMsg(null), 5000)
+      }
+    } catch {
+      setReferralEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.', id: consultationId })
+    }
+    setSendingReferralEmail(null)
   }
 
   return (
@@ -1144,6 +1168,14 @@ export default function PatientDetailsClient({
           >
             <FileBadge size={18} />
             <span>Incapacidades</span>
+          </button>
+
+          <button
+            style={activeTab === 'referencias' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('referencias')}
+          >
+            <Share2 size={18} />
+            <span>Referencias</span>
           </button>
         </div>
 
@@ -1764,6 +1796,83 @@ export default function PatientDetailsClient({
 
                         {leaveEmailMsg && leaveEmailMsg.id === m.id && (
                           <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', fontWeight: 600, color: leaveEmailMsg.type === 'success' ? '#15803d' : '#dc2626' }}>{leaveEmailMsg.text}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: REFERENCIAS MÉDICAS (misma lógica que incapacidades; visible para todos los roles) */}
+          {activeTab === 'referencias' && (
+            <div style={styles.tabView}>
+              <div style={styles.tabHeader}>
+                <h3 style={styles.tabTitle}>Referencias Médicas Emitidas</h3>
+                <span className="badge badge-info">{referrals.length} Referencias</span>
+              </div>
+
+              {referrals.length === 0 ? (
+                <div style={styles.tabEmptyState}>
+                  <Share2 size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+                  <p>Este paciente no tiene referencias médicas emitidas aún.</p>
+                </div>
+              ) : (
+                <div style={styles.studiesList}>
+                  {referrals.map((r) => {
+                    const date = new Date(r.created_at).toLocaleDateString('es-HN')
+                    const docName = doctorShortName(r.user_profiles?.first_name, r.user_profiles?.last_name, r.user_profiles?.gender)
+                    return (
+                      <div key={r.id} className="card" style={{ ...styles.studyRow, flexDirection: 'column', alignItems: 'stretch' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div style={{ ...styles.studyInfo, flex: 1 }}>
+                            <Share2 size={22} color="var(--primary)" />
+                            <div style={{ flex: 1 }}>
+                              <p style={styles.studyNameText}>Referencia Médica{r.verification_code ? ` - Código: ${r.verification_code}` : ''}</p>
+                              <p style={styles.studyMeta}>Emitida el {date} por {docName}</p>
+                            </div>
+                          </div>
+                          <div style={styles.studyActions}>
+                            <a
+                              href={`/consultations/${r.id}/print?doc=referral`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: '#e2e8f0', color: '#475569', border: 'none' }}
+                              title="Imprimir Referencia"
+                            >
+                              <Printer size={14} />
+                            </a>
+                            <a
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); handleWhatsAppReferralShare(r) }}
+                              className="btn"
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: '#dcf8c6', color: '#128C7E', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                              title="Enviar por WhatsApp"
+                            >
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'block' }}>
+                                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
+                              </svg>
+                            </a>
+                            <button
+                              onClick={() => handleSendReferralEmail(r.id)}
+                              disabled={sendingReferralEmail === r.id}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.4rem 0.6rem', backgroundColor: sendingReferralEmail === r.id ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingReferralEmail === r.id ? 'wait' : 'pointer' }}
+                              title="Enviar Referencia por Correo Electrónico"
+                            >
+                              {sendingReferralEmail === r.id ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {r.referral && (
+                          <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'pre-line', lineHeight: 1.5 }}>{r.referral}</p>
+                        )}
+
+                        {referralEmailMsg && referralEmailMsg.id === r.id && (
+                          <p style={{ margin: '0.6rem 0 0', fontSize: '0.8rem', fontWeight: 600, color: referralEmailMsg.type === 'success' ? '#15803d' : '#dc2626' }}>{referralEmailMsg.text}</p>
                         )}
                       </div>
                     )

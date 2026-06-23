@@ -8,8 +8,11 @@ import { medicineDetail } from '@/utils/medicines'
 // Página PÚBLICA: usa el cliente service_role porque RLS bloquea el acceso anónimo.
 // Se instancia DENTRO del componente (no a nivel de módulo) para no romper el build.
 // Resuelve dos tipos de documento por su código: recetas e incapacidades (consultas).
-export default async function VerifyDocumentPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function VerifyDocumentPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { code } = await params
+  const sp = searchParams ? await searchParams : {}
+  // ?doc=referral muestra la consulta como Referencia Médica (Motivo de consulta + Motivo de referencia).
+  const wantReferral = sp?.doc === 'referral'
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +36,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
     const { data } = await supabaseAdmin
       .from('consultations')
       .select(`
-        id, created_at, medical_leave, reason_for_visit, verification_code,
+        id, created_at, medical_leave, referral, reason_for_visit, verification_code,
         clinics ( name ),
         patients ( first_name, last_name ),
         user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
@@ -61,7 +64,8 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
 
   const doc: any = prescription || leave || labOrder
   const isValid = !!doc
-  const isLeave = !prescription && !!leave
+  const isReferral = !prescription && !!leave && wantReferral
+  const isLeave = !prescription && !!leave && !wantReferral
   const isLabOrder = !prescription && !leave && !!labOrder
 
   const patient = doc?.patients
@@ -91,6 +95,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
           <h1 style={{ margin: '0', fontSize: '1.5rem', fontWeight: 600 }}>
             {!isValid
               ? 'Documento No Encontrado o Inválido'
+              : isReferral ? 'Referencia Médica Auténtica'
               : isLeave ? 'Incapacidad Médica Auténtica'
               : isLabOrder ? 'Orden de Laboratorio Auténtica'
               : 'Receta Médica Auténtica'}
@@ -128,7 +133,21 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
                 </div>
               </div>
 
-              {isLeave ? (
+              {isReferral ? (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ClipboardList size={20} color="#0d9488" /> Referencia Médica
+                  </h3>
+                  <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
+                    {leave.reason_for_visit && (
+                      <p style={{ margin: '0 0 0.75rem' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de consulta:</strong> {leave.reason_for_visit}</p>
+                    )}
+                    {leave.referral && String(leave.referral).trim() !== ''
+                      ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de referencia:</strong> {leave.referral}</p>
+                      : <p style={{ margin: 0, color: '#64748b' }}>Referencia médica.</p>}
+                  </div>
+                </div>
+              ) : isLeave ? (
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
                   <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <ClipboardList size={20} color="#0d9488" /> Incapacidad Médica
