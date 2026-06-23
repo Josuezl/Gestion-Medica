@@ -92,7 +92,9 @@ export async function createConsultation(
   //     aquí roles clínicos (requireRole arriba), así que no hace falta otro gate. Si falla, solo avisa.
   try {
     const antecedentes = {
-      allergies: (formData.get('allergies') as string) || 'Ninguna conocida',
+      // Se guarda tal cual lo escribió el médico (vacío → null). No se re-aplica "Ninguna conocida":
+      // si el médico escribe "Ninguna", "No" o cualquier texto, se conserva y se muestra la próxima vez.
+      allergies: (formData.get('allergies') as string) || null,
       pathological_history: (formData.get('pathological_history') as string) || null,
       non_pathological_history: (formData.get('non_pathological_history') as string) || null,
       family_history: (formData.get('family_history') as string) || null,

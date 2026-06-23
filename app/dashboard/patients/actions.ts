@@ -165,7 +165,9 @@ export async function createPatient(formData: FormData, force = false) {
     email: formData.get('email') as string || null,
     address: formData.get('address') as string || null,
     blood_type: formData.get('blood_type') as string || null,
-    allergies: formData.get('allergies') as string || 'Ninguna conocida',
+    // Los antecedentes ya no se piden al registrar (por privacidad, solo el médico los escribe en la
+    // consulta). Sin default "Ninguna conocida": quedan vacíos hasta que el médico los registre.
+    allergies: formData.get('allergies') as string || null,
     family_history: formData.get('family_history') as string || null,
     pathological_history: formData.get('pathological_history') as string || null,
     non_pathological_history: formData.get('non_pathological_history') as string || null,

@@ -349,7 +349,9 @@ export default function NewConsultationClient({
               </p>
               <div className="form-group">
                 <label className="form-label">Alergias</label>
-                <textarea className="form-input" name="allergies" rows={2} defaultValue={patient.allergies || ''} placeholder="Ej. Penicilina, AINEs…" />
+                {/* "Ninguna conocida" era el valor por defecto antiguo: se trata como vacío para mostrar
+                    el ejemplo. Cualquier otro texto del médico (incluido "Ninguna" o "No") sí se conserva. */}
+                <textarea className="form-input" name="allergies" rows={2} defaultValue={patient.allergies === 'Ninguna conocida' ? '' : (patient.allergies || '')} placeholder="Especifica medicamentos, alimentos, polen, etc." />
               </div>
               <div className="form-group">
                 <label className="form-label">Antecedentes Patológicos</label>

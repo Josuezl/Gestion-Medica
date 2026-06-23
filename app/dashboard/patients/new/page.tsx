@@ -116,9 +116,9 @@ export default function NewPatientPage() {
       )}
 
       <form onSubmit={handleSubmit} style={styles.form}>
-        <div className="responsive-main-side">
-          {/* Main Card: Demographic Info */}
-          <div className="card" style={styles.formCard}>
+        {/* Card único: datos demográficos y de contacto. Los antecedentes clínicos (alergias e
+            historial) ya NO se piden aquí: por privacidad, solo el médico los registra en la consulta. */}
+        <div className="card" style={styles.formCard}>
             <h3 style={styles.sectionTitle}>
               <User size={18} color="var(--primary)" />
               Datos Personales y Demográficos
@@ -150,7 +150,7 @@ export default function NewPatientPage() {
                   id="last_name"
                   name="last_name"
                   type="text"
-                  placeholder="Ej. Martínez"
+                  placeholder="Ej. Martínez Pérez"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
@@ -330,92 +330,25 @@ export default function NewPatientPage() {
             </div>
           </div>
 
-          {/* Right Card: Medical History (Antecedentes) */}
-          <div className="card" style={styles.formCard}>
-            <h3 style={styles.sectionTitle}>
-              <AlertCircle size={18} color="#ef4444" />
-              Alergias Conocidas
-            </h3>
-            <div className="form-group">
-              <textarea
-                className="form-input"
-                id="allergies"
-                name="allergies"
-                defaultValue="Ninguna conocida"
-                placeholder="Especifica medicamentos, alimentos, polen, etc."
-                rows={2}
-                style={{ resize: 'vertical', borderLeft: '3px solid #ef4444' }}
-              />
-            </div>
-
-            <h3 style={{ ...styles.sectionTitle, marginTop: '2rem' }}>
-              <Activity size={18} color="var(--secondary)" />
-              Historial Clínico (Antecedentes)
-            </h3>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="pathological_history">
-                Antecedentes Patológicos
-              </label>
-              <textarea
-                className="form-input"
-                id="pathological_history"
-                name="pathological_history"
-                placeholder="Enfermedades crónicas (hipertensión, diabetes), cirugías previas, hospitalizaciones..."
-                rows={3}
-                style={{ resize: 'vertical' }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="non_pathological_history">
-                Antecedentes No Patológicos
-              </label>
-              <textarea
-                className="form-input"
-                id="non_pathological_history"
-                name="non_pathological_history"
-                placeholder="Estilo de vida, hábitos alimenticios, ejercicio, tabaco, alcohol, vacunas..."
-                rows={3}
-                style={{ resize: 'vertical' }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="family_history">
-                Antecedentes Heredofamiliares
-              </label>
-              <textarea
-                className="form-input"
-                id="family_history"
-                name="family_history"
-                placeholder="Enfermedades en familiares cercanos (cáncer, diabetes, cardiopatías)..."
-                rows={3}
-                style={{ resize: 'vertical' }}
-              />
-            </div>
-            
-            <div style={styles.actionRow}>
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
-                disabled={loading} 
-                style={{ width: '100%', gap: '0.5rem', marginTop: '1rem' }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                    Guardando Paciente...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Guardar y Abrir Expediente
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ gap: '0.5rem', minWidth: '260px', justifyContent: 'center' }}
+          >
+            {loading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                Guardando Paciente...
+              </>
+            ) : (
+              <>
+                <Save size={18} />
+                Guardar y Abrir Expediente
+              </>
+            )}
+          </button>
         </div>
       </form>
 

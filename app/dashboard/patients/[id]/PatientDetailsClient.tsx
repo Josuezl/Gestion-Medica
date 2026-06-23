@@ -1113,14 +1113,6 @@ export default function PatientDetailsClient({
             <span>Lab. Solicitados</span>
           </button>
 
-          <button
-            style={activeTab === 'incapacidades' ? styles.tabActive : styles.tab}
-            onClick={() => setActiveTab('incapacidades')}
-          >
-            <FileBadge size={18} />
-            <span>Incapacidades</span>
-          </button>
-
           {canClinical && (
             <button
               style={activeTab === 'studies' ? styles.tabActive : styles.tab}
@@ -1140,6 +1132,15 @@ export default function PatientDetailsClient({
               <span>Curvas de Crecimiento OMS</span>
             </button>
           )}
+
+          {/* Incapacidades al final de las pestañas */}
+          <button
+            style={activeTab === 'incapacidades' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('incapacidades')}
+          >
+            <FileBadge size={18} />
+            <span>Incapacidades</span>
+          </button>
         </div>
 
         {/* Tab Contents */}
