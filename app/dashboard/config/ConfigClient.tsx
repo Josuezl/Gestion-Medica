@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, Stethoscope } from 'lucide-react'
+import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature, uploadClinicLogo } from './actions'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, Stethoscope, Image as ImageIcon } from 'lucide-react'
 import LabCatalogCard from './LabCatalogCard'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
 const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
+const LOGO_MIME = ['image/png', 'image/jpeg']
 
 interface ConfigClientProps {
   clinic: any
@@ -66,6 +67,24 @@ export default function ConfigClient({
   const [memberSaving, setMemberSaving] = useState(false)
   const [memberError, setMemberError] = useState<string | null>(null)
   const [signatureUploading, setSignatureUploading] = useState(false)
+
+  // Logo/ícono de la organización (se guarda al presionar "Guardar Cambios" del formulario de org).
+  const [clinicLogoUrl, setClinicLogoUrl] = useState<string>(clinic.logo_url || '')
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
+
+  async function handleClinicLogoUpload(file: File) {
+    if (!LOGO_MIME.includes(file.type)) { setLogoError('El logo debe ser una imagen JPG o PNG.'); return }
+    if (file.size > SIGNATURE_MAX_BYTES) { setLogoError('La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.'); return }
+    setLogoError(null)
+    setLogoUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await uploadClinicLogo(fd)
+    setLogoUploading(false)
+    if (res?.error) { setLogoError(res.error); return }
+    setClinicLogoUrl(res.url || '')
+  }
 
   function openEditMember(member: any) {
     setMemberError(null)
@@ -631,8 +650,46 @@ export default function ConfigClient({
             <textarea name="address" className="form-input" rows={3} defaultValue={clinic.address || ''} style={{ resize: 'vertical' }}></textarea>
           </div>
 
+          {/* Logo/ícono de la organización: aparece a la izquierda en todos los documentos impresos */}
+          <input type="hidden" name="logo_url" value={clinicLogoUrl} />
+          <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ImageIcon size={15} /> Logo/ícono de la organización (opcional)
+            </div>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Aparecerá a la izquierda del encabezado en recetas, órdenes de laboratorio e incapacidades. Solo JPG o PNG, máx. 2 MB.
+            </p>
+            {clinicLogoUrl ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={clinicLogoUrl} alt="Logo de la organización" style={{ height: '70px', maxWidth: '180px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#fff', padding: '0.25rem' }} />
+                <button type="button" className="btn btn-secondary" onClick={() => setClinicLogoUrl('')} disabled={logoUploading || clinicLoading} style={{ gap: '0.35rem' }}>
+                  <Trash2 size={14} /> Quitar
+                </button>
+              </div>
+            ) : (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <input
+                  type="file"
+                  className="form-input"
+                  accept="image/png,image/jpeg"
+                  disabled={logoUploading || clinicLoading}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleClinicLogoUpload(f); e.target.value = '' }}
+                />
+                {logoUploading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    <Loader2 size={14} className="animate-spin" /> Subiendo logo...
+                  </div>
+                )}
+                {logoError && !logoUploading && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#b91c1c' }}>{logoError}</div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={clinicLoading}>
+            <button type="submit" className="btn btn-primary" disabled={clinicLoading || logoUploading}>
               {clinicLoading ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>

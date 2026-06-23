@@ -1,10 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { updateOwnProfile, changeOwnPassword } from './actions'
-import { User, Lock, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { updateOwnProfile, changeOwnPassword, uploadOwnLogo } from './actions'
+import { User, Lock, Save, Loader2, CheckCircle, AlertCircle, Trash2, Image as ImageIcon } from 'lucide-react'
 
 type Msg = { type: 'success' | 'error'; text: string } | null
+
+const LOGO_MIME = ['image/png', 'image/jpeg']
+const LOGO_MAX_BYTES = 2097152 // 2 MB
 
 export default function ProfileClient({ profile, email }: { profile: any; email: string }) {
   const clinical = profile?.role === 'DOCTOR' || profile?.role === 'ADMIN'
@@ -13,6 +16,23 @@ export default function ProfileClient({ profile, email }: { profile: any; email:
   const [profileMsg, setProfileMsg] = useState<Msg>(null)
   const [savingPass, setSavingPass] = useState(false)
   const [passMsg, setPassMsg] = useState<Msg>(null)
+  // Logo del consultorio del médico (se guarda con "Guardar cambios").
+  const [logoUrl, setLogoUrl] = useState<string>(profile?.practice_logo_url || '')
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
+
+  async function handleLogoUpload(file: File) {
+    if (!LOGO_MIME.includes(file.type)) { setLogoError('El logo debe ser una imagen JPG o PNG.'); return }
+    if (file.size > LOGO_MAX_BYTES) { setLogoError('La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.'); return }
+    setLogoError(null)
+    setLogoUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await uploadOwnLogo(fd)
+    setLogoUploading(false)
+    if (res?.error) { setLogoError(res.error); return }
+    setLogoUrl(res.url || '')
+  }
 
   async function onSaveProfile(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -108,11 +128,49 @@ export default function ProfileClient({ profile, email }: { profile: any; email:
                       <input className="form-input" name="practice_address" defaultValue={profile?.practice_address || ''} />
                     </div>
                   </div>
+
+                  {/* Logo/ícono del consultorio: a la izquierda del encabezado en los documentos impresos */}
+                  <input type="hidden" name="practice_logo_url" value={logoUrl} />
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#475569', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <ImageIcon size={15} /> Logo/ícono del consultorio (opcional)
+                    </div>
+                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Si lo subes, reemplaza el logo de la organización en tus documentos impresos. Solo JPG o PNG, máx. 2 MB.
+                    </p>
+                    {logoUrl ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={logoUrl} alt="Logo del consultorio" style={{ height: '70px', maxWidth: '180px', objectFit: 'contain', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#fff', padding: '0.25rem' }} />
+                        <button type="button" className="btn btn-secondary" onClick={() => setLogoUrl('')} disabled={logoUploading || savingProfile} style={{ gap: '0.35rem' }}>
+                          <Trash2 size={14} /> Quitar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <input
+                          type="file"
+                          className="form-input"
+                          accept="image/png,image/jpeg"
+                          disabled={logoUploading || savingProfile}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}
+                        />
+                        {logoUploading && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                            <Loader2 size={14} className="animate-spin" /> Subiendo logo...
+                          </div>
+                        )}
+                        {logoError && !logoUploading && (
+                          <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#b91c1c' }}>{logoError}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}
 
-            <button type="submit" className="btn btn-primary" disabled={savingProfile} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <button type="submit" className="btn btn-primary" disabled={savingProfile || logoUploading} style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
               {savingProfile ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
               Guardar cambios
             </button>

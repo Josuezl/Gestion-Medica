@@ -61,6 +61,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
   const qrDataUrl = await QRCode.toDataURL(`${SITE_URL}/verificar/${consultation.verification_code}`, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
+  const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   const c: any = consultation
@@ -113,7 +114,8 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
         .btn-close:hover { background: #1e293b; color: #fff; }
 
         /* Cabecera centrada (igual a la receta) */
-        .header { text-align: center; }
+        .header { text-align: center; position: relative; }
+        .header-logo { position: absolute; left: 0; top: 0; max-height: 72px; max-width: 130px; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 3px 0 0; font-size: 10px; color: #64748b; }
         .doc-block { margin-top: 7px; }
@@ -173,6 +175,10 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
         <div className="sheet">
           {/* Cabecera */}
           <div className="header">
+            {logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="header-logo" src={logoUrl} alt="Logo" />
+            )}
             <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
             <p className="clinic-detail">Tel: {doctor.practice_phone || clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{doctor.practice_address || clinic.address || 'Honduras'}</p>
             <div className="doc-block">

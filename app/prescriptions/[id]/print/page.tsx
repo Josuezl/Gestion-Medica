@@ -67,6 +67,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   const formattedDate = formatDateTimeHN(prescription.created_at)
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
+  const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   // QR -> página pública de verificación de la receta
@@ -116,7 +117,8 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
         .btn-close:hover { background: #1e293b; color: #fff; }
 
         /* Cabecera (centrada: organización arriba, médico debajo) */
-        .header { text-align: center; padding-top: 1mm; }
+        .header { text-align: center; padding-top: 1mm; position: relative; }
+        .header-logo { position: absolute; left: 0; top: 0; max-height: 72px; max-width: 130px; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 2px 0 0; font-size: 9.5px; color: #64748b; }
         .doc-block { margin-top: 6px; }
@@ -187,6 +189,10 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
         <div className="sheet">
           {/* Cabecera centrada: organización arriba, médico debajo */}
           <div className="header">
+            {logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="header-logo" src={logoUrl} alt="Logo" />
+            )}
             <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
             <p className="clinic-detail">Tel: {doctor.practice_phone || clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{doctor.practice_address || clinic.address || 'Honduras'}</p>
             <div className="doc-block">

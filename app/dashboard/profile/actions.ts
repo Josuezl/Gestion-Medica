@@ -1,8 +1,12 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { safeErrorMessage } from '@/utils/errors'
+
+const LOGO_MAX_BYTES = 2097152 // 2 MB
+const LOGO_MIME = ['image/png', 'image/jpeg']
 
 /**
  * Actualiza el perfil del USUARIO ACTUAL (solo el suyo). Nunca toca role/clinic_id/is_org_admin.
@@ -34,6 +38,7 @@ export async function updateOwnProfile(formData: FormData) {
     updates.practice_name = (formData.get('practice_name') as string || '').trim() || null
     updates.practice_phone = (formData.get('practice_phone') as string || '').trim() || null
     updates.practice_address = (formData.get('practice_address') as string || '').trim() || null
+    updates.practice_logo_url = (formData.get('practice_logo_url') as string || '').trim() || null
   }
 
   // Defensa en profundidad: acotar el UPDATE a la propia fila (id = usuario autenticado).
@@ -43,6 +48,40 @@ export async function updateOwnProfile(formData: FormData) {
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+/**
+ * Sube el logo/ícono del consultorio del MÉDICO actual al bucket público `signatures`. Si se define,
+ * tiene prioridad sobre el logo de la organización en los documentos impresos de este médico.
+ * Solo JPG o PNG. Devuelve la URL pública; se guarda en `practice_logo_url` al "Guardar cambios".
+ */
+export async function uploadOwnLogo(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado.' }
+
+  const { data: me } = await supabase
+    .from('user_profiles').select('role, clinic_id').eq('id', user.id).single()
+  const clinical = me?.role === 'DOCTOR' || me?.role === 'ADMIN'
+  if (!clinical || !me?.clinic_id) return { error: 'Solo el personal médico puede subir un logo.' }
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) return { error: 'No se recibió ninguna imagen.' }
+  if (!LOGO_MIME.includes(file.type)) return { error: 'El logo debe ser una imagen JPG o PNG.' }
+  if (file.size > LOGO_MAX_BYTES) return { error: 'La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.' }
+
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+  const filePath = `${me.clinic_id}/${user.id}/practice-logo-${Date.now()}.${ext}`
+  const bytes = Buffer.from(await file.arrayBuffer())
+
+  const admin = createAdminClient()
+  const { error: upErr } = await admin.storage
+    .from('signatures')
+    .upload(filePath, bytes, { contentType: file.type, upsert: true })
+  if (upErr) return { error: 'Error al subir el logo: ' + upErr.message }
+
+  const { data: pub } = admin.storage.from('signatures').getPublicUrl(filePath)
+  return { url: pub.publicUrl }
 }
 
 /**

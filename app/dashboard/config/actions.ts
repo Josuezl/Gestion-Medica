@@ -10,6 +10,8 @@ import { revalidatePath } from 'next/cache'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
 const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
+// El logo de los documentos impresos: solo JPG o PNG (requisito del usuario).
+const LOGO_MIME = ['image/png', 'image/jpeg']
 
 /**
  * Provisión de un miembro de equipo (médico/asistente) por el org-admin de la clínica.
@@ -151,6 +153,34 @@ export async function uploadMemberSignature(memberId: string, formData: FormData
 }
 
 /**
+ * Sube el logo/ícono de la ORGANIZACIÓN (clínica) al bucket público `signatures`. Aparece a la
+ * izquierda del encabezado en todos los documentos impresos. Solo JPG o PNG. Igual que la firma,
+ * devuelve la URL pública; el guardado en `clinics.logo_url` ocurre al presionar "Guardar Cambios".
+ */
+export async function uploadClinicLogo(formData: FormData) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado. Solo los administradores pueden subir el logo.' }
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) return { error: 'No se recibió ninguna imagen.' }
+  if (!LOGO_MIME.includes(file.type)) return { error: 'El logo debe ser una imagen JPG o PNG.' }
+  if (file.size > SIGNATURE_MAX_BYTES) return { error: 'La imagen supera el límite de 2 MB. Comprímela e intenta de nuevo.' }
+
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+  const filePath = `${ctx.clinicId}/clinic-logo/${Date.now()}.${ext}`
+  const bytes = Buffer.from(await file.arrayBuffer())
+
+  const admin = createAdminClient()
+  const { error: upErr } = await admin.storage
+    .from('signatures')
+    .upload(filePath, bytes, { contentType: file.type, upsert: true })
+  if (upErr) return { error: 'Error al subir el logo: ' + upErr.message }
+
+  const { data: pub } = admin.storage.from('signatures').getPublicUrl(filePath)
+  return { url: pub.publicUrl }
+}
+
+/**
  * Edición de los datos de un miembro existente por el org-admin, incluido CAMBIAR su rol
  * entre Médico, Asistente y Auxiliar de Enfermería (NURSE). El tope de médicos/asistentes lo
  * valida el trigger enforce_user_limits. Sirve también para fijar el género ("Dra." vs "Dr.").
@@ -222,13 +252,14 @@ export async function updateClinicInfo(formData: FormData) {
   const name = formData.get('name') as string
   const phone = formData.get('phone') as string
   const address = formData.get('address') as string
+  const logoUrl = (formData.get('logo_url') as string || '').trim() || null
 
   if (!name) return { error: 'El nombre de la clínica es requerido' }
 
   const supabase = await createClient()
   const { error } = await supabase
     .from('clinics')
-    .update({ name, phone, address })
+    .update({ name, phone, address, logo_url: logoUrl })
     .eq('id', ctx.clinicId)
 
   if (error) return { error: 'Error al actualizar información: ' + error.message }

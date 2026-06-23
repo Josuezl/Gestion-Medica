@@ -7,9 +7,11 @@ export default async function ProfilePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // select('*') para tolerar el drift repo↔BD: si `practice_logo_url` aún no existe (deploy antes del
+  // DDL), no rompe la página (la columna simplemente no viene) en vez de fallar el query completo.
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('first_name, last_name, gender, phone, role, specialty, professional_id, practice_name, practice_phone, practice_address')
+    .select('*')
     .eq('id', user.id)
     .single()
 
