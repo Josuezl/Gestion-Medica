@@ -118,7 +118,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
 
         /* Cabecera (centrada: organización arriba, médico debajo) */
         .header { text-align: center; padding-top: 1mm; }
-        .header-logo { display: block; margin: 0 auto 4px; max-height: 120px; max-width: 75%; object-fit: contain; }
+        .header-logo { display: block; margin: 0 auto 4px; max-height: 88px; max-width: 52%; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 2px 0 0; font-size: 9.5px; color: #64748b; }
         .doc-block { margin-top: 6px; }

@@ -131,7 +131,7 @@ export default async function PrintLabOrderPage({ params }: PageProps) {
 
         /* Cabecera clínica/médico */
         .header { text-align: center; }
-        .header-logo { display: block; margin: 0 auto 4px; max-height: 120px; max-width: 75%; object-fit: contain; }
+        .header-logo { display: block; margin: 0 auto 4px; max-height: 88px; max-width: 52%; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 2px 0 0; font-size: 9.5px; color: #64748b; }
         .doc-block { margin-top: 5px; }

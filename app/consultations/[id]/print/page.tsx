@@ -115,7 +115,7 @@ export default async function PrintConsultationSummaryPage({ params }: PageProps
 
         /* Cabecera centrada (igual a la receta) */
         .header { text-align: center; }
-        .header-logo { display: block; margin: 0 auto 4px; max-height: 120px; max-width: 75%; object-fit: contain; }
+        .header-logo { display: block; margin: 0 auto 4px; max-height: 88px; max-width: 52%; object-fit: contain; }
         .clinic-name { margin: 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
         .clinic-detail { margin: 3px 0 0; font-size: 10px; color: #64748b; }
         .doc-block { margin-top: 7px; }
