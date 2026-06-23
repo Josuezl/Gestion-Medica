@@ -76,6 +76,7 @@ interface PatientDetailsClientProps {
   prescriptions: any[]
   labOrders?: any[]
   medicalLeaves?: any[]
+  showRecordNumber?: boolean
   initialEdit?: boolean
   justCreated?: boolean
   currentUserId: string
@@ -90,6 +91,7 @@ export default function PatientDetailsClient({
   prescriptions,
   labOrders = [],
   medicalLeaves = [],
+  showRecordNumber = false,
   initialEdit = false,
   justCreated = false,
   currentUserId,
@@ -839,7 +841,7 @@ export default function PatientDetailsClient({
                   <span>DNI: {patient.id_card}</span>
                 </span>
               ) : null}
-              {patient.record_number ? (
+              {showRecordNumber && patient.record_number ? (
                 <span style={styles.contactItem}>
                   <span>Exp: {patient.record_number}</span>
                 </span>
@@ -970,10 +972,12 @@ export default function PatientDetailsClient({
                 <label className="form-label">Identidad (DNI)</label>
                 <input className="form-input" name="id_card" defaultValue={patient.id_card} />
               </div>
-              <div className="form-group">
-                <label className="form-label">N° de Expediente</label>
-                <input className="form-input" name="record_number" defaultValue={patient.record_number || ''} placeholder="Opcional" />
-              </div>
+              {showRecordNumber && (
+                <div className="form-group">
+                  <label className="form-label">N° de Expediente</label>
+                  <input className="form-input" name="record_number" defaultValue={patient.record_number || ''} placeholder="Opcional" />
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Fecha de Nacimiento *</label>
                 <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date} onChange={(e) => setIsEditPediatric(isPediatric(e.target.value))} required />

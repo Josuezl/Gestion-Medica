@@ -26,9 +26,11 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   // Rol y permisos del usuario actual (para controlar el borrado de estudios)
   const { data: currentProfile } = await supabase
     .from('user_profiles')
-    .select('role, is_org_admin')
+    .select('role, is_org_admin, clinics(show_record_number)')
     .eq('id', user.id)
     .single()
+  // N° de Expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San Martín).
+  const showRecordNumber = !!(currentProfile as any)?.clinics?.show_record_number
 
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase
@@ -108,6 +110,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       medicalLeaves={medicalLeaves || []}
+      showRecordNumber={showRecordNumber}
       initialEdit={isEditing}
       justCreated={justCreated}
       currentUserId={user.id}

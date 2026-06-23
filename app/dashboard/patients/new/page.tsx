@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { createPatient, suggestNextRecordNumber } from '../actions'
+import { createPatient, getRecordNumberConfig } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import { 
   User, 
@@ -30,9 +30,11 @@ export default function NewPatientPage() {
   // (/dashboard/patients/new?nombre=...). Controlado + efecto de montaje para no romper la hidratación.
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  // N° de expediente: se sugiere el siguiente (último + 1) al abrir el formulario.
+  // N° de expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San
+  // Martín). Si está activo, se sugiere el siguiente (último + 1) al abrir el formulario.
   const [recordNumber, setRecordNumber] = useState('')
   const [recordSuggested, setRecordSuggested] = useState(false)
+  const [showRecordNumber, setShowRecordNumber] = useState(false)
   useEffect(() => {
     const nombre = new URLSearchParams(window.location.search).get('nombre')?.trim()
     if (nombre) {
@@ -40,8 +42,11 @@ export default function NewPatientPage() {
       setFirstName(parts[0] || '')
       setLastName(parts.slice(1).join(' '))
     }
-    suggestNextRecordNumber()
-      .then(next => { if (next) { setRecordNumber(next); setRecordSuggested(true) } })
+    getRecordNumberConfig()
+      .then(cfg => {
+        setShowRecordNumber(cfg.enabled)
+        if (cfg.enabled && cfg.suggested) { setRecordNumber(cfg.suggested); setRecordSuggested(true) }
+      })
       .catch(() => {})
   }, [])
 
@@ -170,25 +175,27 @@ export default function NewPatientPage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="record_number">
-                  N° de Expediente
-                </label>
-                <input
-                  className="form-input"
-                  id="record_number"
-                  name="record_number"
-                  type="text"
-                  placeholder="Ej. EXP-00123"
-                  value={recordNumber}
-                  onChange={(e) => { setRecordNumber(e.target.value); setRecordSuggested(false) }}
-                />
-                <p style={styles.inputHelp}>
-                  {recordSuggested
-                    ? 'Sugerido (último N° + 1). Puedes cambiarlo.'
-                    : 'Opcional — si tu clínica maneja número de expediente.'}
-                </p>
-              </div>
+              {showRecordNumber && (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="record_number">
+                    N° de Expediente
+                  </label>
+                  <input
+                    className="form-input"
+                    id="record_number"
+                    name="record_number"
+                    type="text"
+                    placeholder="Ej. EXP-00123"
+                    value={recordNumber}
+                    onChange={(e) => { setRecordNumber(e.target.value); setRecordSuggested(false) }}
+                  />
+                  <p style={styles.inputHelp}>
+                    {recordSuggested
+                      ? 'Sugerido (último N° + 1). Puedes cambiarlo.'
+                      : 'Opcional — si tu clínica maneja número de expediente.'}
+                  </p>
+                </div>
+              )}
 
               <div className="form-group">
                 <label className="form-label" htmlFor="birth_date">

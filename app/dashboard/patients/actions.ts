@@ -109,6 +109,26 @@ export async function suggestNextRecordNumber(): Promise<string | null> {
   return `${best[1]}${String(bestNum + 1).padStart(best[2].length, '0')}${best[3]}`
 }
 
+/**
+ * Config del N° de Expediente para el formulario de registro. El campo solo se muestra a las
+ * clínicas con `clinics.show_record_number = true` (hoy solo Complejo Médico San Martín). Para el
+ * resto queda oculto, salvo que en el futuro se active por tenant con ese flag.
+ */
+export async function getRecordNumberConfig(): Promise<{ enabled: boolean; suggested: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { enabled: false, suggested: null }
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('clinic_id, clinics(show_record_number)')
+    .eq('id', user.id)
+    .single()
+  const enabled = !!(profile as any)?.clinics?.show_record_number
+  if (!enabled) return { enabled: false, suggested: null }
+  const suggested = await suggestNextRecordNumber()
+  return { enabled: true, suggested }
+}
+
 export async function createPatient(formData: FormData, force = false) {
   const supabase = await createClient()
 
