@@ -437,6 +437,164 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
   }
 }
 
+/**
+ * Correo genérico para compartir un documento (orden de laboratorio / incapacidad) con el paciente.
+ * A diferencia de la receta, NO adjunta PDF: envía el enlace público verificable (/verificar/{código}),
+ * el mismo destino del QR impreso, por lo que el paciente ve el documento auténtico sin iniciar sesión.
+ */
+export interface DocumentLinkEmailData {
+  toEmail: string
+  subject: string
+  docTitle: string                 // "Orden de Laboratorio" | "Incapacidad Médica"
+  clinicName: string
+  clinicPhone?: string | null
+  clinicAddress?: string | null
+  doctorName: string
+  doctorSpecialty?: string | null
+  patientName: string
+  date: string
+  verificationCode: string
+  verifyUrl: string
+  // Bloque(s) de detalle del documento (exámenes solicitados / texto de la incapacidad).
+  summary?: { label: string; value: string }[]
+}
+
+export async function sendDocumentLinkEmail(data: DocumentLinkEmailData): Promise<SendEmailResult> {
+  const toEmail = data.toEmail
+  const subject = data.subject
+  // Datos escapados para interpolar de forma segura en el HTML.
+  const docTitle = escapeHtml(data.docTitle)
+  const clinicNameRaw = data.clinicName
+  const clinicName = escapeHtml(data.clinicName)
+  const clinicPhone = escapeHtml(data.clinicPhone) || 'N/A'
+  const clinicAddress = escapeHtml(data.clinicAddress) || 'Honduras'
+  const doctorName = escapeHtml(data.doctorName)
+  const doctorSpecialty = escapeHtml(data.doctorSpecialty) || 'Medicina General'
+  const patientName = escapeHtml(data.patientName)
+  const date = escapeHtml(data.date)
+  const verificationCode = escapeHtml(data.verificationCode)
+  const verifyUrl = data.verifyUrl
+
+  const summaryHtml = (data.summary || [])
+    .filter((s) => s.value && String(s.value).trim() !== '')
+    .map((s) => `
+      <div style="margin-top:10px;">
+        <span style="font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">${escapeHtml(s.label)}</span><br>
+        <span style="font-size:13px; font-weight:600; color:#1e293b; line-height:1.5; white-space:pre-line;">${escapeHtml(s.value)}</span>
+      </div>`)
+    .join('')
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0; padding:0; background-color:#e2e8f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#0f172a;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#e2e8f0; padding:32px 16px;">
+        <tr>
+          <td align="center">
+            <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 8px 30px rgba(15,23,42,0.12);">
+
+              <!-- Encabezado: organización + médico -->
+              <tr>
+                <td style="padding:28px 36px 0; text-align:center;">
+                  <h1 style="margin:0; font-size:24px; font-weight:800; color:#0f172a; letter-spacing:-0.01em;">${clinicName}</h1>
+                  <p style="margin:4px 0 0; font-size:12px; color:#64748b;">Tel: ${clinicPhone} &nbsp;&bull;&nbsp; ${clinicAddress}</p>
+                  <p style="margin:10px 0 0; font-size:16px; font-weight:700; color:#0f172a;">${doctorName}</p>
+                  <p style="margin:2px 0 0; font-size:12px; font-weight:600; color:#0d9488;">${doctorSpecialty}</p>
+                </td>
+              </tr>
+
+              <tr><td style="padding:14px 36px 0;"><p style="margin:0; text-align:center; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#0d9488;">${docTitle}</p></td></tr>
+              <tr><td style="padding:10px 36px 0;"><div style="height:1px; background:#e2e8f0; line-height:1px;">&nbsp;</div></td></tr>
+
+              <!-- Paciente + detalle -->
+              <tr>
+                <td style="padding:14px 36px 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border:1px solid #e9eef4; border-radius:8px;">
+                    <tr>
+                      <td style="padding:12px 16px;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="vertical-align:top;">
+                              <span style="font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Paciente</span><br>
+                              <span style="font-size:14px; font-weight:700; color:#1e293b;">${patientName}</span>
+                            </td>
+                            <td style="vertical-align:top; text-align:right;">
+                              <span style="font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Fecha</span><br>
+                              <span style="font-size:12px; font-weight:600; color:#1e293b;">${date}</span>
+                            </td>
+                          </tr>
+                        </table>
+                        ${summaryHtml}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Código + botón verificable -->
+              <tr>
+                <td style="padding:18px 36px 0; text-align:center;">
+                  <table cellpadding="0" cellspacing="0" align="center" style="background-color:#f0fdfa; border:1px solid #ccfbf1; border-radius:8px;">
+                    <tr>
+                      <td style="padding:10px 22px; text-align:center;">
+                        <span style="font-size:10px; color:#0d9488; text-transform:uppercase; font-weight:600;">Código de Verificación</span><br>
+                        <span style="font-size:20px; color:#0f766e; font-weight:800; letter-spacing:0.15em;">${verificationCode}</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <div style="margin-top:14px;">
+                    <a href="${verifyUrl}" target="_blank" style="display:inline-block; padding:12px 28px; background:#0d9488; color:#ffffff; text-decoration:none; border-radius:8px; font-size:14px; font-weight:700;">🔎 Ver documento verificado</a>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Pie -->
+              <tr>
+                <td style="padding:26px 36px 28px;">
+                  <p style="margin:0; color:#94a3b8; font-size:11px; text-align:center; line-height:1.5;">
+                    Este correo fue enviado desde ${clinicName} mediante el sistema CloudMedHN.<br>
+                    Documento confidencial — uso exclusivo del paciente y personal médico autorizado.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn(`⚠️ RESEND_API_KEY no configurada. Simulación de envío exitoso de ${clinicNameRaw} (${data.docTitle}).`)
+    return { success: true, id: 'mock_send_id' }
+  }
+
+  try {
+    const { data: sent, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [toEmail],
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error('Error Resend (documento):', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: sent?.id }
+  } catch (err: any) {
+    console.error('Error de red Resend:', err)
+    return { success: false, error: err.message || 'Error de red al enviar correo' }
+  }
+}
+
 function calculateAge(birthDateString: string): number {
   const today = new Date()
   const birthDate = new Date(birthDateString)

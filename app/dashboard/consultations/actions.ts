@@ -87,6 +87,31 @@ export async function createConsultation(
   // de reportar un éxito silencioso con estado parcial (hallazgo A3).
   const warnings: string[] = []
 
+  // 3.b Antecedentes del paciente: el médico pudo verlos/editarlos en el formulario. Se persisten
+  //     en el expediente del paciente (sobrescriben lo anterior). Acotado a la clínica. Solo llegan
+  //     aquí roles clínicos (requireRole arriba), así que no hace falta otro gate. Si falla, solo avisa.
+  try {
+    const antecedentes = {
+      allergies: (formData.get('allergies') as string) || 'Ninguna conocida',
+      pathological_history: (formData.get('pathological_history') as string) || null,
+      non_pathological_history: (formData.get('non_pathological_history') as string) || null,
+      family_history: (formData.get('family_history') as string) || null,
+    }
+    if (formData.has('allergies') || formData.has('pathological_history') || formData.has('non_pathological_history') || formData.has('family_history')) {
+      const { error: antErr } = await supabase
+        .from('patients')
+        .update(antecedentes)
+        .eq('id', patientId)
+        .eq('clinic_id', clinicId)
+      if (antErr) {
+        console.error('No se pudieron actualizar los antecedentes del paciente:', antErr)
+        warnings.push('La consulta se guardó, pero no se pudieron actualizar los antecedentes del paciente.')
+      }
+    }
+  } catch (e) {
+    console.error('Error actualizando antecedentes del paciente:', e)
+  }
+
   // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
   let prescriptionId: string | null = null
   if (medicines && medicines.length > 0) {

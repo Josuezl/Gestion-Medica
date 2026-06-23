@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { sendMedicalRecordEmail, sendPrescriptionEmail } from '@/utils/email'
+import { sendMedicalRecordEmail, sendPrescriptionEmail, sendDocumentLinkEmail } from '@/utils/email'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { canEditPrescription } from '@/utils/permissions'
 import { safeErrorMessage } from '@/utils/errors'
@@ -193,6 +193,149 @@ export async function sendPrescriptionByEmail(patientId: string, prescriptionId:
     p_action: 'SEND_PRESCRIPTION_EMAIL',
     p_record_id: prescriptionId,
     p_table_name: 'prescriptions'
+  })
+
+  return { success: true }
+}
+
+/**
+ * Server Action: Enviar una orden de laboratorio por correo (enlace verificable, sin PDF).
+ */
+export async function sendLabOrderByEmail(patientId: string, labOrderId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*, clinics(*)')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
+
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single()
+  if (!patient) return { error: 'Paciente no encontrado' }
+  if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado.' }
+
+  const { data: order } = await supabase
+    .from('lab_orders')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
+    .eq('id', labOrderId)
+    .single()
+  if (!order) return { error: 'Orden de laboratorio no encontrada' }
+  if (order.clinic_id !== profile.clinic_id) return { error: 'No autorizado' }
+  if (!order.verification_code) return { error: 'La orden no tiene código de verificación.' }
+
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
+  const od: any = order.user_profiles
+  const doctorName = od
+    ? doctorShortName(od.first_name, od.last_name, od.gender)
+    : doctorShortName(profile.first_name, profile.last_name, profile.gender)
+
+  // Resumen legible de los exámenes solicitados.
+  const tests = Array.isArray(order.tests) ? order.tests : []
+  const testNames = tests.map((t: any) => t?.name).filter(Boolean)
+  const otherLines = (order.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
+  const examenes = [...testNames, ...otherLines].join(' · ')
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const result = await sendDocumentLinkEmail({
+    toEmail: patient.email,
+    subject: `Orden de Laboratorio - ${order.verification_code} | ${clinicName}`,
+    docTitle: 'Orden de Laboratorio',
+    clinicName,
+    clinicPhone: profile.practice_phone || profile.clinics?.phone,
+    clinicAddress: profile.practice_address || profile.clinics?.address,
+    doctorName,
+    doctorSpecialty: profile.specialty,
+    patientName: `${patient.first_name} ${patient.last_name}`,
+    date: formatDateTimeHN(order.created_at),
+    verificationCode: order.verification_code,
+    verifyUrl: `${siteUrl}/verificar/${order.verification_code}`,
+    summary: [{ label: 'Exámenes solicitados', value: examenes }],
+  })
+
+  if (!result.success) return { error: result.error || 'Error al enviar correo.' }
+
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_LAB_ORDER_EMAIL',
+    p_record_id: labOrderId,
+    p_table_name: 'lab_orders'
+  })
+
+  return { success: true }
+}
+
+/**
+ * Server Action: Enviar una incapacidad médica por correo (enlace verificable, sin PDF).
+ */
+export async function sendIncapacidadByEmail(patientId: string, consultationId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*, clinics(*)')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
+
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single()
+  if (!patient) return { error: 'Paciente no encontrado' }
+  if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado.' }
+
+  const { data: consultation } = await supabase
+    .from('consultations')
+    .select('*, user_profiles(first_name, last_name, gender)')
+    .eq('id', consultationId)
+    .single()
+  if (!consultation) return { error: 'Consulta no encontrada' }
+  if (consultation.clinic_id !== profile.clinic_id) return { error: 'No autorizado' }
+  if (!consultation.medical_leave || String(consultation.medical_leave).trim() === '') {
+    return { error: 'Esta consulta no tiene una incapacidad registrada.' }
+  }
+  if (!consultation.verification_code) return { error: 'La incapacidad no tiene código de verificación.' }
+
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
+  const cd: any = consultation.user_profiles
+  const doctorName = cd
+    ? doctorShortName(cd.first_name, cd.last_name, cd.gender)
+    : doctorShortName(profile.first_name, profile.last_name, profile.gender)
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const result = await sendDocumentLinkEmail({
+    toEmail: patient.email,
+    subject: `Incapacidad Médica - ${consultation.verification_code} | ${clinicName}`,
+    docTitle: 'Incapacidad Médica',
+    clinicName,
+    clinicPhone: profile.practice_phone || profile.clinics?.phone,
+    clinicAddress: profile.practice_address || profile.clinics?.address,
+    doctorName,
+    doctorSpecialty: profile.specialty,
+    patientName: `${patient.first_name} ${patient.last_name}`,
+    date: formatDateTimeHN(consultation.created_at),
+    verificationCode: consultation.verification_code,
+    verifyUrl: `${siteUrl}/verificar/${consultation.verification_code}`,
+    summary: [{ label: 'Incapacidad médica', value: consultation.medical_leave }],
+  })
+
+  if (!result.success) return { error: result.error || 'Error al enviar correo.' }
+
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_INCAPACIDAD_EMAIL',
+    p_record_id: consultationId,
+    p_table_name: 'consultations'
   })
 
   return { success: true }

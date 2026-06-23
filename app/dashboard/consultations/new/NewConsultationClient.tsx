@@ -338,6 +338,33 @@ export default function NewConsultationClient({
               </div>
             </div>
 
+            {/* 1.b Antecedentes del paciente (pre-llenados desde el expediente; editables → se guardan al registrar) */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={styles.sectionTitle}>
+                <Clipboard size={18} color="var(--primary)" />
+                Antecedentes del Paciente
+              </h3>
+              <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Información actual del expediente. Edítala si hay cambios; lo que dejes aquí se guardará en el expediente del paciente al registrar la consulta.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Alergias</label>
+                <textarea className="form-input" name="allergies" rows={2} defaultValue={patient.allergies || ''} placeholder="Ej. Penicilina, AINEs…" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Antecedentes Patológicos</label>
+                <textarea className="form-input" name="pathological_history" rows={2} defaultValue={patient.pathological_history || ''} placeholder="Enfermedades, cirugías, hospitalizaciones…" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Antecedentes No Patológicos</label>
+                <textarea className="form-input" name="non_pathological_history" rows={2} defaultValue={patient.non_pathological_history || ''} placeholder="Hábitos, tabaco, alcohol, alimentación…" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Antecedentes Heredofamiliares</label>
+                <textarea className="form-input" name="family_history" rows={2} defaultValue={patient.family_history || ''} placeholder="Antecedentes familiares relevantes…" />
+              </div>
+            </div>
+
             {/* 2. Notas Clínicas */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>

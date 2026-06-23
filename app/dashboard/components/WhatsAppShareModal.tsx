@@ -1,21 +1,44 @@
 'use client'
 
 import React from 'react'
-import { X, Lock, Zap } from 'lucide-react'
+import { X, Lock, Zap, Send } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
 
 /**
- * Modal para compartir una receta por WhatsApp (enlace seguro con código vs enlace directo).
- * Componente presentacional compartido por PatientHistoryTabs y PatientDetailsClient (dedup B1);
- * la lógica de los enlaces se conserva idéntica.
+ * Modal para compartir un documento por WhatsApp.
+ * - `prescription`: dos opciones (enlace seguro con código vs enlace directo) a /prescriptions/view/{id}.
+ * - `laborder` / `incapacidad`: una sola opción que comparte el enlace público verificable
+ *   `/verificar/{código}` (mismo destino que el QR impreso).
+ * Componente presentacional compartido por PatientHistoryTabs y PatientDetailsClient (dedup B1).
  */
-export default function WhatsAppShareModal({ presc, patient, appUrl, onClose }: {
+export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, docType = 'prescription' }: {
   presc: any
   patient: any
   appUrl: string
   onClose: () => void
+  docType?: 'prescription' | 'laborder' | 'incapacidad'
 }) {
   if (!presc) return null
+
+  const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
+  const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
+  const openWhatsApp = (text: string) => {
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
+    window.open(whatsappUrl, '_blank', 'noreferrer')
+    onClose()
+  }
+
+  // Texto descriptivo del documento según el tipo.
+  const docNoun = docType === 'laborder'
+    ? 'la siguiente orden de laboratorio'
+    : docType === 'incapacidad'
+      ? 'su incapacidad médica'
+      : 'la siguiente receta médica'
+
+  const intro = docType === 'prescription'
+    ? 'Seleccione el nivel de seguridad para compartir la receta médica con el paciente:'
+    : `Se compartirá con el paciente un enlace al documento verificado (${docType === 'laborder' ? 'orden de laboratorio' : 'incapacidad médica'}).`
+
   return (
     <div style={{
       position: 'fixed',
@@ -59,91 +82,82 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose }: 
         </div>
 
         <p style={{ margin: '0 0 20px 0', fontSize: '0.9rem', color: '#475569', lineHeight: '1.5' }}>
-          Seleccione el nivel de seguridad para compartir la receta médica con el paciente:
+          {intro}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Opción 1: Enlace Seguro */}
-          <button
-            onClick={() => {
-              const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
-              const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
-              const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
-              const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
-              window.open(whatsappUrl, '_blank', 'noreferrer')
-              onClose()
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              padding: '14px',
-              textAlign: 'left',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9'
-              e.currentTarget.style.borderColor = '#cbd5e1'
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#f8fafc'
-              e.currentTarget.style.borderColor = '#e2e8f0'
-            }}
-          >
-            <div style={{ backgroundColor: '#fee2e2', color: '#ef4444', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Lock size={18} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <strong style={{ display: 'block', fontSize: '0.92rem', color: '#0f172a', marginBottom: '2px' }}>🔒 Enlace Seguro (Pedir Código)</strong>
-              <span style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>El paciente deberá digitar el código de seguridad manualmente para poder ver la receta.</span>
-            </div>
-          </button>
+          {docType === 'prescription' ? (
+            <>
+              {/* Opción 1: Enlace Seguro */}
+              <button
+                onClick={() => {
+                  const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
+                  openWhatsApp(text)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px',
+                  padding: '14px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.borderColor = '#cbd5e1' }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0' }}
+              >
+                <div style={{ backgroundColor: '#fee2e2', color: '#ef4444', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Lock size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem', color: '#0f172a', marginBottom: '2px' }}>🔒 Enlace Seguro (Pedir Código)</strong>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: '1.4' }}>El paciente deberá digitar el código de seguridad manualmente para poder ver la receta.</span>
+                </div>
+              </button>
 
-          {/* Opción 2: Enlace Directo */}
-          <button
-            onClick={() => {
-              const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
-              const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}?code=${presc.verification_code}`
-              const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
-              const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
-              window.open(whatsappUrl, '_blank', 'noreferrer')
-              onClose()
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
-              backgroundColor: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '10px',
-              padding: '14px',
-              textAlign: 'left',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#dcfce7'
-              e.currentTarget.style.borderColor = '#86efac'
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#f0fdf4'
-              e.currentTarget.style.borderColor = '#bbf7d0'
-            }}
-          >
-            <div style={{ backgroundColor: '#dcfce7', color: '#22c55e', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={18} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>⚡ Enlace Directo (Un Clic)</strong>
-              <span style={{ fontSize: '0.8rem', color: '#15803d', lineHeight: '1.4' }}>La receta se abre automáticamente al hacer clic en el enlace, sin solicitar código de seguridad.</span>
-            </div>
-          </button>
+              {/* Opción 2: Enlace Directo */}
+              <button
+                onClick={() => {
+                  const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${appUrl}/prescriptions/view/${presc.id}?code=${presc.verification_code}`
+                  openWhatsApp(text)
+                }}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '12px',
+                  backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px',
+                  padding: '14px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#dcfce7'; e.currentTarget.style.borderColor = '#86efac' }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f0fdf4'; e.currentTarget.style.borderColor = '#bbf7d0' }}
+              >
+                <div style={{ backgroundColor: '#dcfce7', color: '#22c55e', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Zap size={18} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>⚡ Enlace Directo (Un Clic)</strong>
+                  <span style={{ fontSize: '0.8rem', color: '#15803d', lineHeight: '1.4' }}>La receta se abre automáticamente al hacer clic en el enlace, sin solicitar código de seguridad.</span>
+                </div>
+              </button>
+            </>
+          ) : (
+            /* Lab / Incapacidad: una sola opción → enlace público verificable */
+            <button
+              onClick={() => {
+                const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${appUrl}/verificar/${presc.verification_code}`
+                openWhatsApp(text)
+              }}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: '12px',
+                backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px',
+                padding: '14px', textAlign: 'left', cursor: 'pointer', transition: 'all 0.2s', width: '100%'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#dcfce7'; e.currentTarget.style.borderColor = '#86efac' }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f0fdf4'; e.currentTarget.style.borderColor = '#bbf7d0' }}
+            >
+              <div style={{ backgroundColor: '#dcfce7', color: '#22c55e', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Send size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>📲 Enviar enlace verificable</strong>
+                <span style={{ fontSize: '0.8rem', color: '#15803d', lineHeight: '1.4' }}>El paciente abre el documento auténtico con su código de verificación, sin iniciar sesión.</span>
+              </div>
+            </button>
+          )}
         </div>
 
         <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
