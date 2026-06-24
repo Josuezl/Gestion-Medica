@@ -28,7 +28,6 @@ export function canEnterVitals(role?: string | null): boolean {
   return canDoClinical(role) || isNurse(role)
 }
 
-// Puede editar (modificar) recetas. Solo personal clínico; asistente y enfermera solo ven/envían.
-export function canEditPrescription(role?: string | null): boolean {
-  return canDoClinical(role)
-}
+// Nota: las recetas son inmutables una vez emitidas (por seguridad / integridad
+// médico-legal). Ningún rol puede modificarlas, por lo que no existe un permiso
+// de edición de recetas.

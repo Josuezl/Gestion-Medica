@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
-import { sendMedicalRecordByEmail, sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, updatePrescription } from './email-actions'
-import { canDoClinical, canEditPrescription, canEnterVitals } from '@/utils/permissions'
+import { sendMedicalRecordByEmail, sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail } from './email-actions'
+import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
 import { medicineDetail } from '@/utils/medicines'
@@ -33,9 +33,6 @@ import {
   Pill,
   ChevronDown,
   ChevronUp,
-  Save,
-  X,
-  Trash2,
   Baby,
   Copy,
   Globe,
@@ -109,7 +106,6 @@ export default function PatientDetailsClient({
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
   const canClinical = canDoClinical(currentUserRole)
   const canTakeVitals = canEnterVitals(currentUserRole)
-  const canEditPresc = canEditPrescription(currentUserRole)
   // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
   const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
@@ -162,11 +158,6 @@ export default function PatientDetailsClient({
     setWhatsappShare({ doc: ref, docType: 'referral' })
   }
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
-  const [editingPrescription, setEditingPrescription] = useState<string | null>(null)
-  const [editMedicines, setEditMedicines] = useState<{ name: string; dose: string; frequency: string; duration: string }[]>([])
-  const [editNotes, setEditNotes] = useState('')
-  const [savingPrescription, setSavingPrescription] = useState(false)
-  const [prescSaveMsg, setPrescSaveMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [isEditing, setIsEditing] = useState(initialEdit)
   // Derivado de la fecha de nacimiento (menor de 19 años); el servidor lo recalcula al guardar.
   const [isEditPediatric, setIsEditPediatric] = useState(isPediatric(patient.birth_date))
@@ -1502,189 +1493,59 @@ export default function PatientDetailsClient({
                           </div>
                         </div>
 
-                        {/* Expanded Medicine Details */}
+                        {/* Expanded Medicine Details — solo lectura: las recetas son inmutables una vez emitidas */}
                         {isExpanded && (
                           <div style={{
                             marginTop: '1rem',
                             padding: '1rem',
                             backgroundColor: 'rgba(13, 148, 136, 0.04)',
                             borderRadius: '8px',
-                            border: `1px solid ${editingPrescription === presc.id ? 'var(--primary)' : 'rgba(13, 148, 136, 0.12)'}`,
+                            border: '1px solid rgba(13, 148, 136, 0.12)',
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Pill size={16} color="var(--primary)" />
-                                <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
-                              </div>
-                              {editingPrescription !== presc.id ? (
-                                canEditPresc ? (
-                                  <button
-                                    className="btn btn-secondary"
-                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
-                                    onClick={() => {
-                                      setEditingPrescription(presc.id)
-                                      setEditMedicines((presc.medicines || []).map((m: any) => ({ name: m.name || '', dose: m.dose || '', frequency: m.frequency || '', duration: m.duration || '' })))
-                                      setEditNotes(presc.notes || '')
-                                      setPrescSaveMsg(null)
-                                    }}
-                                  >
-                                    <Edit size={12} />
-                                    Editar Receta
-                                  </button>
-                                ) : null
-                              ) : (
-                                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                  <button
-                                    className="btn btn-primary"
-                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
-                                    disabled={savingPrescription}
-                                    onClick={async () => {
-                                      setSavingPrescription(true)
-                                      setPrescSaveMsg(null)
-                                      const result = await updatePrescription(presc.id, editMedicines, editNotes)
-                                      if (result.error) {
-                                        setPrescSaveMsg({ type: 'error', text: result.error })
-                                      } else {
-                                        setPrescSaveMsg({ type: 'success', text: '✅ Receta actualizada exitosamente' })
-                                        setEditingPrescription(null)
-                                        setTimeout(() => setPrescSaveMsg(null), 4000)
-                                      }
-                                      setSavingPrescription(false)
-                                    }}
-                                  >
-                                    {savingPrescription ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                    Guardar
-                                  </button>
-                                  <button
-                                    className="btn btn-secondary"
-                                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.72rem', gap: '0.25rem' }}
-                                    onClick={() => {
-                                      setEditingPrescription(null)
-                                      setPrescSaveMsg(null)
-                                    }}
-                                  >
-                                    <X size={12} />
-                                    Cancelar
-                                  </button>
-                                </div>
-                              )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                              <Pill size={16} color="var(--primary)" />
+                              <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Medicamentos Recetados</p>
                             </div>
 
-                            {/* Medicine Table */}
-                            {editingPrescription === presc.id ? (
-                              /* EDIT MODE */
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                {/* Table Header */}
-                                <div className="med-edit-head" style={{
-                                  padding: '0.4rem 0.6rem',
-                                  fontSize: '0.7rem',
-                                  fontWeight: '700',
-                                  color: 'var(--text-muted)',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.05em',
-                                }}>
-                                  <span>Medicamento</span>
-                                  <span>Dosis</span>
-                                  <span>Frecuencia</span>
-                                  <span>Duración</span>
-                                  <span></span>
-                                </div>
-                                {editMedicines.map((med, idx) => (
-                                  <div key={idx} className="med-edit-row" style={{
-                                    padding: '0.35rem 0.5rem',
-                                    backgroundColor: 'var(--bg-card)',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                  }}>
-                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.name} placeholder="Medicamento" onChange={(e) => { const n = [...editMedicines]; n[idx].name = e.target.value; setEditMedicines(n) }} />
-                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.dose} placeholder="Ej. 500mg" onChange={(e) => { const n = [...editMedicines]; n[idx].dose = e.target.value; setEditMedicines(n) }} />
-                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.frequency} placeholder="Ej. c/8h" onChange={(e) => { const n = [...editMedicines]; n[idx].frequency = e.target.value; setEditMedicines(n) }} />
-                                    <input className="form-input" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', margin: 0 }} value={med.duration} placeholder="Ej. 7 días" onChange={(e) => { const n = [...editMedicines]; n[idx].duration = e.target.value; setEditMedicines(n) }} />
-                                    <button onClick={() => { const n = editMedicines.filter((_, i) => i !== idx); setEditMedicines(n) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#ef4444' }} title="Eliminar medicamento">
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                ))}
-                                <button
-                                  onClick={() => setEditMedicines([...editMedicines, { name: '', dose: '', frequency: '', duration: '' }])}
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem', gap: '0.3rem', alignSelf: 'flex-start', marginTop: '0.25rem' }}
-                                >
-                                  <Plus size={13} />
-                                  Agregar Medicamento
-                                </button>
-
-                                {/* Editable Notes */}
-                                <div style={{ marginTop: '0.5rem' }}>
-                                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📝 Indicaciones</label>
-                                  <textarea
-                                    className="form-input"
-                                    value={editNotes}
-                                    onChange={(e) => setEditNotes(e.target.value)}
-                                    rows={2}
-                                    style={{ fontSize: '0.82rem', marginTop: '0.25rem' }}
-                                    placeholder="Indicaciones adicionales de la receta..."
-                                  />
-                                </div>
+                            {/* Medicamentos (solo lectura) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                              {/* Table Header */}
+                              <div style={{
+                                padding: '0.4rem 0.6rem',
+                                fontSize: '0.7rem',
+                                fontWeight: '700',
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                              }}>
+                                <span>Medicamento</span>
                               </div>
-                            ) : (
-                              /* VIEW MODE */
-                              <>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                  {/* Table Header */}
-                                  <div style={{
-                                    padding: '0.4rem 0.6rem',
-                                    fontSize: '0.7rem',
-                                    fontWeight: '700',
-                                    color: 'var(--text-muted)',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em',
-                                  }}>
-                                    <span>Medicamento</span>
-                                  </div>
-                                  {/* Medicine Rows */}
-                                  {(presc.medicines || []).map((med: any, idx: number) => (
-                                    <div key={idx} style={{
-                                      padding: '0.5rem 0.6rem',
-                                      backgroundColor: 'var(--bg-card)',
-                                      borderRadius: '6px',
-                                      fontSize: '0.82rem',
-                                      border: '1px solid var(--border-color)',
-                                      color: 'var(--text-main)',
-                                    }}>
-                                      <strong>{idx + 1}. {med.name}</strong>{medicineDetail(med) && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> — {medicineDetail(med)}</span>}
-                                    </div>
-                                  ))}
+                              {/* Medicine Rows */}
+                              {(presc.medicines || []).map((med: any, idx: number) => (
+                                <div key={idx} style={{
+                                  padding: '0.5rem 0.6rem',
+                                  backgroundColor: 'var(--bg-card)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.82rem',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-main)',
+                                }}>
+                                  <strong>{idx + 1}. {med.name}</strong>{medicineDetail(med) && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> — {medicineDetail(med)}</span>}
                                 </div>
+                              ))}
+                            </div>
 
-                                {presc.notes && (
-                                  <div style={{
-                                    marginTop: '0.75rem',
-                                    padding: '0.6rem 0.8rem',
-                                    backgroundColor: '#fffbeb',
-                                    border: '1px solid #fde68a',
-                                    borderRadius: '6px',
-                                    borderLeft: '3px solid #f59e0b',
-                                  }}>
-                                    <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#92400e', margin: '0 0 0.25rem', textTransform: 'uppercase' }}>📝 Indicaciones</p>
-                                    <p style={{ fontSize: '0.82rem', color: '#78350f', margin: 0, whiteSpace: 'pre-line' }}>{presc.notes}</p>
-                                  </div>
-                                )}
-                              </>
-                            )}
-
-                            {/* Save Message */}
-                            {prescSaveMsg && prescSaveMsg.text && (
+                            {presc.notes && (
                               <div style={{
                                 marginTop: '0.75rem',
-                                padding: '0.5rem 0.8rem',
+                                padding: '0.6rem 0.8rem',
+                                backgroundColor: '#fffbeb',
+                                border: '1px solid #fde68a',
                                 borderRadius: '6px',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                backgroundColor: prescSaveMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
-                                color: prescSaveMsg.type === 'success' ? '#166534' : '#991b1b',
+                                borderLeft: '3px solid #f59e0b',
                               }}>
-                                {prescSaveMsg.text}
+                                <p style={{ fontSize: '0.75rem', fontWeight: '700', color: '#92400e', margin: '0 0 0.25rem', textTransform: 'uppercase' }}>📝 Indicaciones</p>
+                                <p style={{ fontSize: '0.82rem', color: '#78350f', margin: 0, whiteSpace: 'pre-line' }}>{presc.notes}</p>
                               </div>
                             )}
                           </div>

@@ -3,7 +3,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail, sendDocumentLinkEmail } from '@/utils/email'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
-import { canEditPrescription } from '@/utils/permissions'
 import { safeErrorMessage } from '@/utils/errors'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
@@ -412,67 +411,6 @@ export async function sendReferralByEmail(patientId: string, consultationId: str
     p_record_id: consultationId,
     p_table_name: 'consultations'
   })
-
-  return { success: true }
-}
-
-/**
- * Server Action: Actualizar medicamentos e indicaciones de una receta existente
- */
-export async function updatePrescription(
-  prescriptionId: string,
-  medicines: { name: string; dose: string; frequency: string; duration: string }[],
-  notes: string
-) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
-
-  // Verificar que la receta existe y pertenece a la clínica del doctor
-  const { data: prescription } = await supabase
-    .from('prescriptions')
-    .select('*, patients(id, clinic_id)')
-    .eq('id', prescriptionId)
-    .single()
-
-  if (!prescription) return { error: 'Receta no encontrada' }
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id, role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.clinic_id || profile.clinic_id !== prescription.clinic_id) {
-    return { error: 'No tienes permiso para editar esta receta.' }
-  }
-
-  // Los asistentes pueden ver/imprimir/enviar recetas, pero no modificarlas.
-  if (!canEditPrescription(profile.role)) {
-    return { error: 'No tienes permiso para editar recetas.' }
-  }
-
-  // Actualizar medicamentos e indicaciones
-  const { error } = await supabase
-    .from('prescriptions')
-    .update({ medicines, notes })
-    .eq('id', prescriptionId)
-
-  if (error) {
-    return { error: safeErrorMessage('No se pudo actualizar la receta. Inténtalo de nuevo.', 'updatePrescription', error) }
-  }
-
-  // Registrar en bitácora de auditoría
-  await supabase.rpc('log_audit_event', {
-    p_action: 'UPDATE_PRESCRIPTION',
-    p_record_id: prescriptionId,
-    p_table_name: 'prescriptions'
-  })
-
-  // Revalidar la página del paciente
-  const { revalidatePath } = await import('next/cache')
-  revalidatePath(`/dashboard/patients/${prescription.patient_id}`)
 
   return { success: true }
 }

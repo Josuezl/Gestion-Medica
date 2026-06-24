@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isAssistant, isNurse, canDoClinical, canEnterVitals, canEditPrescription } from '@/utils/permissions'
+import { isAssistant, isNurse, canDoClinical, canEnterVitals } from '@/utils/permissions'
 
 describe('permisos por rol', () => {
   it('isAssistant / isNurse identifican su rol (case-insensitive)', () => {
@@ -23,12 +23,6 @@ describe('permisos por rol', () => {
     expect(canEnterVitals('DOCTOR')).toBe(true)
     expect(canEnterVitals('NURSE')).toBe(true)
     expect(canEnterVitals('ASSISTANT')).toBe(false)
-  })
-
-  it('canEditPrescription: solo clínico (asistente y enfermera no editan recetas)', () => {
-    expect(canEditPrescription('DOCTOR')).toBe(true)
-    expect(canEditPrescription('ASSISTANT')).toBe(false)
-    expect(canEditPrescription('NURSE')).toBe(false)
   })
 
   it('rol vacío/desconocido no obtiene permisos clínicos ni de vitales', () => {
