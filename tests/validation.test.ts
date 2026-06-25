@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName, normalizeName } from '@/utils/validation'
+import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName, normalizeName, classifyNameDobDuplicate } from '@/utils/validation'
 
 describe('validateVitals', () => {
   it('devuelve null cuando no se ingresó ningún vital', () => {
@@ -95,5 +95,61 @@ describe('normalizeName (para detectar duplicados)', () => {
   it('tolera null/undefined', () => {
     expect(normalizeName(null)).toBe('')
     expect(normalizeName(undefined)).toBe('')
+  })
+})
+
+describe('classifyNameDobDuplicate (bloqueo vs aviso de duplicados)', () => {
+  // Los candidatos ya vienen filtrados por la MISMA fecha de nacimiento (y misma clínica).
+  const candidate = (over: Partial<{ id: string; first_name: string; last_name: string; birth_date: string; gender: string }> = {}) => ({
+    id: 'p1', first_name: 'GEMA CAMILA', last_name: 'AGUILAR GARAY', birth_date: '2026-06-11', gender: 'F', ...over,
+  })
+
+  it('mismo nombre + mismo género => BLOQUEO (block=true)', () => {
+    const r = classifyNameDobDuplicate([candidate()], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')
+    expect(r).not.toBeNull()
+    expect(r!.block).toBe(true)
+    expect(r!.id).toBe('p1')
+  })
+
+  it('caso real GEMA: tolera espacios extra/dobles y sigue bloqueando', () => {
+    const r = classifyNameDobDuplicate([candidate()], 'GEMA CAMILA ', ' AGUILAR GARAY', 'F')
+    expect(r?.block).toBe(true)
+  })
+
+  it('tolera acentos y mayúsculas en el nombre', () => {
+    const r = classifyNameDobDuplicate([candidate({ first_name: 'José', last_name: 'Pérez' })], 'JOSE', 'PEREZ', 'M')
+    // género del candidato es F por el default; lo sobreescribimos para que coincida
+    const r2 = classifyNameDobDuplicate([candidate({ first_name: 'José', last_name: 'Pérez', gender: 'M' })], 'jose', 'perez', 'M')
+    expect(r2?.block).toBe(true)
+    expect(r).not.toBeNull()
+  })
+
+  it('mismo nombre pero género distinto => AVISO, no bloqueo (block=false)', () => {
+    const r = classifyNameDobDuplicate([candidate({ gender: 'M' })], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')
+    expect(r).not.toBeNull()
+    expect(r!.block).toBe(false)
+  })
+
+  it('nombre distinto (p. ej. gemelos con otro nombre) => null', () => {
+    const r = classifyNameDobDuplicate([candidate({ first_name: 'SOFIA ANDREA' })], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')
+    expect(r).toBeNull()
+  })
+
+  it('sin candidatos => null', () => {
+    expect(classifyNameDobDuplicate([], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')).toBeNull()
+  })
+
+  it('si hay varios, prefiere el de bloqueo (mismo nombre+género) sobre el aviso', () => {
+    const aviso = candidate({ id: 'aviso', gender: 'M' })
+    const bloqueo = candidate({ id: 'bloqueo', gender: 'F' })
+    const r = classifyNameDobDuplicate([aviso, bloqueo], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')
+    expect(r!.id).toBe('bloqueo')
+    expect(r!.block).toBe(true)
+  })
+
+  it('expone nombre y fecha para el mensaje al usuario', () => {
+    const r = classifyNameDobDuplicate([candidate()], 'GEMA CAMILA', 'AGUILAR GARAY', 'F')
+    expect(r!.name).toBe('GEMA CAMILA AGUILAR GARAY')
+    expect(r!.birthDate).toBe('2026-06-11')
   })
 })

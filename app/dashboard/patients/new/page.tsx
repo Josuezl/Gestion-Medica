@@ -20,8 +20,9 @@ import {
 export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  // Aviso de posible duplicado (no bloquea: se puede guardar de todas formas).
-  const [duplicate, setDuplicate] = useState<{ id: string; name: string; birthDate: string } | null>(null)
+  // Posible duplicado. `block: true` => duplicado exacto (nombre+fecha+género): NO se puede
+  // guardar de todas formas. `block: false` => solo aviso, se puede confirmar y guardar.
+  const [duplicate, setDuplicate] = useState<{ id: string; name: string; birthDate: string; block: boolean } | null>(null)
   const pendingForm = useRef<FormData | null>(null)
   // Se detecta automáticamente por la fecha de nacimiento (menor de 19 años).
   const [isPediatric, setIsPediatric] = useState(false)
@@ -95,25 +96,39 @@ export default function NewPatientPage() {
       {error && <div style={styles.errorAlert}>{error}</div>}
 
       {duplicate && (
-        <div style={styles.dupAlert}>
+        <div style={duplicate.block ? styles.dupBlockAlert : styles.dupAlert}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
             <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong>Ya existe un paciente parecido:</strong> {duplicate.name}
-              {duplicate.birthDate ? ` (nac. ${duplicate.birthDate})` : ''}. ¿Es la misma persona?
+              {duplicate.block ? (
+                <>
+                  <strong>Este paciente ya está registrado:</strong> {duplicate.name}
+                  {duplicate.birthDate ? ` (nac. ${duplicate.birthDate})` : ''}. Coincide nombre,
+                  fecha de nacimiento y género, así que no se puede registrar otra vez. Abre su expediente.
+                </>
+              ) : (
+                <>
+                  <strong>Ya existe un paciente parecido:</strong> {duplicate.name}
+                  {duplicate.birthDate ? ` (nac. ${duplicate.birthDate})` : ''}. ¿Es la misma persona?
+                </>
+              )}
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                 <a href={`/dashboard/patients/${duplicate.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
                   Ver ese paciente
                 </a>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-                  disabled={loading}
-                  onClick={() => { if (pendingForm.current) submit(pendingForm.current, true) }}
-                >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : 'Guardar de todas formas'}
-                </button>
+                {/* "Guardar de todas formas" SOLO para avisos (block=false). En un bloqueo no se ofrece;
+                    el servidor además lo rechaza aunque se forzara. */}
+                {!duplicate.block && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                    disabled={loading}
+                    onClick={() => { if (pendingForm.current) submit(pendingForm.current, true) }}
+                  >
+                    {loading ? <Loader2 size={14} className="animate-spin" /> : 'Guardar de todas formas'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -413,6 +428,15 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #fde68a',
     borderRadius: '8px',
     color: '#92400e',
+    fontSize: '0.88rem',
+    marginBottom: '1rem',
+  },
+  dupBlockAlert: {
+    padding: '0.85rem 1rem',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    border: '1px solid rgba(239, 68, 68, 0.35)',
+    borderRadius: '8px',
+    color: '#b91c1c',
     fontSize: '0.88rem',
     marginBottom: '1rem',
   },

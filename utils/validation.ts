@@ -84,3 +84,56 @@ export function normalizeName(raw: string | null | undefined): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+/** Fila candidata de paciente (misma clínica + misma fecha de nacimiento) para detectar duplicados. */
+export interface DuplicateCandidate {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  birth_date: string | null
+  gender: string | null
+}
+
+/** Resultado de la detección de duplicado. `block=true` => bloqueo (no se permite registrar). */
+export interface DuplicateMatch {
+  id: string
+  name: string
+  birthDate: string | null
+  block: boolean
+}
+
+/**
+ * Decide si alguno de los `candidates` (que ya comparten la MISMA fecha de nacimiento y clínica que
+ * el paciente que se quiere registrar) es un duplicado, comparando el nombre normalizado.
+ *
+ * - Mismo nombre + mismo género => `block: true` (duplicado casi seguro: bloqueo, no se puede saltar).
+ *   Es exactamente el caso de dos capturas del mismo paciente (mismo nombre, fecha y género).
+ * - Mismo nombre pero género distinto => `block: false` (aviso, se puede confirmar y guardar).
+ * - Ningún nombre coincide (p. ej. gemelos con otro nombre) => `null`.
+ *
+ * Si hay varios candidatos que coinciden por nombre, prefiere el de bloqueo (género igual).
+ * Función pura (sin BD) para poder probarla; la server action hace la consulta y delega aquí.
+ */
+export function classifyNameDobDuplicate(
+  candidates: DuplicateCandidate[],
+  firstName: string,
+  lastName: string,
+  gender: string,
+): DuplicateMatch | null {
+  const target = normalizeName(`${firstName} ${lastName}`)
+  if (!target) return null
+
+  let warning: DuplicateMatch | null = null
+  for (const c of candidates) {
+    if (normalizeName(`${c.first_name ?? ''} ${c.last_name ?? ''}`) !== target) continue
+    const match: DuplicateMatch = {
+      id: c.id,
+      name: `${c.first_name ?? ''} ${c.last_name ?? ''}`.replace(/\s+/g, ' ').trim(),
+      birthDate: c.birth_date,
+      block: c.gender === gender,
+    }
+    if (match.block) return match // bloqueo: el más fuerte, se devuelve de inmediato
+    warning = warning ?? match    // aviso: lo recordamos por si no aparece un bloqueo
+  }
+  return warning
+}

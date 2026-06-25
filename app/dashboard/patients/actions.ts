@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
 import { canDoClinical } from '@/utils/permissions'
-import { normalizeName } from '@/utils/validation'
+import { classifyNameDobDuplicate, type DuplicateMatch } from '@/utils/validation'
 import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -23,17 +23,33 @@ function sanitizePhone(phone: string): string | null {
   return digits                                   // otro formato: se guarda solo con dígitos
 }
 
-// Busca un posible paciente duplicado en la clínica: mismo DNI, o mismo nombre normalizado
-// (sin acentos/mayúsculas) + misma fecha de nacimiento. Devuelve la fila o null.
+// Busca un posible paciente duplicado en la clínica y lo clasifica:
+//  - `block: true`  => mismo nombre normalizado + misma fecha de nacimiento + mismo género
+//                      (duplicado casi seguro): se bloquea el registro, no se puede saltar.
+//  - `block: false` => coincidencia menos certera (mismo DNI, o mismo nombre+fecha con género
+//                      distinto): solo aviso, el usuario puede confirmar y guardar.
+// Devuelve el match (con id/nombre/fecha para el mensaje) o null.
 async function findDuplicatePatient(
   supabase: any,
   clinicId: string,
   firstName: string,
   lastName: string,
   birthDate: string,
+  gender: string,
   idCard: string | null,
-) {
-  // 1. Por DNI exacto (si se proporcionó).
+): Promise<DuplicateMatch | null> {
+  // 1. Por nombre + fecha de nacimiento (clasifica bloqueo vs aviso según el género).
+  if (birthDate) {
+    const { data: sameDob } = await supabase
+      .from('patients')
+      .select('id, first_name, last_name, birth_date, gender')
+      .eq('clinic_id', clinicId)
+      .eq('birth_date', birthDate)
+    const match = classifyNameDobDuplicate(sameDob || [], firstName, lastName, gender)
+    if (match) return match
+  }
+
+  // 2. Por DNI exacto (aviso): solo si no hubo coincidencia por nombre+fecha.
   if (idCard) {
     const { data } = await supabase
       .from('patients')
@@ -42,18 +58,17 @@ async function findDuplicatePatient(
       .eq('id_card', idCard)
       .limit(1)
       .maybeSingle()
-    if (data) return data
+    if (data) {
+      return {
+        id: data.id,
+        name: `${data.first_name ?? ''} ${data.last_name ?? ''}`.replace(/\s+/g, ' ').trim(),
+        birthDate: data.birth_date,
+        block: false,
+      }
+    }
   }
 
-  // 2. Por nombre normalizado + fecha de nacimiento (el DNI no siempre se captura).
-  if (!birthDate) return null
-  const { data: sameDob } = await supabase
-    .from('patients')
-    .select('id, first_name, last_name, birth_date')
-    .eq('clinic_id', clinicId)
-    .eq('birth_date', birthDate)
-  const target = normalizeName(`${firstName} ${lastName}`)
-  return (sameDob || []).find((p: any) => normalizeName(`${p.first_name} ${p.last_name}`) === target) || null
+  return null
 }
 
 // El N° de expediente debe ser único dentro de la clínica. Devuelve el paciente que YA lo usa
@@ -166,13 +181,18 @@ export async function createPatient(formData: FormData, force = false) {
     }
   }
 
-  // 1.c Validación anti-duplicados (aviso, no bloqueo): mismo DNI, o mismo nombre normalizado +
-  //     fecha de nacimiento, dentro de la clínica. Se omite si el usuario confirma con force.
-  if (!force) {
-    const dup = await findDuplicatePatient(supabase, profile.clinic_id, firstName, lastName, birthDate, idCard)
-    if (dup) {
-      return { duplicate: { id: dup.id, name: `${dup.first_name} ${dup.last_name}`.trim(), birthDate: dup.birth_date } }
-    }
+  // 1.c Validación anti-duplicados dentro de la clínica:
+  //   - Bloqueo (no se puede saltar, ni con force): mismo nombre + fecha de nacimiento + género.
+  //     Es un duplicado casi seguro (p. ej. dos asistentes registran al mismo recién nacido).
+  //   - Aviso (se puede confirmar con force): mismo DNI, o mismo nombre+fecha con género distinto.
+  const dup = await findDuplicatePatient(supabase, profile.clinic_id, firstName, lastName, birthDate, gender, idCard)
+  // El bloqueo se enforce SIEMPRE en el servidor (aunque llegue force=true desde un cliente
+  // manipulado): un duplicado exacto nombre+fecha+género no se puede registrar.
+  if (dup?.block) {
+    return { duplicate: { id: dup.id, name: dup.name, birthDate: dup.birthDate, block: true } }
+  }
+  if (dup && !force) {
+    return { duplicate: { id: dup.id, name: dup.name, birthDate: dup.birthDate, block: false } }
   }
 
   const rawPhone = (formData.get('phone') as string || '').trim()
