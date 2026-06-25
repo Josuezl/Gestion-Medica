@@ -151,6 +151,12 @@ export async function createPatient(formData: FormData, force = false) {
   const birthDate = formData.get('birth_date') as string
   const idCard = (formData.get('id_card') as string || '').trim() || null
   const recordNumber = (formData.get('record_number') as string || '').trim() || null
+  const gender = (formData.get('gender') as string || '').trim()
+
+  // Género obligatorio al registrar (varios cálculos clínicos lo requieren, p. ej. crecimiento pediátrico).
+  if (gender !== 'M' && gender !== 'F') {
+    return { error: 'Selecciona el género del paciente.' }
+  }
 
   // 1.b N° de expediente único en la clínica (bloqueo): si ya lo usa otro paciente, avisar con su nombre.
   if (recordNumber) {
@@ -179,7 +185,7 @@ export async function createPatient(formData: FormData, force = false) {
     last_name: lastName,
     id_card: idCard,
     record_number: recordNumber,
-    gender: formData.get('gender') as string || null,
+    gender,
     birth_date: birthDate,
     phone: sanitizedPhone,
     email: formData.get('email') as string || null,

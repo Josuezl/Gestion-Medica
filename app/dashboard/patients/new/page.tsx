@@ -213,10 +213,10 @@ export default function NewPatientPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="gender">
-                  Género
+                  Género *
                 </label>
-                <select className="form-input" id="gender" name="gender">
-                  <option value="">Selecciona...</option>
+                <select className="form-input" id="gender" name="gender" required defaultValue="">
+                  <option value="" disabled>Selecciona...</option>
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
                 </select>
