@@ -868,58 +868,15 @@ export default function PatientDetailsClient({
             </div>
           </div>
 
-          <div className="action-row" style={styles.headerActions}>
+          </div>
+
+          {/* Acciones del expediente: fila propia (debajo de los datos) para que el nombre quepa en
+              una sola línea. En móvil (.action-row ≤480px) los botones se apilan a todo el ancho. */}
+          <div className="action-row" style={{ ...styles.headerActions, marginTop: '1.25rem' }}>
             <button className="btn btn-secondary" style={{ gap: '0.4rem' }} onClick={() => setIsEditing(!isEditing)}>
               <Edit size={16} />
               {isEditing ? 'Cancelar' : 'Editar Paciente'}
             </button>
-            <button onClick={printMedicalRecord} className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none' }}>
-              <Printer size={16} />
-              Imprimir Ficha
-            </button>
-            {canPrintLeave && (
-              <a
-                href={`/consultations/${lastConsult.id}/print`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary"
-                style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }}
-              >
-                <Printer size={16} />
-                Imprimir Incapacidad
-              </a>
-            )}
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <a 
-                href={`https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(generateFichaText())}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="btn" 
-                style={{ 
-                  padding: '0.5rem', 
-                  backgroundColor: '#dcf8c6', 
-                  color: '#128C7E', 
-                  border: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                title="Enviar por WhatsApp"
-              >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'block' }}>
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
-                </svg>
-              </a>
-              <button 
-                onClick={handleSendFichaEmail}
-                disabled={sendingFichaEmail}
-                className="btn btn-secondary" 
-                style={{ padding: '0.5rem', backgroundColor: sendingFichaEmail ? '#c7d2fe' : '#e0e7ff', color: '#4338ca', border: 'none', cursor: sendingFichaEmail ? 'wait' : 'pointer' }}
-                title="Enviar Ficha por Correo Electrónico"
-              >
-                {sendingFichaEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
-              </button>
-            </div>
             {canTakeVitals && (
               <button
                 type="button"
@@ -929,8 +886,36 @@ export default function PatientDetailsClient({
                 title="Tomar signos vitales (pre-clínica)"
               >
                 <Stethoscope size={16} />
-                Tomar signos
+                Tomar Signos
               </button>
+            )}
+            <button onClick={printMedicalRecord} className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none' }}>
+              <Printer size={16} />
+              Imprimir Ficha
+            </button>
+            {prescriptions.length > 0 && (
+              <a href={`/prescriptions/${prescriptions[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última receta emitida">
+                <Printer size={16} />
+                Última Receta
+              </a>
+            )}
+            {labOrders.length > 0 && (
+              <a href={`/lab-orders/${labOrders[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última orden de laboratorio">
+                <Printer size={16} />
+                Última Orden de Lab
+              </a>
+            )}
+            {studyRequests.length > 0 && (
+              <a href={`/study-requests/${studyRequests[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última solicitud de estudios">
+                <Printer size={16} />
+                Última Solicitud de Estudio
+              </a>
+            )}
+            {medicalLeaves.length > 0 && (
+              <a href={`/consultations/${medicalLeaves[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última incapacidad médica">
+                <Printer size={16} />
+                Última Incapacidad
+              </a>
             )}
             {canClinical && (
               <a
@@ -943,7 +928,6 @@ export default function PatientDetailsClient({
               </a>
             )}
           </div>
-        </div>
 
         {/* Critical Allergies Ribbon */}
         <div style={styles.allergiesRibbon}>
@@ -1120,6 +1104,16 @@ export default function PatientDetailsClient({
             </button>
           )}
 
+          {canClinical && patient.is_pediatric && (
+            <button
+              style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('pediatrics')}
+            >
+              <Baby size={18} />
+              <span>Curvas de Crecimiento OMS</span>
+            </button>
+          )}
+
           <button
             style={activeTab === 'prescriptions' ? styles.tabActive : styles.tab}
             onClick={() => setActiveTab('prescriptions')}
@@ -1141,7 +1135,7 @@ export default function PatientDetailsClient({
             onClick={() => setActiveTab('studyrequests')}
           >
             <Stethoscope size={18} />
-            <span>Estudios</span>
+            <span>Estudios Solicitados</span>
           </button>
 
           {canClinical && (
@@ -1151,16 +1145,6 @@ export default function PatientDetailsClient({
             >
               <FileSpreadsheet size={18} />
               <span>Estudios Médicos</span>
-            </button>
-          )}
-
-          {canClinical && patient.is_pediatric && (
-            <button
-              style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('pediatrics')}
-            >
-              <Baby size={18} />
-              <span>Curvas de Crecimiento OMS</span>
             </button>
           )}
 
@@ -1871,8 +1855,11 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
   },
   patientName: {
-    fontSize: '1.5rem',
+    // En una sola línea; el tamaño se reduce en pantallas pequeñas (móvil) para que no se parta.
+    fontSize: 'clamp(1.15rem, 4.5vw, 1.5rem)',
     fontWeight: '800',
+    whiteSpace: 'nowrap',
+    margin: 0,
   },
   demographicsSub: {
     fontSize: '0.875rem',
