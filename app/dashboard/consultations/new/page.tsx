@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
+import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
 import NewConsultationClient from './NewConsultationClient'
 
 interface PageProps {
@@ -27,13 +28,19 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
   // Rol y permisos del usuario (para el borrado de estudios)
   const { data: currentProfile } = await supabase
     .from('user_profiles')
-    .select('role, is_org_admin')
+    .select('role, is_org_admin, clinic_id')
     .eq('id', user.id)
     .single()
 
   // Crear consultas es trabajo médico: asistente y enfermera no tienen acceso.
   if (!canDoClinical(currentProfile?.role)) {
     redirect('/dashboard')
+  }
+
+  // Catálogo de estudios habilitado por defecto: si la clínica aún no lo tiene, se siembra
+  // automáticamente (idempotente) para que la "Solicitud de Estudios" funcione sin acción manual.
+  if (currentProfile?.clinic_id) {
+    await ensureStudyCatalogSeeded(supabase, currentProfile.clinic_id)
   }
 
   // 2. Obtener paciente. Se traen todas las columnas porque el formulario y el
@@ -99,6 +106,34 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
   const lastLabOrder = labOrders && labOrders.length > 0 ? labOrders[0] : null
 
+  // 7.b Catálogo de estudios activo (agrupado por sección) para el modal de solicitud de estudios.
+  //      RLS aísla por clínica. Se tolera que las tablas aún no existan (migración pendiente).
+  const { data: studySections } = await supabase
+    .from('study_sections')
+    .select('id, name, sort_order')
+    .order('sort_order', { ascending: true })
+  const { data: studyCatalogRows } = await supabase
+    .from('study_catalog')
+    .select('section_id, name, description, patient_indication, sort_order, is_active')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+  const studyCatalog = (studySections || [])
+    .map((s: any) => ({
+      section: s.name,
+      studies: (studyCatalogRows || [])
+        .filter((r: any) => r.section_id === s.id)
+        .map((r: any) => ({ name: r.name, description: r.description, indication: r.patient_indication })),
+    }))
+    .filter((s: any) => s.studies.length > 0)
+
+  // 7.c Solicitudes de estudios del paciente: historial y la última (para mostrar/reusar como referencia).
+  const { data: studyRequests } = await supabase
+    .from('study_requests')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+  const lastStudyRequest = studyRequests && studyRequests.length > 0 ? studyRequests[0] : null
+
   // 8. Pre-clínica pendiente de hoy (signos que tomó la enfermera): se precargan en el formulario.
   //    Tolera que la tabla aún no exista (devuelve null) → la pantalla funciona igual que antes.
   const preclinical = await getPendingPreclinical(patientId)
@@ -117,6 +152,9 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
       labCatalog={labCatalog}
       lastLabOrder={lastLabOrder || null}
       labOrders={labOrders || []}
+      studyCatalog={studyCatalog}
+      lastStudyRequest={lastStudyRequest || null}
+      studyRequests={studyRequests || []}
     />
   )
 }

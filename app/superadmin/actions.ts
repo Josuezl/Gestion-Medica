@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { provisionUserAccount, resendUserInvite } from '@/utils/provisioning'
 import { provisionUserWithPassword } from '@/utils/provisioning-credentials'
 import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
+import { DEFAULT_STUDY_CATALOG } from '@/utils/studyCatalog'
 import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 
@@ -25,6 +26,33 @@ async function seedLabCatalogForClinic(admin: ReturnType<typeof createAdminClien
     }
   } catch (e) {
     console.error('No se pudo sembrar el catálogo de laboratorio para la clínica', clinicId, e)
+  }
+}
+
+/** Siembra el catálogo estándar de estudios para una clínica recién creada (best-effort). */
+async function seedStudyCatalogForClinic(admin: ReturnType<typeof createAdminClient>, clinicId: string) {
+  try {
+    for (let s = 0; s < DEFAULT_STUDY_CATALOG.length; s++) {
+      const sec = DEFAULT_STUDY_CATALOG[s]
+      const { data: secRow } = await admin
+        .from('study_sections')
+        .insert([{ clinic_id: clinicId, name: sec.section, sort_order: s }])
+        .select('id')
+        .single()
+      if (!secRow) continue
+      await admin.from('study_catalog').insert(
+        sec.studies.map((st, i) => ({
+          clinic_id: clinicId,
+          section_id: secRow.id,
+          name: st.name,
+          description: st.description || null,
+          patient_indication: st.indication || null,
+          sort_order: i,
+        }))
+      )
+    }
+  } catch (e) {
+    console.error('No se pudo sembrar el catálogo de estudios para la clínica', clinicId, e)
   }
 }
 
@@ -109,8 +137,9 @@ export async function provisionTenant(formData: FormData) {
     return { error: `No se pudo crear la clínica: ${locationError?.message}` }
   }
 
-  // 2.b Sembrar el catálogo estándar de laboratorio (best-effort; no aborta la provisión).
+  // 2.b Sembrar los catálogos estándar (best-effort; no abortan la provisión).
   await seedLabCatalogForClinic(admin, clinic.id)
+  await seedStudyCatalogForClinic(admin, clinic.id)
 
   // 3. Crear y enlazar al dueño (org admin) + enviar enlace de fijar contraseña.
   const result = await provisionUserAccount({

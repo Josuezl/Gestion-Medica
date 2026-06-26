@@ -62,11 +62,28 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     labOrder = data
   }
 
-  const doc: any = prescription || leave || labOrder
+  // Si no es receta, incapacidad ni orden de laboratorio, buscar una solicitud de estudios.
+  let studyRequest: any = null
+  if (!prescription && !leave && !labOrder) {
+    const { data } = await supabaseAdmin
+      .from('study_requests')
+      .select(`
+        id, created_at, studies, other_studies, verification_code,
+        clinics ( name ),
+        patients ( first_name, last_name ),
+        user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
+      `)
+      .eq('verification_code', code)
+      .single()
+    studyRequest = data
+  }
+
+  const doc: any = prescription || leave || labOrder || studyRequest
   const isValid = !!doc
   const isReferral = !prescription && !!leave && wantReferral
   const isLeave = !prescription && !!leave && !wantReferral
   const isLabOrder = !prescription && !leave && !!labOrder
+  const isStudyRequest = !prescription && !leave && !labOrder && !!studyRequest
 
   const patient = doc?.patients
   const docDoctor = doc?.user_profiles
@@ -80,6 +97,16 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     g.names.push(t.name)
   }
   const labOtherLines = isLabOrder ? (labOrder.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
+
+  // Estudios de la solicitud, agrupados por sección (para mostrarlos en la verificación).
+  const studyItems: { section: string; name: string; indication?: string | null }[] = isStudyRequest && Array.isArray(studyRequest.studies) ? studyRequest.studies : []
+  const studyGroups: { section: string; names: string[] }[] = []
+  for (const s of studyItems) {
+    let g = studyGroups.find((x) => x.section === s.section)
+    if (!g) { g = { section: s.section, names: [] }; studyGroups.push(g) }
+    g.names.push(s.name)
+  }
+  const studyOtherLines = isStudyRequest ? (studyRequest.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
@@ -98,6 +125,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
               : isReferral ? 'Referencia Médica Auténtica'
               : isLeave ? 'Incapacidad Médica Auténtica'
               : isLabOrder ? 'Orden de Laboratorio Auténtica'
+              : isStudyRequest ? 'Solicitud de Estudios Auténtica'
               : 'Receta Médica Auténtica'}
           </h1>
           {isValid && (
@@ -181,6 +209,29 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     )}
                     {labGroups.length === 0 && labOtherLines.length === 0 && (
                       <p style={{ margin: 0, color: '#64748b' }}>Sin exámenes especificados.</p>
+                    )}
+                  </div>
+                </div>
+              ) : isStudyRequest ? (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Stethoscope size={20} color="#0d9488" /> Estudios Solicitados
+                  </h3>
+                  <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
+                    {studyGroups.map((g) => (
+                      <div key={g.section} style={{ marginBottom: '0.85rem' }}>
+                        <p style={{ margin: '0 0 0.25rem', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0d9488' }}>{g.section}</p>
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>{g.names.join(' · ')}</p>
+                      </div>
+                    ))}
+                    {studyOtherLines.length > 0 && (
+                      <div>
+                        <p style={{ margin: '0 0 0.25rem', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Otros</p>
+                        <p style={{ margin: 0, fontSize: '0.9rem', whiteSpace: 'pre-line' }}>{studyOtherLines.join('\n')}</p>
+                      </div>
+                    )}
+                    {studyGroups.length === 0 && studyOtherLines.length === 0 && (
+                      <p style={{ margin: 0, color: '#64748b' }}>Sin estudios especificados.</p>
                     )}
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { requireOrgAdmin } from '@/utils/auth-guard'
 import { provisionUserAccount } from '@/utils/provisioning'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
+import { DEFAULT_STUDY_CATALOG } from '@/utils/studyCatalog'
 import { revalidatePath } from 'next/cache'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -553,6 +554,224 @@ export async function setLabCategoryTestsActive(categoryId: string, isActive: bo
     .eq('category_id', categoryId)
     .eq('clinic_id', ctx.clinicId)
   if (error) return { error: 'Error al actualizar los exámenes: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+// ============================================================================
+// Catálogo de Estudios (estudios de gabinete: cardiología, radiología, etc.)
+// Mantenimiento por el administrador de la clínica. Cada estudio incluye descripción
+// e indicaciones para el paciente (lo nuevo respecto al catálogo de laboratorio).
+// ============================================================================
+
+/**
+ * Siembra el catálogo estándar de estudios (DEFAULT_STUDY_CATALOG) para la clínica del admin.
+ * Idempotente: no hace nada si la clínica ya tiene secciones.
+ */
+export async function seedDefaultStudyCatalog() {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('study_sections')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', ctx.clinicId)
+  if ((count ?? 0) > 0) return { success: true } // ya tiene catálogo
+
+  for (let s = 0; s < DEFAULT_STUDY_CATALOG.length; s++) {
+    const sec = DEFAULT_STUDY_CATALOG[s]
+    const { data: secRow, error: secErr } = await supabase
+      .from('study_sections')
+      .insert([{ clinic_id: ctx.clinicId, name: sec.section, sort_order: s }])
+      .select('id')
+      .single()
+    if (secErr || !secRow) return { error: 'Error al cargar el catálogo: ' + (secErr?.message || '') }
+
+    const rows = sec.studies.map((st, i) => ({
+      clinic_id: ctx.clinicId,
+      section_id: secRow.id,
+      name: st.name,
+      description: st.description || null,
+      patient_indication: st.indication || null,
+      sort_order: i,
+    }))
+    const { error: itemErr } = await supabase.from('study_catalog').insert(rows)
+    if (itemErr) return { error: 'Error al cargar estudios: ' + itemErr.message }
+  }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function createStudySection(name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre de la sección es requerido.' }
+
+  const supabase = await createClient()
+  const { data: last } = await supabase
+    .from('study_sections')
+    .select('sort_order')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sort = ((last?.sort_order ?? -1) as number) + 1
+
+  const { error } = await supabase
+    .from('study_sections')
+    .insert([{ clinic_id: ctx.clinicId, name: clean, sort_order: sort }])
+  if (error) return { error: 'Error al crear la sección: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function updateStudySection(id: string, name: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre de la sección es requerido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('study_sections')
+    .update({ name: clean })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar la sección: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function deleteStudySection(id: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  // Los estudios se borran en cascada (FK on delete cascade).
+  const { error } = await supabase
+    .from('study_sections')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al eliminar la sección: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function createStudyItem(sectionId: string, name: string, description: string, indication: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre del estudio es requerido.' }
+
+  const supabase = await createClient()
+  // La sección debe ser de la misma clínica.
+  const { data: sec } = await supabase
+    .from('study_sections')
+    .select('id')
+    .eq('id', sectionId)
+    .eq('clinic_id', ctx.clinicId)
+    .maybeSingle()
+  if (!sec) return { error: 'Sección no válida.' }
+
+  const { data: last } = await supabase
+    .from('study_catalog')
+    .select('sort_order')
+    .eq('section_id', sectionId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sort = ((last?.sort_order ?? -1) as number) + 1
+
+  const { error } = await supabase
+    .from('study_catalog')
+    .insert([{
+      clinic_id: ctx.clinicId,
+      section_id: sectionId,
+      name: clean,
+      description: (description || '').trim() || null,
+      patient_indication: (indication || '').trim() || null,
+      sort_order: sort,
+    }])
+  if (error) return { error: 'Error al crear el estudio: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function updateStudyItem(id: string, name: string, description: string, indication: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+  const clean = (name || '').trim()
+  if (!clean) return { error: 'El nombre del estudio es requerido.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('study_catalog')
+    .update({
+      name: clean,
+      description: (description || '').trim() || null,
+      patient_indication: (indication || '').trim() || null,
+    })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar el estudio: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function toggleStudyItem(id: string, isActive: boolean) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('study_catalog')
+    .update({ is_active: isActive })
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar el estudio: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+export async function deleteStudyItem(id: string) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('study_catalog')
+    .delete()
+    .eq('id', id)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al eliminar el estudio: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+/** Activa o desactiva TODOS los estudios de una sección de una sola vez. */
+export async function setStudySectionItemsActive(sectionId: string, isActive: boolean) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('study_catalog')
+    .update({ is_active: isActive })
+    .eq('section_id', sectionId)
+    .eq('clinic_id', ctx.clinicId)
+  if (error) return { error: 'Error al actualizar los estudios: ' + error.message }
 
   revalidatePath('/dashboard/config')
   return { success: true }

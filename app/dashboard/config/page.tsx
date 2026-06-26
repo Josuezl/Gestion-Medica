@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { effectiveLimit, canInviteDoctors, canManageLocations } from '@/utils/clinicLimits'
 import ConfigClient from './ConfigClient'
+import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
 import { Settings } from 'lucide-react'
 
 export default async function ConfigPage() {
@@ -85,6 +86,21 @@ export default async function ConfigPage() {
     .eq('clinic_id', ctx.clinicId)
     .order('sort_order', { ascending: true })
 
+  // Catálogo de estudios habilitado por defecto: sembrar si la clínica aún no lo tiene (idempotente).
+  await ensureStudyCatalogSeeded(supabase, ctx.clinicId)
+
+  // Catálogo de estudios (secciones + todos los estudios, activos e inactivos)
+  const { data: studySections } = await supabase
+    .from('study_sections')
+    .select('*')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: true })
+  const { data: studyItems } = await supabase
+    .from('study_catalog')
+    .select('*')
+    .eq('clinic_id', ctx.clinicId)
+    .order('sort_order', { ascending: true })
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -108,6 +124,8 @@ export default async function ConfigPage() {
         maxStorageMb={maxStorageMb}
         labCategories={labCategories || []}
         labTests={labTests || []}
+        studySections={studySections || []}
+        studyItems={studyItems || []}
       />
     </div>
   )

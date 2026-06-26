@@ -91,6 +91,13 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
 
+  // 6.b Cargar solicitudes de estudios del paciente (para la pestaña "Estudios").
+  const { data: studyRequests } = await supabase
+    .from('study_requests')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+
   // 7. Cargar incapacidades médicas (consultas con `medical_leave`). Se traen para TODOS los roles
   //    —incl. asistente/enfermería, que pueden imprimirlas/enviarlas— pero SOLO columnas no sensibles
   //    (sin diagnóstico/plan), para no exponer datos clínicos en la lista del expediente.
@@ -119,6 +126,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       studies={studies || []}
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
+      studyRequests={studyRequests || []}
       medicalLeaves={medicalLeaves || []}
       referrals={referrals || []}
       showRecordNumber={showRecordNumber}

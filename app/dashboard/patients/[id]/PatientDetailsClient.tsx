@@ -42,6 +42,7 @@ import PediatricGrowthChart from '../../components/PediatricGrowthChart'
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
+import StudyRequestsTab from './StudyRequestsTab'
 
 // Utilidad para calcular edad
 function calculateAge(birthDateString: string) {
@@ -72,6 +73,7 @@ interface PatientDetailsClientProps {
   studies: any[]
   prescriptions: any[]
   labOrders?: any[]
+  studyRequests?: any[]
   medicalLeaves?: any[]
   referrals?: any[]
   showRecordNumber?: boolean
@@ -88,6 +90,7 @@ export default function PatientDetailsClient({
   studies,
   prescriptions,
   labOrders = [],
+  studyRequests = [],
   medicalLeaves = [],
   referrals = [],
   showRecordNumber = false,
@@ -109,8 +112,9 @@ export default function PatientDetailsClient({
   // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
   const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
+  const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
@@ -1132,6 +1136,14 @@ export default function PatientDetailsClient({
             <span>Lab. Solicitados</span>
           </button>
 
+          <button
+            style={activeTab === 'studyrequests' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('studyrequests')}
+          >
+            <Stethoscope size={18} />
+            <span>Estudios</span>
+          </button>
+
           {canClinical && (
             <button
               style={activeTab === 'studies' ? styles.tabActive : styles.tab}
@@ -1586,6 +1598,15 @@ export default function PatientDetailsClient({
               onSendEmail={handleSendLabEmail}
               sendingEmailId={sendingLabEmail}
               emailMsg={labEmailMsg}
+            />
+          )}
+
+          {activeTab === 'studyrequests' && (
+            <StudyRequestsTab
+              studyRequests={studyRequests}
+              styles={styles}
+              expandedStudyRequest={expandedStudyRequest}
+              setExpandedStudyRequest={setExpandedStudyRequest}
             />
           )}
 

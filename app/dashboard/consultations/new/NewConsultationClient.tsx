@@ -13,7 +13,8 @@ import {
   Save,
   Loader2,
   Printer,
-  FlaskConical
+  FlaskConical,
+  ClipboardList
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
@@ -21,6 +22,7 @@ import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
 import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
 import { LastValueRef } from './LastValueRef'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
+import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue } from './StudyRequestModal'
 
 interface NewConsultationClientProps {
   patient: any
@@ -35,6 +37,9 @@ interface NewConsultationClientProps {
   labCatalog?: { category: string; tests: string[] }[]
   lastLabOrder?: { tests: { category: string; name: string }[]; other_tests: string | null; created_at: string } | null
   labOrders?: any[]
+  studyCatalog?: CatalogSection[]
+  lastStudyRequest?: { studies: { section: string; name: string }[]; other_studies: string | null; created_at: string } | null
+  studyRequests?: any[]
 }
 
 export default function NewConsultationClient({
@@ -49,7 +54,10 @@ export default function NewConsultationClient({
   isOrgAdmin,
   labCatalog = [],
   lastLabOrder = null,
-  labOrders = []
+  labOrders = [],
+  studyCatalog = [],
+  lastStudyRequest = null,
+  studyRequests = []
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   
@@ -61,16 +69,23 @@ export default function NewConsultationClient({
     consultationId: string
     prescriptionId: string | null
     labOrderId: string | null
+    studyRequestId: string | null
     hasMedicalLeave: boolean
     hasReferral: boolean
     hasPrescription: boolean
     hasLabOrder: boolean
+    hasStudyRequest: boolean
   } | null>(null)
 
   // Orden de laboratorio: se arma en un modal y se mantiene en estado hasta guardar la consulta.
   const [showLabModal, setShowLabModal] = useState(false)
   const [labOrder, setLabOrder] = useState<{ tests: { category: string; name: string }[]; otherTests: string }>({ tests: [], otherTests: '' })
   const labOrderCount = labOrder.tests.length + (labOrder.otherTests.trim() ? 1 : 0)
+
+  // Solicitud de estudios: igual que la orden de laboratorio, se arma en un modal y vive en estado.
+  const [showStudyModal, setShowStudyModal] = useState(false)
+  const [studyRequest, setStudyRequest] = useState<StudyRequestValue>({ studies: [], otherStudies: '', manualToCatalog: [] })
+  const studyRequestCount = studyRequest.studies.length + (studyRequest.otherStudies.trim() ? 1 : 0)
 
   // Receta en TEXTO LIBRE: un medicamento por línea. Al guardar, cada línea se convierte en
   // un ítem { name }. La consulta previa más reciente sirve de referencia / para reusar.
@@ -113,16 +128,18 @@ export default function NewConsultationClient({
       window.alert('La consulta se guardó, pero hubo avisos:\n\n• ' + r.warnings.join('\n• '))
     }
 
-    // Si hay receta, incapacidad y/o orden de laboratorio, ofrecer imprimir antes de salir.
-    if (r && (r.hasMedicalLeave || r.hasReferral || r.hasPrescription || r.hasLabOrder)) {
+    // Si hay receta, incapacidad, orden de laboratorio y/o solicitud de estudios, ofrecer imprimir antes de salir.
+    if (r && (r.hasMedicalLeave || r.hasReferral || r.hasPrescription || r.hasLabOrder || r.hasStudyRequest)) {
       setPrintModal({
         consultationId: r.consultationId,
         prescriptionId: r.prescriptionId ?? null,
         labOrderId: r.labOrderId ?? null,
+        studyRequestId: r.studyRequestId ?? null,
         hasMedicalLeave: !!r.hasMedicalLeave,
         hasReferral: !!r.hasReferral,
         hasPrescription: !!r.hasPrescription,
         hasLabOrder: !!r.hasLabOrder,
+        hasStudyRequest: !!r.hasStudyRequest,
       })
       return
     }
@@ -140,6 +157,16 @@ export default function NewConsultationClient({
           initial={labOrder}
           onSave={(v) => { setLabOrder(v); setShowLabModal(false) }}
           onClose={() => setShowLabModal(false)}
+        />
+      )}
+
+      {/* Modal de solicitud de estudios */}
+      {showStudyModal && (
+        <StudyRequestModal
+          catalog={studyCatalog}
+          initial={studyRequest}
+          onSave={(v) => { setStudyRequest(v); setShowStudyModal(false) }}
+          onClose={() => setShowStudyModal(false)}
         />
       )}
 
@@ -196,6 +223,17 @@ export default function NewConsultationClient({
                 >
                   <Printer size={16} />
                   Imprimir Orden de Laboratorio
+                </button>
+              )}
+              {printModal.hasStudyRequest && printModal.studyRequestId && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                  onClick={() => window.open(`/study-requests/${printModal.studyRequestId}/print`, '_blank')}
+                >
+                  <Printer size={16} />
+                  Imprimir Solicitud de Estudios
                 </button>
               )}
               <button
@@ -529,12 +567,14 @@ export default function NewConsultationClient({
               </label>
             </div>
 
-            {/* 5. Orden de Laboratorio */}
+            {/* 5. Laboratorio y Estudios */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <FlaskConical size={18} color="var(--primary)" />
-                Orden de Laboratorio
+                Laboratorio y Estudios
               </h3>
+
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Orden de Laboratorio</div>
 
               <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
 
@@ -585,6 +625,62 @@ export default function NewConsultationClient({
                     </button>
                   </div>
                   <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />
+                </div>
+              )}
+
+              {/* Solicitud de Estudios (misma tarjeta, debajo del laboratorio) */}
+              <div style={{ height: '1px', background: 'var(--border-color)', margin: '1.25rem 0' }} />
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Solicitud de Estudios</div>
+
+              <input type="hidden" name="study_request" value={JSON.stringify(studyRequest)} />
+
+              {studyRequestCount === 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setShowStudyModal(true)}
+                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
+                  >
+                    <ClipboardList size={16} />
+                    Generar Solicitud de Estudios
+                  </button>
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Selecciona los estudios que el paciente debe realizarse (radiología, cardiología, etc.).
+                  </p>
+                </>
+              ) : (
+                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
+                      <ClipboardList size={16} />
+                      {studyRequestCount} {studyRequestCount === 1 ? 'estudio seleccionado' : 'estudios seleccionados'}
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowStudyModal(true)}>Editar</button>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setStudyRequest({ studies: [], otherStudies: '', manualToCatalog: [] })}>Quitar</button>
+                    </div>
+                  </div>
+                  <StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />
+                </div>
+              )}
+
+              {/* Referencia: última solicitud de estudios del paciente (cita anterior) */}
+              {lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) && (
+                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0f766e', backgroundColor: 'rgba(13,148,136,0.12)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
+                      Última solicitud · {formatDateHN(lastStudyRequest.created_at)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStudyRequest({ studies: (lastStudyRequest.studies as any) || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] })}
+                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Importar
+                    </button>
+                  </div>
+                  <StudyRequestList studies={lastStudyRequest.studies as any} otherStudies={lastStudyRequest.other_studies} />
                 </div>
               )}
             </div>
