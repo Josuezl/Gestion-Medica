@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
-import { sendMedicalRecordByEmail, sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail } from './email-actions'
+import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail } from './email-actions'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
@@ -665,11 +665,7 @@ export default function PatientDetailsClient({
     return `*Ficha Médica*\nPaciente: ${patient.first_name} ${patient.last_name}\nEdad: ${calculateAge(patient.birth_date)} años\nDNI: ${patient.id_card || 'N/A'}\nSangre: ${patient.blood_type || 'N/A'}\nAlergias: ${patient.allergies || 'Ninguna'}\n\n*Antecedentes:*\nPatológicos: ${patient.pathological_history || 'N/A'}\nNo Patológicos: ${patient.non_pathological_history || 'N/A'}\nFamiliares: ${patient.family_history || 'N/A'}`;
   }
 
-  const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : '';
-
   // Estados para envío de correo
-  const [sendingFichaEmail, setSendingFichaEmail] = useState(false)
-  const [fichaEmailMsg, setFichaEmailMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [sendingPrescEmail, setSendingPrescEmail] = useState<string | null>(null)
   const [prescEmailMsg, setPrescEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingLabEmail, setSendingLabEmail] = useState<string | null>(null)
@@ -678,23 +674,6 @@ export default function PatientDetailsClient({
   const [leaveEmailMsg, setLeaveEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingReferralEmail, setSendingReferralEmail] = useState<string | null>(null)
   const [referralEmailMsg, setReferralEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
-
-  const handleSendFichaEmail = async () => {
-    setSendingFichaEmail(true)
-    setFichaEmailMsg(null)
-    try {
-      const result = await sendMedicalRecordByEmail(patient.id)
-      if (result.error) {
-        setFichaEmailMsg({ type: 'error', text: result.error })
-      } else {
-        setFichaEmailMsg({ type: 'success', text: `✅ Ficha médica enviada a ${patient.email}` })
-        setTimeout(() => setFichaEmailMsg(null), 5000)
-      }
-    } catch {
-      setFichaEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.' })
-    }
-    setSendingFichaEmail(false)
-  }
 
   const handleSendPrescriptionEmail = async (prescriptionId: string) => {
     setSendingPrescEmail(prescriptionId)
@@ -936,24 +915,6 @@ export default function PatientDetailsClient({
           <span style={styles.allergiesValue}>{patient.allergies || 'Ninguna conocida'}</span>
         </div>
 
-        {/* Email Notification Toast */}
-        {fichaEmailMsg && (
-          <div style={{
-            padding: '0.75rem 1.25rem',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
-            fontWeight: '600',
-            backgroundColor: fichaEmailMsg.type === 'success' ? '#dcfce7' : '#fee2e2',
-            color: fichaEmailMsg.type === 'success' ? '#166534' : '#991b1b',
-            border: `1px solid ${fichaEmailMsg.type === 'success' ? '#86efac' : '#fecaca'}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            animation: 'fadeIn 0.3s ease-out',
-          }}>
-            {fichaEmailMsg.text}
-          </div>
-        )}
       </div>
 
       {/* Edit Mode Panel */}
