@@ -921,7 +921,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .appt-time-icon {
-  color: #94a3b8;
+  color: #1e293b;
   margin-bottom: 1px;
 }
 
@@ -935,7 +935,7 @@ h1, h2, h3, h4, h5, h6 {
 .appt-time-mer {
   font-size: 0.72rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #1e293b;
 }
 
 /* Cuerpo: nombre + estado + menú, datos, notas y acciones (todo alineado al nombre). */
@@ -952,11 +952,6 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-/* El estado mantiene su tamaño; el nombre/meta truncan primero si falta espacio. */
-.appt-card-v2-header .status-dropdown-container {
-  flex-shrink: 0;
 }
 
 .appt-card-v2-name {
@@ -1118,15 +1113,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .appt-btn-icon:hover {
   background: #f8fafc;
-}
-
-.appt-btn-delete {
-  color: #e11d48;
-}
-
-.appt-btn-delete:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
 }
 
 /* =====================================================

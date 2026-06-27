@@ -65,6 +65,9 @@ export default function AppointmentCard({
   }
 
   const canStartConsultation = isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status)
+  // La preclínica solo aplica antes/durante la cita: se oculta en estados terminales
+  // (Cancelada, No se presentó, Realizada).
+  const canTakePreclinical = canTakeVitals && !!app.patients?.id && ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS'].includes(app.status)
 
   return (
     <div className="appt-card-v2" style={{ borderLeftColor: cfg.dotColor }}>
@@ -80,7 +83,6 @@ export default function AppointmentCard({
         <div className="appt-card-v2-header">
           <div className="appt-card-v2-name" title={fullName}>{fullName}</div>
           <span className="appt-card-v2-meta">({ageText}Tel: {app.patients?.phone || 'Sin teléfono'})</span>
-          <StatusDropdown status={app.status} onChange={onStatusChange} />
         </div>
 
         {app.notes && (
@@ -101,7 +103,7 @@ export default function AppointmentCard({
             </button>
           )}
 
-          {canTakeVitals && app.patients?.id && (
+          {canTakePreclinical && (
             <button
               className={`appt-btn ${isPreclinicalReady ? 'appt-btn-vitals-ready' : 'appt-btn-vitals'}`}
               onClick={onTakeVitals}
@@ -120,6 +122,8 @@ export default function AppointmentCard({
               <FileText size={15} /> Expediente
             </button>
           )}
+
+          <StatusDropdown status={app.status} onChange={onStatusChange} />
 
           <button
             className="appt-btn appt-btn-wa"
@@ -142,7 +146,7 @@ export default function AppointmentCard({
           </button>
 
           <button
-            className="appt-btn appt-btn-icon appt-btn-delete"
+            className="appt-btn appt-btn-icon"
             onClick={onDelete}
             title="Eliminar cita"
             aria-label="Eliminar cita"
