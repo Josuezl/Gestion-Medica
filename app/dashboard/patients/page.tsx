@@ -154,7 +154,6 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                   <th>Identidad (DNI)</th>
                   <th>Edad / Género</th>
                   <th>Teléfono</th>
-                  <th>Tipo Sangre</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
@@ -194,15 +193,6 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                           <Phone size={14} color="var(--text-muted)" />
                           <span style={styles.phoneText}>{patient.phone}</span>
                         </div>
-                      </td>
-                      <td data-label="Tipo Sangre">
-                        {patient.blood_type ? (
-                          <span className="badge badge-danger" style={{ fontWeight: '700' }}>
-                            {patient.blood_type}
-                          </span>
-                        ) : (
-                          <span style={styles.mutedText}>-</span>
-                        )}
                       </td>
                       <td data-label="Acciones" style={{ textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
