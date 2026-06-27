@@ -18,24 +18,20 @@ import {
   Stethoscope,
   Phone,
   MoreHorizontal,
-  Clipboard,
-  X,
-  CheckCircle,
-  Edit2,
-  FileText,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { doctorShortName } from '@/utils/doctorName'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
-import StatusDropdown, { STATUS_CONFIG } from './StatusDropdown'
+import { STATUS_CONFIG } from './StatusDropdown'
 import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
+import AppointmentCard from './components/AppointmentCard'
 
 // ============================================================================
 // TYPES
 // ============================================================================
 type ViewMode = 'agenda' | 'day' | 'week' | 'month'
 
-interface Doctor {
+export interface Doctor {
   id: string
   first_name: string
   last_name: string
@@ -43,7 +39,7 @@ interface Doctor {
   gender?: string | null
 }
 
-interface Patient {
+export interface Patient {
   id: string
   first_name: string
   last_name: string
@@ -53,7 +49,7 @@ interface Patient {
   id_card?: string
 }
 
-interface Appointment {
+export interface Appointment {
   id: string
   scheduled_at: string
   status: string
@@ -591,129 +587,21 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
           Citas del {selectedDate.toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h3>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {apps.map(app => {
-            const time = new Date(app.scheduled_at).toLocaleTimeString('es-HN', { hour: '2-digit', minute:'2-digit' })
-            
-            const config = STATUS_CONFIG[app.status] || STATUS_CONFIG.PENDING
-            const statusColor = config.dotColor
-
-            // Calculate age
-            let ageText = ''
-            if (app.patients?.birth_date) {
-              const birth = new Date(app.patients.birth_date)
-              const diffMs = Date.now() - birth.getTime()
-              const ageDt = new Date(diffMs)
-              const age = Math.abs(ageDt.getUTCFullYear() - 1970)
-              ageText = `${age} años • `
-            }
-
-            return (
-              <div key={app.id} className="appt-card" style={{
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                rowGap: '0.6rem',
-                backgroundColor: '#f8fafc',
-                borderRadius: '12px',
-                padding: '0.75rem 1rem',
-                borderLeft: `4px solid ${statusColor}`,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                borderTop: '1px solid #e2e8f0',
-                borderRight: '1px solid #e2e8f0',
-                borderBottom: '1px solid #e2e8f0'
-              }}>
-                <div style={{ width: '95px', flexShrink: 0 }}>
-                  <div style={{ fontWeight: 700, color: statusColor, fontSize: '1rem', whiteSpace: 'nowrap' }}>{time}</div>
-                </div>
-                
-                <div className="appt-info" style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={`${app.patients?.first_name || ''} ${app.patients?.last_name || ''}`.trim()}>
-                    {app.patients?.first_name} {app.patients?.last_name}
-                  </div>
-                  <div style={{ fontWeight: 500, color: '#64748b', fontSize: '0.82rem', marginTop: '0.15rem' }}>
-                    {ageText}Tel: {app.patients?.phone || 'Sin teléfono'}
-                  </div>
-                  {app.notes && (
-                    <div style={{ fontSize: '0.85rem', color: '#0d9488', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Clipboard size={14} /> {app.notes}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: '0.5rem' }}>
-                  {isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status) && (
-                    <button onClick={() => window.location.href=`/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px' }}>
-                      <Clipboard size={14} /> Iniciar Consulta
-                    </button>
-                  )}
-
-                  {app.patients?.id && (
-                    <button onClick={() => window.location.href=`/dashboard/patients/${app.patients?.id}`} className="btn" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#4f46e5', border: '1px solid #4f46e5', color: '#ffffff' }} title="Abrir expediente del paciente">
-                      <FileText size={14} color="#ffffff" /> Expediente
-                    </button>
-                  )}
-
-                  <StatusDropdown status={app.status} onChange={(s) => handleStatusChange(app.id, s)} />
-
-                  {app.status === 'PENDING' && (
-                    <button onClick={() => handleStatusChange(app.id, 'CONFIRMED')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b' }}>
-                      <CheckCircle size={14} color="#1e293b" /> Confirmar
-                    </button>
-                  )}
-
-                  {app.status === 'CONFIRMED' && (
-                    <button onClick={() => handleStatusChange(app.id, 'WAITING')} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a' }}>
-                      <User size={14} /> Llegó
-                    </button>
-                  )}
-
-                  {canTakeVitals && app.patients?.id && (
-                    <button onClick={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '20px', backgroundColor: preclinicalSet.has(app.patients.id) ? '#dcfce7' : '#f0f9ff', color: preclinicalSet.has(app.patients.id) ? '#166534' : '#0369a1', border: `1px solid ${preclinicalSet.has(app.patients.id) ? '#bbf7d0' : '#bae6fd'}` }} title={preclinicalSet.has(app.patients.id) ? 'Signos listos — editar' : 'Tomar signos vitales (pre-clínica)'}>
-                      <Stethoscope size={14} /> {preclinicalSet.has(app.patients.id) ? 'Signos listos' : 'Tomar signos'}
-                    </button>
-                  )}
-
-                  <button onClick={() => handleOpenForm(selectedDate, undefined, app)} className="btn btn-secondary" style={{ padding: '0.4rem', borderRadius: '50%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} title="Editar cita">
-                    <Edit2 size={16} color="#64748b" />
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      const doctor = doctors.find(d => d.id === app.doctor_id)
-                      const docName = doctorShortName(doctor?.first_name, doctor?.last_name, doctor?.gender)
-                      const dateStr = new Date(app.scheduled_at).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long' })
-                      const text = `Hola ${app.patients?.first_name || ''} ${app.patients?.last_name || ''}, te recordamos tu cita programada:\n\n📅 Fecha: ${dateStr}\n⏰ Hora: ${time}\n🩺 Médico: ${docName}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
-                      const patientPhoneClean = app.patients?.phone ? app.patients.phone.replace(/\D/g, '') : ''
-                      
-                      const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`
-                      window.open(whatsappUrl, '_blank', 'noreferrer')
-                    }}
-                    className="btn" 
-                    style={{ 
-                      padding: '0.4rem', 
-                      borderRadius: '50%', 
-                      backgroundColor: '#dcf8c6', 
-                      color: '#128C7E', 
-                      border: '1px solid #bbf7d0',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }} 
-                    title="Enviar recordatorio por WhatsApp"
-                  >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'block' }}>
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.896 0c3.181.001 6.173 1.24 8.424 3.493 2.25 2.253 3.487 5.244 3.484 8.427-.004 6.578-5.329 11.902-11.897 11.902-2.003-.001-3.973-.505-5.727-1.467L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.45 5.247 0 9.518-4.268 9.52-9.51 0-2.54-1-4.927-2.817-6.724-1.815-1.8-4.223-2.79-6.733-2.792-5.253 0-9.526 4.268-9.529 9.511 0 1.63.43 3.22 1.25 4.63l-.993 3.626 3.725-.976zm11.233-6.006c-.3-.15-1.772-.875-2.047-.975-.276-.1-.477-.15-.677.15-.2.3-.777.975-.952 1.175-.176.2-.351.225-.651.075-1.204-.6-2.002-1.054-2.8-2.427-.21-.362.21-.337.6-.113.35.2.775.9.875 1.1.1.2.05.375-.025.525-.075.15-.677.8-1.002 1.175-.325.375-.65.3-.95.15-1.157-.58-1.907-1.01-2.67-2.327-.15-.257-.15-.425.075-.65.2-.2.45-.525.677-.8.225-.275.3-.475.45-.775.15-.3.075-.575-.025-.775-.1-.2-.677-1.625-.927-2.225-.244-.588-.492-.51-.677-.52l-.576-.007c-.2 0-.527.075-.803.375-.276.3-1.053 1.025-1.053 2.5 0 1.475 1.078 2.9 1.228 3.1.15.2 2.122 3.24 5.141 4.542.717.31 1.277.494 1.714.633.72.228 1.376.196 1.894.118.577-.087 1.772-.725 2.022-1.425.25-.7.25-1.3 1.75-1.425-.075-.125-.275-.2-.575-.35z" />
-                    </svg>
-                  </button>
-                  
-                  <button onClick={() => handleDeleteAppointment(app)} className="btn btn-secondary" style={{ padding: '0.4rem', borderRadius: '50%', backgroundColor: '#ffffff', color: '#e11d48', border: '1px solid #ffe4e6' }} title="Eliminar cita">
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {apps.map(app => (
+            <AppointmentCard
+              key={app.id}
+              app={app}
+              doctors={doctors}
+              isClinician={isClinician}
+              canTakeVitals={canTakeVitals}
+              isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
+              onStatusChange={(s) => handleStatusChange(app.id, s)}
+              onEdit={() => handleOpenForm(selectedDate, undefined, app)}
+              onDelete={() => handleDeleteAppointment(app)}
+              onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
+            />
+          ))}
         </div>
       </div>
     )

@@ -889,6 +889,247 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* =====================================================
+   TARJETA DE CITA (vista Agenda) — hora tintada + cuerpo
+   ===================================================== */
+.appt-card-v2 {
+  display: flex;
+  align-items: stretch;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s ease;
+}
+
+.appt-card-v2:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+/* Columna de hora: sin fondo, centrada y a toda altura; solo el texto va coloreado. */
+.appt-card-v2-time {
+  flex-shrink: 0;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0.5rem 0.4rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.appt-time-icon {
+  color: #94a3b8;
+  margin-bottom: 1px;
+}
+
+.appt-time-clock {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.appt-time-mer {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+/* Cuerpo: nombre + estado + menú, datos, notas y acciones (todo alineado al nombre). */
+.appt-card-v2-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+}
+
+.appt-card-v2-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* El estado mantiene su tamaño; el nombre/meta truncan primero si falta espacio. */
+.appt-card-v2-header .status-dropdown-container {
+  flex-shrink: 0;
+}
+
+.appt-card-v2-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Edad y teléfono en paréntesis, en gris tenue, justo después del nombre.
+   shrink alto: la meta cede espacio antes que el nombre cuando la fila se aprieta. */
+.appt-card-v2-meta {
+  flex: 0 8 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nota / motivo: línea sutil debajo del nombre, truncada con «…» (tooltip al hover). */
+.appt-card-v2-notes {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: #0d9488;
+}
+
+.appt-card-v2-notes svg {
+  flex-shrink: 0;
+}
+
+.appt-card-v2-notes-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Badge de estado: pastilla coloreada que abre el menú de estados. */
+.status-badge-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.status-badge-trigger:hover {
+  filter: brightness(0.96);
+}
+
+/* Fila de acciones: botones tipo pastilla con ícono. */
+.appt-card-v2-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.appt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.7rem;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.appt-btn:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+/* Iniciar Consulta: botón principal con relleno teal (gradiente de marca) y texto blanco. */
+.appt-btn-start {
+  background: linear-gradient(135deg, var(--primary) 0%, hsl(173, 80%, 35%) 100%);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);
+}
+
+.appt-btn-start:hover {
+  border-color: transparent;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.35);
+}
+
+/* Expediente: mismo color que Preclínica (azul); relleno suave solo en hover. */
+.appt-btn-record {
+  color: #0369a1;
+}
+
+.appt-btn-record:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.appt-btn-vitals {
+  color: #0369a1;
+}
+
+.appt-btn-vitals:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.appt-btn-vitals-ready {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.appt-btn-vitals-ready:hover {
+  background: #bbf7d0;
+}
+
+.appt-btn-wa {
+  padding: 0.38rem;
+  width: 34px;
+  justify-content: center;
+  color: #128c7e;
+}
+
+.appt-btn-wa:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+/* Botones de solo ícono (editar / eliminar) tras WhatsApp. */
+.appt-btn-icon {
+  padding: 0.38rem;
+  width: 34px;
+  justify-content: center;
+  color: #64748b;
+}
+
+.appt-btn-icon:hover {
+  background: #f8fafc;
+}
+
+.appt-btn-delete {
+  color: #e11d48;
+}
+
+.appt-btn-delete:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* =====================================================
    MONTH CALENDAR VIEW
    ===================================================== */
 .month-grid {
@@ -1234,31 +1475,35 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.55rem 0;
   }
 
-  /* Tarjetas de cita: en móvil la botonera baja a su propia línea con wrap,
-     para que la tarjeta no se ensanche más que la pantalla (lo que arrastraba
-     y descuadraba el calendario al seleccionar un día con citas). */
-  .appt-card {
+  /* Tarjeta de cita en móvil: columna de hora más angosta y botones a ancho
+     completo con wrap, para que la tarjeta no exceda la pantalla (lo que
+     arrastraba y descuadraba el calendario al seleccionar un día con citas). */
+  .appt-card-v2-time {
+    width: 68px;
+  }
+
+  .appt-card-v2-body {
+    padding: 0.75rem 0.9rem;
+  }
+
+  /* El nombre, la meta y el estado hacen wrap si no caben, en vez de recortarse. */
+  .appt-card-v2-header {
     flex-wrap: wrap;
   }
 
-  .appt-card .appt-info {
-    min-width: 0;
-    flex-basis: 0;
+  .appt-btn {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 
-  .appt-actions {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    margin-top: 0.5rem;
-    gap: 0.5rem;
+  /* Botones de solo ícono (WhatsApp, editar, eliminar) quedan compactos. */
+  .appt-btn-wa,
+  .appt-btn-icon {
+    flex: 0 0 auto;
   }
 
-  /* El menú de estado abre hacia la derecha (el disparador queda a la
-     izquierda de la fila) y nunca excede el ancho de pantalla. */
+  /* El menú del estado se alinea a la derecha y nunca excede la pantalla. */
   .status-dropdown-menu {
-    left: 0;
-    right: auto;
     max-width: calc(100vw - 2rem);
   }
 
