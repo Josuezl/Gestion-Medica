@@ -132,6 +132,9 @@ export async function createConsultation(
     .insert([{
       clinic_id: clinicId,
       patient_id: patientId,
+      // Liga la consulta con la cita de la que nació (si viene de una). Permite validar que una cita
+      // marcada "Realizada" tenga consulta, y auditar a qué cita pertenece. Es null si no viene de cita.
+      appointment_id: appointmentId,
       doctor_id: user.id,
       reason_for_visit: reasonForVisit,
       symptoms,

@@ -22,6 +22,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { doctorShortName } from '@/utils/doctorName'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
+import { isCreatableAppointmentStatus } from '@/utils/validation'
 import { STATUS_CONFIG } from './StatusDropdown'
 import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 import AppointmentCard from './components/AppointmentCard'
@@ -153,6 +154,9 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const [isSearchingHistory, setIsSearchingHistory] = useState(false)
   const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false)
 
+  // Cita que se intentó marcar "Realizada" sin consulta registrada → dispara el modal de bloqueo.
+  const [completeBlocked, setCompleteBlocked] = useState<Appointment | null>(null)
+
   const goRegisterPatient = (name: string) => {
     window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
   }
@@ -267,8 +271,13 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   }, [viewMode, selectedDate, appointmentsByDate])
 
   // --- Actions ---
-  const handleStatusChange = async (appId: string, newStatus: string) => {
-    await updateAppointmentStatus(appId, newStatus)
+  const handleStatusChange = async (app: Appointment, newStatus: string) => {
+    const res = await updateAppointmentStatus(app.id, newStatus)
+    // No se puede marcar "Realizada" sin consulta: el servidor no aplica el cambio y avisa.
+    if (res && (res as { needsConsultation?: boolean }).needsConsultation) {
+      setCompleteBlocked(app)
+      return
+    }
     // En modo historial la lista vive en estado propio: recargar para reflejar el cambio.
     if (historyPatient) reloadHistory(historyPatient.id)
   }
@@ -646,7 +655,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               isClinician={isClinician}
               canTakeVitals={canTakeVitals}
               isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
-              onStatusChange={(s) => handleStatusChange(app.id, s)}
+              onStatusChange={(s) => handleStatusChange(app, s)}
               onEdit={() => handleOpenForm(selectedDate, undefined, app)}
               onDelete={() => handleDeleteAppointment(app)}
               onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
@@ -705,7 +714,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               isClinician={isClinician}
               canTakeVitals={canTakeVitals}
               isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
-              onStatusChange={(s) => handleStatusChange(app.id, s)}
+              onStatusChange={(s) => handleStatusChange(app, s)}
               onEdit={() => handleOpenForm(undefined, undefined, app)}
               onDelete={() => handleDeleteAppointment(app)}
               onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
@@ -990,9 +999,12 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Estado</label>
                 <select name="status" className="form-input" required defaultValue={editAppointment?.status || 'PENDING'}>
-                  {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                    <option key={key} value={key}>{cfg.label}</option>
-                  ))}
+                  {/* Al crear solo se ofrecen estados previos/en curso; al editar, todos. */}
+                  {Object.entries(STATUS_CONFIG)
+                    .filter(([key]) => isEdit || isCreatableAppointmentStatus(key))
+                    .map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.label}</option>
+                    ))}
                 </select>
               </div>
             </div>
@@ -1219,6 +1231,48 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
           onClose={() => setVitalsModalPatient(null)}
           onSaved={() => router.refresh()}
         />
+      )}
+
+      {/* MODAL: bloqueo al marcar "Realizada" sin consulta registrada */}
+      {completeBlocked && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 250, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: '480px', width: '100%' }}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.1rem' }}>Esta cita no tiene consulta registrada</h3>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              Para marcarla como <strong>«Realizada»</strong> primero registra la consulta, o cambia el estado de la cita.
+            </p>
+
+            {isClinician && completeBlocked.patients?.id && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%', marginBottom: '1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                onClick={() => { window.location.href = `/dashboard/consultations/new?patientId=${completeBlocked.patients?.id}&appointmentId=${completeBlocked.id}` }}
+              >
+                <Stethoscope size={16} /> Iniciar consulta
+              </button>
+            )}
+
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '0.5rem' }}>O cambiar el estado a:</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              {(['PENDING', 'CONFIRMED', 'NO_SHOW', 'CANCELLED'] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: '1 1 calc(50% - 0.25rem)' }}
+                  onClick={() => { const a = completeBlocked; setCompleteBlocked(null); handleStatusChange(a, s) }}
+                >
+                  {STATUS_CONFIG[s].label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setCompleteBlocked(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

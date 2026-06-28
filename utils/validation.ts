@@ -57,6 +57,19 @@ export function isValidAppointmentStatus(status: string): boolean {
 }
 
 /**
+ * Estados permitidos al CREAR una cita. Solo los previos o en curso: "Pendiente", "Confirmada",
+ * "En sala de espera" y "En consulta" (p. ej. el médico en turno de noche, sin asistente, crea la
+ * cita ya "En consulta"). Se excluyen COMPLETED/NO_SHOW/CANCELLED: describen algo que ocurre después
+ * y no tiene sentido crear una cita ya en esos estados (además, COMPLETED exige una consulta
+ * registrada, que una cita nueva no puede tener). Se asignan luego con el dropdown de la tarjeta.
+ */
+export const CREATABLE_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS'] as const
+
+export function isCreatableAppointmentStatus(status: string): boolean {
+  return (CREATABLE_APPOINTMENT_STATUSES as readonly string[]).includes(status)
+}
+
+/**
  * Normaliza un nombre de persona de origen NO confiable (p. ej. extraído por IA del mensaje de
  * WhatsApp): deja solo letras (con acentos), espacios y `.'-`, colapsa espacios y limita la
  * longitud. Devuelve `fallback` si no queda nada útil (hallazgo M6 / calidad de datos).

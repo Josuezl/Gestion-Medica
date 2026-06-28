@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { isValidAppointmentStatus } from '@/utils/validation'
+import { isValidAppointmentStatus, isCreatableAppointmentStatus } from '@/utils/validation'
 import { safeErrorMessage } from '@/utils/errors'
 
 /**
@@ -18,6 +18,23 @@ async function clinicHasActiveLocations(
     .select('id', { count: 'exact', head: true })
     .eq('clinic_id', clinicId)
     .eq('is_active', true)
+  return (count ?? 0) > 0
+}
+
+/**
+ * ¿La cita tiene al menos una consulta registrada? Se usa para impedir marcarla como "Realizada"
+ * (COMPLETED) sin consulta. Acotado a la clínica (defensa en profundidad además de RLS).
+ */
+async function appointmentHasConsultation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  appointmentId: string,
+  clinicId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('consultations')
+    .select('id', { count: 'exact', head: true })
+    .eq('appointment_id', appointmentId)
+    .eq('clinic_id', clinicId)
   return (count ?? 0) > 0
 }
 
@@ -56,6 +73,11 @@ export async function createAppointment(formData: FormData) {
 
   // Validar estado y duración (M2).
   if (!isValidAppointmentStatus(status)) return { error: 'Estado de cita no válido.' }
+  // Al crear, solo se permiten estados previos o en curso (no "Realizada"/"No se presentó"/"Cancelada":
+  // describen algo posterior; "Realizada" además requeriría una consulta que la cita nueva no tiene).
+  if (!isCreatableAppointmentStatus(status)) {
+    return { error: 'Una cita nueva solo puede crearse como Pendiente, Confirmada, En sala de espera o En consulta.' }
+  }
   if (!Number.isFinite(duration) || duration < 5 || duration > 480) {
     return { error: 'La duración de la cita debe estar entre 5 y 480 minutos.' }
   }
@@ -129,6 +151,12 @@ export async function updateAppointment(id: string, formData: FormData) {
     return { error: 'La duración de la cita debe estar entre 5 y 480 minutos.' }
   }
 
+  // No permitir "Realizada" si la cita no tiene una consulta registrada (defensa en profundidad;
+  // la UI lo bloquea con un modal en el dropdown de la agenda).
+  if (status === 'COMPLETED' && !(await appointmentHasConsultation(supabase, id, authProfile.clinic_id))) {
+    return { error: 'No se puede marcar como "Realizada": esta cita no tiene una consulta registrada. Inicia la consulta o elige otro estado.' }
+  }
+
   if (!locationId) {
     const { data: appt } = await supabase
       .from('appointments')
@@ -186,6 +214,12 @@ export async function updateAppointmentStatus(appointmentId: string, status: str
     .eq('id', user.id)
     .single()
   if (!authProfile?.clinic_id) return { error: 'No autorizado' }
+
+  // No permitir "Realizada" si la cita no tiene una consulta registrada. No actualiza y devuelve un
+  // sentinel para que la agenda muestre el modal (iniciar consulta o cambiar a otro estado).
+  if (status === 'COMPLETED' && !(await appointmentHasConsultation(supabase, appointmentId, authProfile.clinic_id))) {
+    return { needsConsultation: true }
+  }
 
   const { data: updated, error } = await supabase
     .from('appointments')

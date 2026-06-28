@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, sanitizeName, normalizeName, classifyNameDobDuplicate } from '@/utils/validation'
+import { validateVitals, isValidAppointmentStatus, VALID_APPOINTMENT_STATUSES, isCreatableAppointmentStatus, sanitizeName, normalizeName, classifyNameDobDuplicate } from '@/utils/validation'
 
 describe('validateVitals', () => {
   it('devuelve null cuando no se ingresó ningún vital', () => {
@@ -51,6 +51,21 @@ describe('isValidAppointmentStatus', () => {
     expect(isValidAppointmentStatus('HACKEADO')).toBe(false)
     expect(isValidAppointmentStatus('')).toBe(false)
     expect(isValidAppointmentStatus('completed')).toBe(false)
+  })
+})
+
+describe('isCreatableAppointmentStatus', () => {
+  it('permite crear citas en estados previos o en curso', () => {
+    expect(isCreatableAppointmentStatus('PENDING')).toBe(true)
+    expect(isCreatableAppointmentStatus('CONFIRMED')).toBe(true)
+    expect(isCreatableAppointmentStatus('WAITING')).toBe(true)
+    expect(isCreatableAppointmentStatus('IN_PROGRESS')).toBe(true)
+  })
+
+  it('no permite crear citas ya como Realizada, No se presentó o Cancelada', () => {
+    expect(isCreatableAppointmentStatus('COMPLETED')).toBe(false)
+    expect(isCreatableAppointmentStatus('NO_SHOW')).toBe(false)
+    expect(isCreatableAppointmentStatus('CANCELLED')).toBe(false)
   })
 })
 
