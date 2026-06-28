@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment } from './actions'
+import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import { 
   Calendar as CalendarIcon, 
@@ -141,6 +141,18 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   // Nombre escrito que no corresponde a un paciente registrado (dispara el modal de registro).
   const [unregisteredName, setUnregisteredName] = useState<string | null>(null)
 
+  // --- Búsqueda de historial de citas por paciente (buscador del topbar) ---
+  // Independiente del selector del modal de cita para no pisar su estado. Al elegir un
+  // paciente se entra en "modo historial": el contenido muestra TODAS sus citas (pasadas
+  // y futuras, de cualquier médico) en vez de las vistas Agenda/Día/Semana/Mes.
+  const [historyPatient, setHistoryPatient] = useState<Patient | null>(null)
+  const [historyAppointments, setHistoryAppointments] = useState<Appointment[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
+  const [historyResults, setHistoryResults] = useState<Patient[]>([])
+  const [isSearchingHistory, setIsSearchingHistory] = useState(false)
+  const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false)
+
   const goRegisterPatient = (name: string) => {
     window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
   }
@@ -161,7 +173,42 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     }, 300)
     return () => clearTimeout(timer)
   }, [patientSearch])
-  
+
+  // Búsqueda de pacientes para el historial (mismo debounce/Server Action que el selector de citas).
+  useEffect(() => {
+    const q = historySearch.trim()
+    if (q.length < 2) { setHistoryResults([]); return }
+    setIsSearchingHistory(true)
+    const timer = setTimeout(async () => {
+      const results = await searchPatientsForAgenda(q)
+      setHistoryResults(results as Patient[])
+      setIsSearchingHistory(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [historySearch])
+
+  // Carga (o recarga) las citas del paciente seleccionado en el historial.
+  const reloadHistory = async (patientId: string) => {
+    setIsLoadingHistory(true)
+    const data = await getPatientAppointmentHistory(patientId)
+    setHistoryAppointments(data as unknown as Appointment[])
+    setIsLoadingHistory(false)
+  }
+
+  // Entrar al modo historial con un paciente; salir y volver a la agenda normal.
+  const openHistory = (p: Patient) => {
+    setHistoryPatient(p)
+    setIsHistoryDropdownOpen(false)
+    setHistorySearch(`${p.first_name} ${p.last_name}`)
+    reloadHistory(p.id)
+  }
+  const closeHistory = () => {
+    setHistoryPatient(null)
+    setHistorySearch('')
+    setHistoryResults([])
+    setHistoryAppointments([])
+  }
+
   // --- Derived Data ---
   const filteredAppointments = useMemo(() => {
     return initialAppointments.filter(app => {
@@ -222,6 +269,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   // --- Actions ---
   const handleStatusChange = async (appId: string, newStatus: string) => {
     await updateAppointmentStatus(appId, newStatus)
+    // En modo historial la lista vive en estado propio: recargar para reflejar el cambio.
+    if (historyPatient) reloadHistory(historyPatient.id)
   }
 
   const handleDeleteAppointment = async (app: Appointment) => {
@@ -229,6 +278,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     if (!window.confirm(`¿Estás seguro que quieres eliminar esta cita programada de ${name}? Esta acción no se puede deshacer.`)) return
     const res = await deleteAppointment(app.id)
     if (res?.error) { alert(res.error); return }
+    if (historyPatient) reloadHistory(historyPatient.id)
     router.refresh()
   }
 
@@ -608,6 +658,107 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   }
 
   // ==========================================================================
+  // RENDER: PATIENT APPOINTMENT HISTORY VIEW
+  // ==========================================================================
+  // Muestra TODAS las citas del paciente seleccionado (cualquier médico, cualquier clínica),
+  // separadas en "Próximas citas" (hoy en adelante, la más cercana arriba) y "Citas pasadas"
+  // (la más reciente primero). Reutiliza AppointmentCard tal cual; como la tarjeta solo muestra
+  // la hora, agrupamos por fecha con un subtítulo por día.
+  const renderHistoryView = () => {
+    if (!historyPatient) return null
+    const fullName = `${historyPatient.first_name} ${historyPatient.last_name}`.trim()
+
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const upcoming = historyAppointments
+      .filter(a => new Date(a.scheduled_at) >= startOfToday)
+      .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+    const past = historyAppointments
+      .filter(a => new Date(a.scheduled_at) < startOfToday)
+      .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+
+    // Agrupa citas (ya ordenadas) por día, conservando el orden de entrada.
+    const groupByDate = (apps: Appointment[]) => {
+      const groups: { key: string; label: string; items: Appointment[] }[] = []
+      apps.forEach(app => {
+        const d = new Date(app.scheduled_at)
+        const key = formatDateYMD(d)
+        let g = groups.find(x => x.key === key)
+        if (!g) {
+          g = { key, label: d.toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), items: [] }
+          groups.push(g)
+        }
+        g.items.push(app)
+      })
+      return groups
+    }
+
+    const renderCards = (apps: Appointment[]) => groupByDate(apps).map(g => (
+      <div key={g.key} style={{ marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', textTransform: 'capitalize', margin: '0 0 0.5rem' }}>{g.label}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {g.items.map(app => (
+            <AppointmentCard
+              key={app.id}
+              app={app}
+              doctors={doctors}
+              isClinician={isClinician}
+              canTakeVitals={canTakeVitals}
+              isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
+              onStatusChange={(s) => handleStatusChange(app.id, s)}
+              onEdit={() => handleOpenForm(undefined, undefined, app)}
+              onDelete={() => handleDeleteAppointment(app)}
+              onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
+            />
+          ))}
+        </div>
+      </div>
+    ))
+
+    return (
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', backgroundColor: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.25rem', fontWeight: 700 }}>
+            Citas de {fullName}
+          </h3>
+          <button className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem' }} onClick={closeHistory}>
+            ← Volver a la agenda
+          </button>
+        </div>
+
+        {isLoadingHistory ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando citas…</div>
+        ) : historyAppointments.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-muted)', padding: '2rem' }}>
+            <CalendarIcon size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+            <h3>Sin citas registradas</h3>
+            <p>Este paciente no tiene citas registradas.</p>
+          </div>
+        ) : (
+          <>
+            {upcoming.length > 0 && (
+              <section style={{ marginBottom: '2rem' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#0d9488', marginBottom: '0.75rem' }}>
+                  Próximas citas ({upcoming.length})
+                </div>
+                {renderCards(upcoming)}
+              </section>
+            )}
+            {past.length > 0 && (
+              <section>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.75rem' }}>
+                  Citas pasadas ({past.length})
+                </div>
+                {renderCards(past)}
+              </section>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ==========================================================================
   // RENDER: APPOINTMENT FORM MODAL
   // ==========================================================================
   const renderFormModal = () => {
@@ -692,6 +843,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
         setFormError(result.error)
       } else {
         setShowForm(false)
+        // Si editamos/creamos una cita desde el modo historial, recargar la lista del paciente.
+        if (historyPatient) reloadHistory(historyPatient.id)
       }
     }
 
@@ -923,15 +1076,15 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
       <main className="agenda-main" style={{ display: 'flex', flexDirection: 'column' }}>
 
         {/* TOPBAR */}
-        <div className="agenda-topbar" style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="agenda-topbar" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           {/* Left: View Tabs & Add Button */}
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
             <div className="view-tabs">
               {(['agenda', 'day', 'week', 'month'] as ViewMode[]).map(mode => (
-                <button 
-                  key={mode} 
-                  className={`view-tab ${viewMode === mode ? 'active' : ''}`}
-                  onClick={() => setViewMode(mode)}
+                <button
+                  key={mode}
+                  className={`view-tab ${historyPatient ? '' : (viewMode === mode ? 'active' : '')}`}
+                  onClick={() => { setViewMode(mode); closeHistory() }}
                 >
                   {mode === 'agenda' ? 'Agenda' : mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
                 </button>
@@ -967,20 +1120,86 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               <button className="mini-calendar-nav" onClick={handlePrev}><ChevronLeft size={18}/></button>
               <button className="mini-calendar-nav" onClick={handleNext}><ChevronRight size={18}/></button>
               <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a', marginLeft: '0.5rem' }}>
-                {selectedDate.toLocaleDateString('es-HN', { month: 'long', year: 'numeric' })}
+                {(() => {
+                  // Agenda/Día: fecha completa con día de la semana ("Sábado, 27 de junio de 2026").
+                  // Semana/Mes: solo mes y año (un día puntual sería engañoso).
+                  const opts: Intl.DateTimeFormatOptions = (viewMode === 'agenda' || viewMode === 'day')
+                    ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+                    : { month: 'long', year: 'numeric' }
+                  const label = selectedDate.toLocaleDateString('es-HN', opts)
+                  return label.charAt(0).toUpperCase() + label.slice(1)
+                })()}
               </span>
             </div>
           </div>
           
-          {/* Right: Empty spacer for centering */}
-          <div style={{ flex: 1 }}></div>
+          {/* Right: Buscador de historial de citas por paciente (cualquier médico, pasado y futuro) */}
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+              {historyPatient ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', backgroundColor: '#ecfeff', border: '1px solid #a5f3fc', borderRadius: '8px' }}>
+                  <Search size={16} color="#0e7490" />
+                  <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: 600, color: '#0e7490', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {historyPatient.first_name} {historyPatient.last_name}
+                  </span>
+                  <button onClick={closeHistory} title="Salir del historial" aria-label="Salir del historial" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}>
+                    <XCircle size={18} color="#0e7490" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Search size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ width: '100%', paddingLeft: '2.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                    placeholder="Buscar historial de un paciente…"
+                    value={historySearch}
+                    onChange={(e) => { setHistorySearch(e.target.value); setIsHistoryDropdownOpen(true) }}
+                    onFocus={() => setIsHistoryDropdownOpen(true)}
+                    onBlur={() => setIsHistoryDropdownOpen(false)}
+                  />
+                  {isHistoryDropdownOpen && historySearch.trim().length >= 1 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, maxHeight: '320px', overflowY: 'auto', marginTop: '4px', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+                      {isSearchingHistory && (
+                        <div style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>Buscando...</div>
+                      )}
+                      {!isSearchingHistory && historyResults.map(p => (
+                        <div
+                          key={p.id}
+                          style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => openHistory(p)}
+                        >
+                          <div style={{ fontWeight: 600, color: '#1e293b' }}>{p.first_name} {p.last_name}</div>
+                          <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            {p.phone || 'Sin teléfono'}{p.id_card ? ` · ${p.id_card}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                      {!isSearchingHistory && historySearch.trim().length >= 2 && historyResults.length === 0 && (
+                        <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>No se encontraron pacientes.</div>
+                      )}
+                      {!isSearchingHistory && historySearch.trim().length < 2 && (
+                        <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>Escribe al menos 2 caracteres para buscar.</div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* VIEW CONTENT */}
-        {viewMode === 'agenda' && renderAgendaView()}
-        {viewMode === 'day' && renderDayView()}
-        {viewMode === 'week' && renderWeekView()}
-        {viewMode === 'month' && renderMonthView()}
+        {/* VIEW CONTENT — el modo historial reemplaza las vistas de calendario */}
+        {historyPatient ? renderHistoryView() : (
+          <>
+            {viewMode === 'agenda' && renderAgendaView()}
+            {viewMode === 'day' && renderDayView()}
+            {viewMode === 'week' && renderWeekView()}
+            {viewMode === 'month' && renderMonthView()}
+          </>
+        )}
 
       </main>
 

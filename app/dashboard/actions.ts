@@ -229,3 +229,47 @@ export async function deleteAppointment(appointmentId: string) {
   revalidatePath('/dashboard')
   return { success: true }
 }
+
+/**
+ * Devuelve TODAS las citas de un paciente (pasadas y futuras), de cualquier médico y cualquier
+ * clínica, para el buscador de historial del dashboard. No filtra por `doctor_id`, `location_id`
+ * ni fecha; sí acota a la clínica del usuario (RLS + filtro explícito, defensa en profundidad).
+ * Usa el mismo `select` anidado que la carga inicial de la agenda (page.tsx) para reutilizar
+ * la tarjeta AppointmentCard sin cambios. Un paciente nunca tendrá >1000 citas, así que el cap
+ * por defecto de Supabase no afecta. Lo puede usar cualquier rol (solo requiere sesión + clínica).
+ */
+export async function getPatientAppointmentHistory(patientId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data: authProfile } = await supabase
+    .from('user_profiles').select('clinic_id').eq('id', user.id).single()
+  if (!authProfile?.clinic_id) return []
+
+  const { data } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      scheduled_at,
+      status,
+      notes,
+      duration_minutes,
+      doctor_id,
+      location_id,
+      patients (
+        id,
+        first_name,
+        last_name,
+        phone,
+        id_card,
+        gender,
+        birth_date
+      )
+    `)
+    .eq('clinic_id', authProfile.clinic_id)
+    .eq('patient_id', patientId)
+    .order('scheduled_at', { ascending: false })
+
+  return data || []
+}
