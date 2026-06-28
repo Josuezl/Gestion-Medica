@@ -1153,7 +1153,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
                     type="text"
                     className="form-input"
                     style={{ width: '100%', paddingLeft: '2.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
-                    placeholder="Buscar historial de un paciente…"
+                    placeholder="Historial de citas de un paciente…"
                     value={historySearch}
                     onChange={(e) => { setHistorySearch(e.target.value); setIsHistoryDropdownOpen(true) }}
                     onFocus={() => setIsHistoryDropdownOpen(true)}
