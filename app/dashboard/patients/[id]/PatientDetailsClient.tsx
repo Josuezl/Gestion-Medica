@@ -43,6 +43,7 @@ import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
+import MedicalLeaveModal from './MedicalLeaveModal'
 
 // Utilidad para calcular edad
 function calculateAge(birthDateString: string) {
@@ -120,6 +121,8 @@ export default function PatientDetailsClient({
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
   const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' } | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
+  // Modal para emitir/corregir la incapacidad de la última consulta (sin editar lo clínico).
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showCreatedBanner, setShowCreatedBanner] = useState(justCreated)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
@@ -895,6 +898,25 @@ export default function PatientDetailsClient({
                 <Printer size={16} />
                 Última Incapacidad
               </a>
+            )}
+            {canClinical && lastConsult && (
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(true)}
+                className="btn"
+                style={{
+                  gap: '0.4rem',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)',
+                }}
+                title="Emitir una incapacidad sobre la última consulta"
+              >
+                <Plus size={16} />
+                <FileText size={16} />
+                Nueva Incapacidad
+              </button>
             )}
             {canClinical && (
               <a
@@ -1753,6 +1775,15 @@ export default function PatientDetailsClient({
           patient={patient}
           appointmentId={null}
           onClose={() => setShowVitalsModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
+      {showLeaveModal && lastConsult && (
+        <MedicalLeaveModal
+          consultation={lastConsult}
+          patient={patient}
+          onClose={() => setShowLeaveModal(false)}
           onSaved={() => router.refresh()}
         />
       )}

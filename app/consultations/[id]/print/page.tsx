@@ -84,8 +84,9 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
         { title: 'Motivo de Referencia', value: c.referral },
       ]
     : [
+        // La incapacidad no imprime "Sintomatología / Anamnesis" (alargaba el documento a 2 páginas).
+        // El dato sigue guardado en la consulta; solo se omite de este impreso.
         { title: 'Motivo de Consulta', value: c.reason_for_visit },
-        { title: 'Sintomatología / Anamnesis', value: c.symptoms },
         { title: 'Diagnóstico', value: c.diagnosis },
         { title: 'Plan de Tratamiento / Recomendaciones', value: c.treatment_plan },
       ]

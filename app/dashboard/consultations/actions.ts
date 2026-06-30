@@ -365,3 +365,41 @@ export async function createConsultation(
     warnings,
   }
 }
+
+/**
+ * Emite (o corrige) SOLO la incapacidad médica de una consulta ya guardada, sin tocar ningún otro
+ * campo clínico. Pensado para el caso "el médico guardó la consulta y luego el paciente pide una
+ * incapacidad". NO es una edición de consulta: el `.update()` escribe únicamente `medical_leave`,
+ * así que síntomas/diagnóstico/plan/vitales quedan intactos. La corrección (si ya había incapacidad)
+ * queda auditada con old->new por el trigger `on_consultation_modified`.
+ */
+export async function updateConsultationMedicalLeave(consultationId: string, medicalLeave: string) {
+  // Solo roles clínicos (igual que createConsultation).
+  const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO'])
+  if (!ctx) return { error: 'No autorizado. Solo los médicos pueden emitir incapacidades.' }
+
+  const text = (medicalLeave || '').trim()
+  if (!text) return { error: 'Escribe el texto de la incapacidad.' }
+
+  const supabase = await createClient()
+
+  // Acotar a la clínica del usuario (defensa en profundidad además de RLS) y obtener patient_id
+  // para revalidar el expediente correcto.
+  const { data: updated, error } = await supabase
+    .from('consultations')
+    .update({ medical_leave: text })
+    .eq('id', consultationId)
+    .eq('clinic_id', ctx.clinicId)
+    .select('id, patient_id')
+    .single()
+
+  if (error) {
+    return { error: safeErrorMessage('No se pudo guardar la incapacidad. Inténtalo de nuevo.', 'updateConsultationMedicalLeave', error) }
+  }
+  if (!updated) {
+    return { error: 'No tienes permiso para modificar esta consulta.' }
+  }
+
+  revalidatePath(`/dashboard/patients/${updated.patient_id}`)
+  return { success: true, consultationId: updated.id }
+}
