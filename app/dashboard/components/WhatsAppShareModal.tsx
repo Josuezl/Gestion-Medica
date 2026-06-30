@@ -16,7 +16,7 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
   patient: any
   appUrl: string
   onClose: () => void
-  docType?: 'prescription' | 'laborder' | 'incapacidad' | 'referral'
+  docType?: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest'
 }) {
   if (!presc) return null
 
@@ -28,8 +28,16 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
     onClose()
   }
 
-  // El enlace público; la referencia agrega ?doc=referral para que /verificar muestre esa vista.
-  const verifyLink = `${appUrl}/verificar/${presc.verification_code}${docType === 'referral' ? '?doc=referral' : ''}`
+  // Enlace al DOCUMENTO con membrete (el paciente lo ve y toca "Descargar / Imprimir"). Por tipo.
+  const docLink = docType === 'laborder'
+    ? `${appUrl}/lab-orders/${presc.id}/print?code=${presc.verification_code}`
+    : docType === 'incapacidad'
+      ? `${appUrl}/consultations/${presc.id}/print?code=${presc.verification_code}`
+      : docType === 'referral'
+        ? `${appUrl}/consultations/${presc.id}/print?code=${presc.verification_code}&doc=referral`
+        : docType === 'studyrequest'
+          ? `${appUrl}/study-requests/${presc.id}/print?code=${presc.verification_code}`
+          : `${appUrl}/verificar/${presc.verification_code}`
 
   // Texto descriptivo del documento según el tipo.
   const docNoun = docType === 'laborder'
@@ -38,9 +46,11 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
       ? 'su incapacidad médica'
       : docType === 'referral'
         ? 'su referencia médica'
-        : 'la siguiente receta médica'
+        : docType === 'studyrequest'
+          ? 'la siguiente solicitud de estudios'
+          : 'la siguiente receta médica'
 
-  const docLabel = docType === 'laborder' ? 'orden de laboratorio' : docType === 'referral' ? 'referencia médica' : 'incapacidad médica'
+  const docLabel = docType === 'laborder' ? 'orden de laboratorio' : docType === 'referral' ? 'referencia médica' : docType === 'studyrequest' ? 'solicitud de estudios' : 'incapacidad médica'
   const intro = docType === 'prescription'
     ? 'Seleccione el nivel de seguridad para compartir la receta médica con el paciente:'
     : `Se compartirá con el paciente un enlace al documento verificado (${docLabel}).`
@@ -144,7 +154,7 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
             /* Lab / Incapacidad: una sola opción → enlace público verificable */
             <button
               onClick={() => {
-                const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${verifyLink}`
+                const text = `Hola ${patient.first_name}, el ${docName} te ha compartido ${docNoun}:\n${docLink}`
                 openWhatsApp(text)
               }}
               style={{
@@ -159,7 +169,7 @@ export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, do
                 <Send size={18} />
               </div>
               <div style={{ flex: 1 }}>
-                <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>📲 Enviar enlace verificable</strong>
+                <strong style={{ display: 'block', fontSize: '0.92rem', color: '#166534', marginBottom: '2px' }}>📲 Enviar enlace de {docLabel}</strong>
                 <span style={{ fontSize: '0.8rem', color: '#15803d', lineHeight: '1.4' }}>El paciente abre el documento auténtico con su código de verificación, sin iniciar sesión.</span>
               </div>
             </button>

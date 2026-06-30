@@ -255,7 +255,7 @@ export async function sendLabOrderByEmail(patientId: string, labOrderId: string)
     patientName: `${patient.first_name} ${patient.last_name}`,
     date: formatDateTimeHN(order.created_at),
     verificationCode: order.verification_code,
-    verifyUrl: `${siteUrl}/verificar/${order.verification_code}`,
+    verifyUrl: `${siteUrl}/lab-orders/${labOrderId}/print?code=${order.verification_code}`,
     summary: [{ label: 'Exámenes solicitados', value: examenes }],
   })
 
@@ -265,6 +265,80 @@ export async function sendLabOrderByEmail(patientId: string, labOrderId: string)
     p_action: 'SEND_LAB_ORDER_EMAIL',
     p_record_id: labOrderId,
     p_table_name: 'lab_orders'
+  })
+
+  return { success: true }
+}
+
+/**
+ * Server Action: Enviar una solicitud de estudios por correo (enlace al documento con membrete).
+ * Espejo de sendLabOrderByEmail (estudios agrupados + other_studies).
+ */
+export async function sendStudyRequestByEmail(patientId: string, studyRequestId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*, clinics(*)')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
+
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single()
+  if (!patient) return { error: 'Paciente no encontrado' }
+  if (!patient.email) return { error: 'Este paciente no tiene correo electrónico registrado.' }
+
+  const { data: order } = await supabase
+    .from('study_requests')
+    .select('*, user_profiles!doctor_id(first_name, last_name, gender)')
+    .eq('id', studyRequestId)
+    .single()
+  if (!order) return { error: 'Solicitud de estudios no encontrada' }
+  if (order.clinic_id !== profile.clinic_id) return { error: 'No autorizado' }
+  if (!order.verification_code) return { error: 'La solicitud no tiene código de verificación.' }
+
+  const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
+  const od: any = order.user_profiles
+  const doctorName = od
+    ? doctorShortName(od.first_name, od.last_name, od.gender)
+    : doctorShortName(profile.first_name, profile.last_name, profile.gender)
+
+  // Resumen legible de los estudios solicitados.
+  const studies = Array.isArray(order.studies) ? order.studies : []
+  const studyNames = studies.map((s: any) => s?.name).filter(Boolean)
+  const otherLines = (order.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
+  const estudios = [...studyNames, ...otherLines].join(' · ')
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+  const result = await sendDocumentLinkEmail({
+    toEmail: patient.email,
+    subject: `Solicitud de Estudios - ${order.verification_code} | ${clinicName}`,
+    docTitle: 'Solicitud de Estudios',
+    clinicName,
+    clinicPhone: profile.practice_phone || profile.clinics?.phone,
+    clinicAddress: profile.practice_address || profile.clinics?.address,
+    doctorName,
+    doctorSpecialty: profile.specialty,
+    patientName: `${patient.first_name} ${patient.last_name}`,
+    date: formatDateTimeHN(order.created_at),
+    verificationCode: order.verification_code,
+    verifyUrl: `${siteUrl}/study-requests/${studyRequestId}/print?code=${order.verification_code}`,
+    summary: [{ label: 'Estudios solicitados', value: estudios }],
+  })
+
+  if (!result.success) return { error: result.error || 'Error al enviar correo.' }
+
+  await supabase.rpc('log_audit_event', {
+    p_action: 'SEND_STUDY_REQUEST_EMAIL',
+    p_record_id: studyRequestId,
+    p_table_name: 'study_requests'
   })
 
   return { success: true }
@@ -325,7 +399,7 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
     patientName: `${patient.first_name} ${patient.last_name}`,
     date: formatDateTimeHN(consultation.created_at),
     verificationCode: consultation.verification_code,
-    verifyUrl: `${siteUrl}/verificar/${consultation.verification_code}`,
+    verifyUrl: `${siteUrl}/consultations/${consultationId}/print?code=${consultation.verification_code}`,
     summary: [{ label: 'Incapacidad médica', value: consultation.medical_leave }],
   })
 
@@ -400,7 +474,7 @@ export async function sendReferralByEmail(patientId: string, consultationId: str
     patientName: `${patient.first_name} ${patient.last_name}`,
     date: formatDateTimeHN(consultation.created_at),
     verificationCode: consultation.verification_code,
-    verifyUrl: `${siteUrl}/verificar/${consultation.verification_code}?doc=referral`,
+    verifyUrl: `${siteUrl}/consultations/${consultationId}/print?code=${consultation.verification_code}&doc=referral`,
     summary,
   })
 

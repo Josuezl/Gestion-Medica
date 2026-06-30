@@ -1,13 +1,15 @@
 import React from 'react'
 import QRCode from 'qrcode'
-import { createClient } from '@/utils/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
+import { loadPublicDocument } from '@/utils/publicDocument'
+import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ code?: string }>
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -21,43 +23,21 @@ function calculateAge(birthDateString: string) {
   return age
 }
 
-export default async function PrintLabOrderPage({ params }: PageProps) {
+export default async function PrintLabOrderPage({ params, searchParams }: PageProps) {
   const { id } = await params
-  const supabase = await createClient()
+  const sp = searchParams ? await searchParams : {}
+  const code = typeof sp.code === 'string' ? sp.code : undefined
 
-  // 1. Autenticación
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  // 2. Perfil del médico actual
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id')
-    .eq('id', user.id)
-    .single()
-  if (!profile) return notFound()
-
-  // 3. Orden de laboratorio
-  const { data: order, error: orderError } = await supabase
-    .from('lab_orders')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (orderError || !order) return notFound()
-
-  // 4. Aislamiento multi-inquilino
-  if (order.clinic_id !== profile.clinic_id) return notFound()
-
-  // 5. Datos relacionados
-  const [patientRes, doctorRes, clinicRes] = await Promise.all([
-    supabase.from('patients').select('*').eq('id', order.patient_id).single(),
-    supabase.from('user_profiles').select('*').eq('id', order.doctor_id).single(),
-    supabase.from('clinics').select('*').eq('id', order.clinic_id).single(),
-  ])
-  const patient = patientRes.data
-  const doctor = doctorRes.data
-  const clinic = clinicRes.data
-  if (!patient || !doctor || !clinic) return notFound()
+  // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
+  const access = await loadPublicDocument('lab_orders', id, code)
+  if (access.status === 'notfound') return notFound()
+  if (access.status === 'gate') {
+    return <DocumentCodeGate basePath={`/lab-orders/${id}/print`} hasError={!!access.hasError} docLabel="Orden de Laboratorio" />
+  }
+  const order = access.doc
+  const patient = access.patient
+  const doctor = access.doctor
+  const clinic = access.clinic
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(order.created_at)

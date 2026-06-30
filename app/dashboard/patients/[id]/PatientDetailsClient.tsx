@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
-import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail } from './email-actions'
+import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, sendStudyRequestByEmail } from './email-actions'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
@@ -119,7 +119,7 @@ export default function PatientDetailsClient({
   const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [copiedFicha, setCopiedFicha] = useState(false)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
-  const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' } | null>(null)
+  const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest' } | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
   // Modal para emitir/corregir la incapacidad de la última consulta (sin editar lo clínico).
   const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -163,6 +163,9 @@ export default function PatientDetailsClient({
   }
   const handleWhatsAppReferralShare = (ref: any) => {
     setWhatsappShare({ doc: ref, docType: 'referral' })
+  }
+  const handleWhatsAppStudyShare = (order: any) => {
+    setWhatsappShare({ doc: order, docType: 'studyrequest' })
   }
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(initialEdit)
@@ -673,6 +676,8 @@ export default function PatientDetailsClient({
   const [prescEmailMsg, setPrescEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingLabEmail, setSendingLabEmail] = useState<string | null>(null)
   const [labEmailMsg, setLabEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
+  const [sendingStudyEmail, setSendingStudyEmail] = useState<string | null>(null)
+  const [studyEmailMsg, setStudyEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingLeaveEmail, setSendingLeaveEmail] = useState<string | null>(null)
   const [leaveEmailMsg, setLeaveEmailMsg] = useState<{ type: 'success' | 'error', text: string, id?: string } | null>(null)
   const [sendingReferralEmail, setSendingReferralEmail] = useState<string | null>(null)
@@ -710,6 +715,23 @@ export default function PatientDetailsClient({
       setLabEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.', id: labOrderId })
     }
     setSendingLabEmail(null)
+  }
+
+  const handleSendStudyEmail = async (studyRequestId: string) => {
+    setSendingStudyEmail(studyRequestId)
+    setStudyEmailMsg(null)
+    try {
+      const result = await sendStudyRequestByEmail(patient.id, studyRequestId)
+      if (result.error) {
+        setStudyEmailMsg({ type: 'error', text: result.error, id: studyRequestId })
+      } else {
+        setStudyEmailMsg({ type: 'success', text: `✅ Solicitud enviada a ${patient.email}`, id: studyRequestId })
+        setTimeout(() => setStudyEmailMsg(null), 5000)
+      }
+    } catch {
+      setStudyEmailMsg({ type: 'error', text: 'Error de conexión al enviar correo.', id: studyRequestId })
+    }
+    setSendingStudyEmail(null)
   }
 
   const handleSendIncapacidadEmail = async (consultationId: string) => {
@@ -1121,16 +1143,6 @@ export default function PatientDetailsClient({
             <span>Estudios Solicitados</span>
           </button>
 
-          {canClinical && (
-            <button
-              style={activeTab === 'studies' ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab('studies')}
-            >
-              <FileSpreadsheet size={18} />
-              <span>Estudios Médicos</span>
-            </button>
-          )}
-
           {/* Incapacidades al final de las pestañas */}
           <button
             style={activeTab === 'incapacidades' ? styles.tabActive : styles.tab}
@@ -1147,6 +1159,17 @@ export default function PatientDetailsClient({
             <Share2 size={18} />
             <span>Referencias</span>
           </button>
+
+          {/* Estudios Médicos (archivos subidos) al final */}
+          {canClinical && (
+            <button
+              style={activeTab === 'studies' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('studies')}
+            >
+              <FileSpreadsheet size={18} />
+              <span>Estudios Médicos</span>
+            </button>
+          )}
         </div>
 
         {/* Tab Contents */}
@@ -1574,6 +1597,10 @@ export default function PatientDetailsClient({
               styles={styles}
               expandedStudyRequest={expandedStudyRequest}
               setExpandedStudyRequest={setExpandedStudyRequest}
+              onWhatsApp={handleWhatsAppStudyShare}
+              onSendEmail={handleSendStudyEmail}
+              sendingEmailId={sendingStudyEmail}
+              emailMsg={studyEmailMsg}
             />
           )}
 

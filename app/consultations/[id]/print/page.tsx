@@ -1,8 +1,9 @@
 import React from 'react'
 import QRCode from 'qrcode'
-import { createClient } from '@/utils/supabase/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
+import { loadPublicDocument } from '@/utils/publicDocument'
+import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 
@@ -26,38 +27,27 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const resolvedSearchParams = searchParams ? await searchParams : {}
   // Modo "referencia": muestra solo Motivo de Consulta + Motivo de Referencia (en vez del resumen completo).
   const isReferral = resolvedSearchParams?.doc === 'referral'
+  const code = typeof resolvedSearchParams?.code === 'string'
+    ? resolvedSearchParams.code
+    : Array.isArray(resolvedSearchParams?.code) ? resolvedSearchParams.code[0] : undefined
 
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id')
-    .eq('id', user.id)
-    .single()
-  if (!profile) return notFound()
-
-  const { data: consultation, error: cErr } = await supabase
-    .from('consultations')
-    .select('*')
-    .eq('id', consultationId)
-    .single()
-  if (cErr || !consultation) return notFound()
-
-  // Aislamiento multi-inquilino
-  if (consultation.clinic_id !== profile.clinic_id) return notFound()
-
-  const [patientRes, doctorRes, clinicRes] = await Promise.all([
-    supabase.from('patients').select('*').eq('id', consultation.patient_id).single(),
-    supabase.from('user_profiles').select('*').eq('id', consultation.doctor_id).single(),
-    supabase.from('clinics').select('*').eq('id', consultation.clinic_id).single(),
-  ])
-  const patient = patientRes.data
-  const doctor = doctorRes.data
-  const clinic = clinicRes.data
-  if (!patient || !doctor || !clinic) return notFound()
+  // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
+  const access = await loadPublicDocument('consultations', consultationId, code)
+  if (access.status === 'notfound') return notFound()
+  if (access.status === 'gate') {
+    return (
+      <DocumentCodeGate
+        basePath={`/consultations/${consultationId}/print`}
+        extraQuery={isReferral ? '&doc=referral' : ''}
+        hasError={!!access.hasError}
+        docLabel={isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}
+      />
+    )
+  }
+  const consultation = access.doc
+  const patient = access.patient
+  const doctor = access.doctor
+  const clinic = access.clinic
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
