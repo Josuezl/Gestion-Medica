@@ -5,6 +5,7 @@
 
 import { Resend } from 'resend'
 import { medicineDetail } from './medicines'
+import { errorMessage } from './errors'
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_123')
 
@@ -204,9 +205,9 @@ export async function sendMedicalRecordEmail(
     }
 
     return { success: true, id: data?.id }
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error de red Resend:', err)
-    return { success: false, error: err.message || 'Error de red al enviar correo' }
+    return { success: false, error: errorMessage(err, 'Error de red al enviar correo') }
   }
 }
 
@@ -431,9 +432,9 @@ export async function sendPrescriptionEmail(data: PrescriptionEmailData): Promis
     }
 
     return { success: true, id: data?.id }
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error de red Resend:', err)
-    return { success: false, error: err.message || 'Error de red al enviar correo' }
+    return { success: false, error: errorMessage(err, 'Error de red al enviar correo') }
   }
 }
 
@@ -589,9 +590,9 @@ export async function sendDocumentLinkEmail(data: DocumentLinkEmailData): Promis
     }
 
     return { success: true, id: sent?.id }
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error de red Resend:', err)
-    return { success: false, error: err.message || 'Error de red al enviar correo' }
+    return { success: false, error: errorMessage(err, 'Error de red al enviar correo') }
   }
 }
 

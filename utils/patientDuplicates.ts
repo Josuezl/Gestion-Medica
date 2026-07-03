@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifyNameDobDuplicate, type DuplicateMatch } from './validation'
 
 /**
@@ -12,7 +13,7 @@ import { classifyNameDobDuplicate, type DuplicateMatch } from './validation'
  * al aprobar solicitudes del portal público, donde también se crean fichas de paciente.
  */
 export async function findDuplicatePatient(
-  supabase: any,
+  supabase: SupabaseClient,
   clinicId: string,
   firstName: string,
   lastName: string,

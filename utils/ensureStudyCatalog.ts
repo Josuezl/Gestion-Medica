@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { DEFAULT_STUDY_CATALOG } from '@/utils/studyCatalog'
 
 /**
@@ -12,7 +13,7 @@ import { DEFAULT_STUDY_CATALOG } from '@/utils/studyCatalog'
  * Objetivo: que la "Solicitud de Estudios" funcione por defecto, sin que nadie tenga que pulsar
  * "Cargar catálogo estándar" en Configuración.
  */
-export async function ensureStudyCatalogSeeded(supabase: any, clinicId: string): Promise<void> {
+export async function ensureStudyCatalogSeeded(supabase: SupabaseClient, clinicId: string): Promise<void> {
   if (!clinicId) return
   try {
     const { count } = await supabase

@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { errorMessage } from './errors'
 
 // Debe venir en formato "Nombre <correo>" (igual que utils/email.ts)
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'CloudMedHN <onboarding@resend.dev>'
@@ -67,9 +68,9 @@ export async function sendPasswordResetEmail(params: {
       return { error: error.message }
     }
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Excepción enviando email de reinicio:', error)
-    return { error: error.message }
+    return { error: errorMessage(error, 'No se pudo enviar el correo.') }
   }
 }
 
@@ -142,9 +143,9 @@ export async function sendSetPasswordEmail(params: {
       return { error: error.message }
     }
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Excepción enviando email de acceso:', error)
-    return { error: error.message }
+    return { error: errorMessage(error, 'No se pudo enviar el correo.') }
   }
 }
 
@@ -232,9 +233,9 @@ export async function sendWelcomeCredentialsEmail(params: {
       return { error: error.message }
     }
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Excepción enviando correo de credenciales:', error)
-    return { error: error.message }
+    return { error: errorMessage(error, 'No se pudo enviar el correo.') }
   }
 }
 

@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import QRCode from 'qrcode'
-import { medicineDetail } from './medicines'
+import { medicineDetail, type Medicine } from './medicines'
 
 interface PDFPrescriptionData {
   clinicName: string
@@ -13,7 +13,7 @@ interface PDFPrescriptionData {
   patientAge: number
   patientDni: string
   date: string
-  medicines: any[]
+  medicines: Medicine[]
   notes: string
   verificationCode: string
   siteUrl: string

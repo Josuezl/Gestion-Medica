@@ -3,9 +3,20 @@
 import { createClient } from '@/utils/supabase/server'
 import { User } from '@supabase/supabase-js'
 
+/** Fila de user_profiles con el join de clinics usado por el guard (solo columnas consumidas). */
+export interface AuthProfile {
+  id: string
+  clinic_id: string
+  first_name: string
+  last_name: string
+  role: string
+  is_org_admin: boolean | null
+  clinics: { name: string | null; plan_code: string | null } | null
+}
+
 export interface AuthContext {
   user: User
-  profile: any
+  profile: AuthProfile
   clinicId: string
   clinicName: string
   role: 'ADMIN' | 'DOCTOR' | 'ASSISTANT' | 'NURSE'
@@ -18,25 +29,26 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: profile, error } = await supabase
+  const { data, error } = await supabase
     .from('user_profiles')
     .select('*, clinics(name, plan_code)')
     .eq('id', user.id)
     .single()
 
-  if (error || !profile) {
+  if (error || !data) {
     console.log('[auth-guard] Error getting profile:', error)
     return null
   }
 
+  const profile = data as AuthProfile
   return {
     user,
     profile,
     clinicId: profile.clinic_id,
-    clinicName: (profile.clinics as any)?.name || '',
-    role: profile.role as 'ADMIN' | 'DOCTOR' | 'ASSISTANT',
+    clinicName: profile.clinics?.name || '',
+    role: profile.role as AuthContext['role'],
     isOrgAdmin: !!profile.is_org_admin,
-    planCode: (profile.clinics as any)?.plan_code || 'SOLO_MEDICO',
+    planCode: profile.clinics?.plan_code || 'SOLO_MEDICO',
   }
 }
 

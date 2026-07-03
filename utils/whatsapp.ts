@@ -9,6 +9,12 @@ interface WhatsAppResponse {
   error?: string
 }
 
+/** Componente de plantilla de la Cloud API de Meta (body/header/button con sus parámetros). */
+interface WhatsAppTemplateComponent {
+  type: string
+  parameters: { type: string; text?: string }[]
+}
+
 /**
  * Envia un mensaje utilizando plantillas oficiales de Meta (WhatsApp Business API)
  */
@@ -16,7 +22,7 @@ export async function sendWhatsAppTemplate(
   to: string,
   templateName: string,
   languageCode: string = 'es',
-  components: any[] = []
+  components: WhatsAppTemplateComponent[] = []
 ): Promise<WhatsAppResponse> {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
@@ -58,9 +64,9 @@ export async function sendWhatsAppTemplate(
     }
 
     return { success: true, messageId: data.messages?.[0]?.id }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error de conexión con WhatsApp API:', error)
-    return { success: false, error: error.message || 'Error de red' }
+    return { success: false, error: error instanceof Error && error.message ? error.message : 'Error de red' }
   }
 }
 
