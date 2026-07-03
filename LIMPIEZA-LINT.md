@@ -1,10 +1,10 @@
-# Limpieza de ESLint — plan de trabajo
+# Limpieza de ESLint — COMPLETADA ✅
 
-Documento de seguimiento para ir saldando la deuda de lint del repo **poco a poco**, en commits aparte (no mezclados con features).
+Documento de seguimiento de la deuda de lint del repo. **Saldada por completo el 2026-07-03.**
 
-- **Estado al 2026-06-27:** 248 hallazgos → **201 errores + 47 advertencias**.
-- **No bloquean el build ni el deploy.** `npm run build` pasa con todos estos presentes (ESLint está desacoplado del build en este proyecto) y `npm test` pasa (50/50).
-- **No son bugs de ejecución.** Son problemas de estilo / seguridad de tipos / buenas prácticas. Afectan mantenibilidad y el chequeo de TypeScript, no el funcionamiento para el usuario.
+- **Estado inicial (2026-06-27):** 248 hallazgos. Al retomar (2026-07-03): 269 (222 errores + 47 advertencias).
+- **Estado final (2026-07-03):** **0 hallazgos.** `npm run lint` pasa limpio.
+- `npm run build` pasa, `npm test` pasa (110/110) y se verificó E2E con puppeteer (8/8 flujos, sin errores de página).
 
 ## Cómo revisar / medir
 
@@ -12,72 +12,35 @@ Documento de seguimiento para ir saldando la deuda de lint del repo **poco a poc
 # usar el Node de nvm (este entorno no tiene Homebrew)
 export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
 
-npm run lint                 # listado completo
-npm run lint -- --fix        # auto-arregla lo que sea auto-arreglable (¡revisar el diff!)
-```
-
-Conteo por regla:
-```bash
-npm run lint 2>&1 | grep -oE "@typescript-eslint/[a-z-]+|react-hooks/[a-z-]+|next/[a-z-]+" | sort | uniq -c | sort -rn
+npm run lint                 # ahora pasa sin salida de errores
 ```
 
 > ⚠️ No correr `npm run build` con `npm run dev` vivo (desincroniza `.next` → "Hydration failed"). Apagar el dev antes de compilar.
 
-## Resumen por regla
+## Qué se hizo (en commits separados, no mezclados con features)
 
-| Cant. | Severidad | Regla | Qué es | Riesgo real |
-|------:|-----------|-------|--------|-------------|
-| 186 | error | `@typescript-eslint/no-explicit-any` | Uso del tipo `any` | Apaga el chequeo de tipos en ese punto. No rompe nada hoy; el riesgo es que un bug futuro se cuele sin aviso de TS. |
-| 43 | warning | `@typescript-eslint/no-unused-vars` | Imports/variables sin usar | Código muerto. Inofensivo. |
-| 7 | error | `react-hooks/set-state-in-effect` | `setState` dentro de `useEffect` | Posibles re-renders en cascada. En los debounce actuales funciona bien. |
-| 5 | error | `next/no-html-link-for-pages` | `<a>` en vez de `<Link>` | Navegación interna sin prefetch/SPA (recarga completa). Solo rendimiento. |
-| 4 | warning | `next/no-img-element` | `<img>` en vez de `next/image` | Imágenes sin optimizar (peso/LCP). Solo rendimiento. |
-| 3 | error | `react-hooks/purity`, `react-hooks/static-components` | Llamadas impuras en render / componentes redefinidos | Reglas nuevas de React. Revisar caso por caso; hoy no hay falla visible. |
+### Fase 1 — Quick wins  ✅
+- `no-unused-vars` (43): se borraron imports/variables sin usar y código muerto (handlers de copiar-al-portapapeles que ya no se usaban). De paso, la agenda dejó de precargar hasta 5000 pacientes: la lista solo se usaba como tipo (la búsqueda ya corre server-side con `searchPatientsForAgenda`).
+- `no-img-element` (4): el logo de la app usa `next/image` (login + sidebar). Se dejó `<img>` con `eslint-disable` justificado para firmas de Storage (URL dinámica por tenant) y el markup de impresión.
+- Commit: `refactor(lint): remove unused imports/dead code and optimize images`
 
-## Archivos con más hallazgos
+### Fase 2 — Buenas prácticas de Next/React  ✅
+- `no-html-link-for-pages` (5): `<a href>` interno → `<Link>`.
+- `set-state-in-effect` (8): `CodeForm`/`DocumentCodeGate` usan `useTransition`; `AgendaClient` deriva "buscando"/resultados de la última query cargada en vez de hacer `setState` dentro del debounce; `patients/new` lee `?nombre=` con `useSearchParams` (envuelto en `Suspense`); hook compartido `useAppOrigin` (`useSyncExternalStore`) reemplaza el `setAppUrl` en efecto.
+- `react-hooks/purity` + `static-components` (3): `AppointmentCard` reutiliza `calculateAge` de `utils/age` (sin `Date.now()` en render); `ProfileClient` sube `MsgBox` fuera del cuerpo del componente.
+- Commit: `refactor(react): fix effect/purity/static-component and internal link issues`
 
-| Cant. | Archivo |
-|------:|---------|
-| 30 | `app/dashboard/patients/[id]/PatientDetailsClient.tsx` |
-| 19 | `app/dashboard/components/PatientHistoryTabs.tsx` |
-| 15 | `app/dashboard/config/ConfigClient.tsx` |
-| 13 | `app/dashboard/reports/ReportsClient.tsx` |
-| 13 | `app/dashboard/consultations/new/NewConsultationClient.tsx` |
-| 12 | `app/dashboard/AgendaClient.tsx` |
-| 9 | `app/dashboard/patients/actions.ts` |
-| 9 | `app/dashboard/config/StudyCatalogCard.tsx` |
-| 8 | `app/dashboard/consultations/new/page.tsx` |
-| 8 | `app/dashboard/config/LabCatalogCard.tsx` |
+### Fase 3 — Tipado de `any` (206) ✅
+Se creó `utils/clinicalTypes.ts` con las formas de fila del dominio (paciente, consulta, receta, estudios, órdenes de lab, solicitudes, incapacidades, referencias, signos pre-clínicos, documentos con membrete) y helpers compartidos (`DoctorRef`, `ShareableDoc`). Son tipos a mano, deliberadamente laxos (casi todo opcional/nullable) para tolerar el drift repo↔BD. Hecho por área, un commit por carpeta, compilando y probando entre cada uno:
+- `utils/` — `refactor(types): replace any with proper types in utils/`
+- `app/dashboard/patients/` — `refactor(types): type the patients area with shared clinical row types`
+- `app/dashboard/config/` + perfil — `refactor(types): type the config and profile areas`
+- `consultations/` + `reports/` — `refactor(types): type the consultations and reports areas`
+- Resto (impresión pública, API, agenda, solicitudes) — `refactor(types): type remaining any across public docs, API and agenda`
 
-(El resto, ≤7 c/u, repartido en ~40 archivos: `utils/email*.ts`, `utils/whatsapp.ts`, `utils/auth-guard.ts`, páginas de impresión, etc.)
+**Nota sobre los joins de Supabase:** las relaciones a-uno (`patients(...)`, `user_profiles(...)`, `clinics(...)`) las infiere el cliente como arreglo. Donde hizo falta se usó un cast `as unknown as <Tipo>` con comentario, en vez de `any`.
 
-## Plan por fases (de menor a mayor riesgo)
-
-### Fase 1 — Quick wins sin riesgo  ✅ recomendado primero
-- [ ] `no-unused-vars` (43): borrar imports/variables sin usar. Cero cambio de comportamiento. Mucho se arregla con `npm run lint -- --fix`.
-- [ ] `no-img-element` (4): cambiar `<img>` por `next/image` donde aplique (ojo con logos/markup de impresión, ahí a veces conviene dejar `<img>` y silenciar la regla puntualmente).
-
-### Fase 2 — Buenas prácticas de Next/React
-- [ ] `no-html-link-for-pages` (5): `<a href="/ruta">` → `<Link href="/ruta">` para navegación interna. Verificar que no rompa rutas que dependen de recarga completa.
-- [ ] `set-state-in-effect` (7): revisar cada `useEffect`. Los debounce (búsqueda de pacientes/historial) se pueden dejar; donde sea estado derivado, mover a `useMemo` o calcular en render.
-- [ ] `react-hooks/purity` + `static-components` (3): revisar caso por caso (p. ej. `new Date(Date.now()...)` en render de `AppointmentCard`; definir componentes fuera del render).
-
-### Fase 3 — Tipado de `any` (el grueso: 186)
-Hacer **por área**, un commit por carpeta, compilando y probando entre cada uno:
-- [ ] `utils/` (auth-guard, email, email-invitation, whatsapp, pdf-generator, ensureStudyCatalog) — son utilidades críticas; empezar aquí da el mayor valor de seguridad de tipos.
-- [ ] `app/dashboard/patients/` (PatientDetailsClient, actions, tabs)
-- [ ] `app/dashboard/config/` (ConfigClient, StudyCatalogCard, LabCatalogCard)
-- [ ] `app/dashboard/consultations/` y `reports/`
-- [ ] Resto de páginas de impresión y rutas API.
-
-**Cómo tipar los `any` de Supabase:** la mayoría viene de resultados de consultas. Opciones, de mejor a peor:
-1. Generar/usar los tipos de la base (`supabase gen types typescript`) y tipar las consultas.
-2. Definir `interface`/`type` locales para la forma que se usa.
-3. Como último recurso, `unknown` + validación, o silenciar la línea con un comentario justificado.
-
-## Reglas de trabajo
-
-1. **Un commit por fase/área**, nunca mezclado con una feature.
-2. Tras cada lote: `npm run build` **y** `npm test` deben pasar.
-3. Para `--fix`, **revisar siempre el diff** antes de commitear (puede tocar más de lo esperado).
-4. Meta realista: bajar los **errores** primero (los 201), dejar las advertencias para el final.
+## Reglas de trabajo (se respetaron)
+1. Un commit por fase/área, nunca mezclado con una feature.
+2. Tras cada lote: `npm run build` **y** `npm test` pasaron.
+3. `--fix` no aplicaba a estas reglas (todo fue manual y revisado).
