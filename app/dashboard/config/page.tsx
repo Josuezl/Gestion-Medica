@@ -101,6 +101,13 @@ export default async function ConfigPage() {
     .eq('clinic_id', ctx.clinicId)
     .order('sort_order', { ascending: true })
 
+  // Horarios semanales por médico (general y por sede) para el portal de auto-agendamiento
+  const { data: doctorSchedules } = await supabase
+    .from('doctor_schedules')
+    .select('id, doctor_id, location_id, weekday, start_time, end_time')
+    .eq('clinic_id', ctx.clinicId)
+    .order('weekday', { ascending: true })
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -126,6 +133,7 @@ export default async function ConfigPage() {
         labTests={labTests || []}
         studySections={studySections || []}
         studyItems={studyItems || []}
+        doctorSchedules={doctorSchedules || []}
       />
     </div>
   )

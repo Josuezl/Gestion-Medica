@@ -48,8 +48,12 @@ export function validateVitals(v: VitalsInput): string | null {
   return null
 }
 
-/** Estados válidos de una cita. Deben coincidir con STATUS_CONFIG (UI) y el CHECK de la BD. */
-export const VALID_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
+/**
+ * Estados válidos de una cita. Deben coincidir con STATUS_CONFIG (UI) y el CHECK de la BD.
+ * PENDING_REVIEW = solicitud del portal público de auto-agendamiento: bloquea el slot pero
+ * requiere aprobación del staff en /dashboard/solicitudes (no se crea desde la agenda).
+ */
+export const VALID_APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'PENDING_REVIEW'] as const
 export type AppointmentStatus = (typeof VALID_APPOINTMENT_STATUSES)[number]
 
 export function isValidAppointmentStatus(status: string): boolean {

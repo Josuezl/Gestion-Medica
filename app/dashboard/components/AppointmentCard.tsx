@@ -68,6 +68,9 @@ export default function AppointmentCard({
   // La preclínica solo aplica antes/durante la cita: se oculta en estados terminales
   // (Cancelada, No se presentó, Realizada).
   const canTakePreclinical = canTakeVitals && !!app.patients?.id && ['PENDING', 'CONFIRMED', 'WAITING', 'IN_PROGRESS'].includes(app.status)
+  // Solicitud del portal público: su ciclo de vida se gestiona en "Solicitudes" (aprobar crea o
+  // asigna la ficha del paciente). Aquí solo se muestra bloqueando el slot, con acceso directo.
+  const isPendingReview = app.status === 'PENDING_REVIEW'
 
   return (
     <div className="appt-card-v2" style={{ borderLeftColor: cfg.dotColor }}>
@@ -123,7 +126,18 @@ export default function AppointmentCard({
             </button>
           )}
 
-          <StatusDropdown status={app.status} onChange={onStatusChange} />
+          {isPendingReview ? (
+            <button
+              className="appt-btn"
+              style={{ backgroundColor: '#fae8ff', color: '#a855f7', fontWeight: 700 }}
+              onClick={() => window.location.href = '/dashboard/solicitudes'}
+              title="Cita agendada por el paciente desde el enlace público — revisar en Solicitudes"
+            >
+              Por aprobar · Revisar
+            </button>
+          ) : (
+            <StatusDropdown status={app.status} onChange={onStatusChange} />
+          )}
 
           <button
             className="appt-btn appt-btn-wa"
@@ -136,14 +150,16 @@ export default function AppointmentCard({
             </svg>
           </button>
 
-          <button
-            className="appt-btn appt-btn-icon"
-            onClick={onEdit}
-            title="Editar cita"
-            aria-label="Editar cita"
-          >
-            <Edit2 size={16} />
-          </button>
+          {!isPendingReview && (
+            <button
+              className="appt-btn appt-btn-icon"
+              onClick={onEdit}
+              title="Editar cita"
+              aria-label="Editar cita"
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
 
           <button
             className="appt-btn appt-btn-icon"

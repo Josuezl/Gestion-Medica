@@ -47,6 +47,11 @@ describe('isValidAppointmentStatus', () => {
     for (const s of VALID_APPOINTMENT_STATUSES) expect(isValidAppointmentStatus(s)).toBe(true)
   })
 
+  it('incluye PENDING_REVIEW (solicitudes del portal público)', () => {
+    expect(isValidAppointmentStatus('PENDING_REVIEW')).toBe(true)
+    expect(VALID_APPOINTMENT_STATUSES).toHaveLength(8)
+  })
+
   it('rechaza estados inválidos, vacíos y de distinta capitalización', () => {
     expect(isValidAppointmentStatus('HACKEADO')).toBe(false)
     expect(isValidAppointmentStatus('')).toBe(false)
@@ -66,6 +71,10 @@ describe('isCreatableAppointmentStatus', () => {
     expect(isCreatableAppointmentStatus('COMPLETED')).toBe(false)
     expect(isCreatableAppointmentStatus('NO_SHOW')).toBe(false)
     expect(isCreatableAppointmentStatus('CANCELLED')).toBe(false)
+  })
+
+  it('no permite crear citas como "Por aprobar" desde la agenda (solo el portal público las crea)', () => {
+    expect(isCreatableAppointmentStatus('PENDING_REVIEW')).toBe(false)
   })
 })
 

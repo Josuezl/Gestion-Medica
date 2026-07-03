@@ -16,3 +16,12 @@ export function generateVerificationCode(prefix: string): string {
     .slice(-10)
   return `${prefix}-${code}`
 }
+
+/**
+ * Token para los links públicos de auto-agendamiento (/agendar/[token]). Es la única barrera
+ * de acceso al portal de una clínica, así que necesita más entropía que los códigos de
+ * verificación: 18 bytes aleatorios (144 bits) en base64url → 24 caracteres URL-safe.
+ */
+export function generateBookingToken(): string {
+  return randomBytes(18).toString('base64url')
+}

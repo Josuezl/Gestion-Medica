@@ -79,7 +79,9 @@ export const config = {
      * - favicon.ico (icono de favicon)
      * - archivos con extensiones comunes (svg, png, jpg, etc.)
      * - ruta del webhook de whatsapp (importante permitir acceso público)
+     * - portal público de agendamiento (/agendar) y estado de cita (/citas): son
+     *   anónimas por diseño; excluirlas evita el getUser() de Supabase en ese tráfico
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/whatsapp-webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/whatsapp-webhook|agendar|citas|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

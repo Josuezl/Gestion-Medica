@@ -7,6 +7,8 @@ import { provisionUserAccount } from '@/utils/provisioning'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { DEFAULT_LAB_CATALOG } from '@/utils/labCatalog'
 import { DEFAULT_STUDY_CATALOG } from '@/utils/studyCatalog'
+import { validateScheduleRanges } from '@/utils/booking'
+import { safeErrorMessage } from '@/utils/errors'
 import { revalidatePath } from 'next/cache'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
@@ -772,6 +774,74 @@ export async function setStudySectionItemsActive(sectionId: string, isActive: bo
     .eq('section_id', sectionId)
     .eq('clinic_id', ctx.clinicId)
   if (error) return { error: 'Error al actualizar los estudios: ' + error.message }
+
+  revalidatePath('/dashboard/config')
+  return { success: true }
+}
+
+/**
+ * Guarda el horario semanal de un médico para el portal público de auto-agendamiento
+ * (tabla doctor_schedules), por SEDE: `locationId` null = horario general del médico;
+ * con sede = horario propio de esa clínica (el portal usa el de la sede del link si
+ * existe, si no cae al general). Reemplaza los rangos de ese médico+sede por los
+ * recibidos (delete + insert: configuración de bajo volumen; si falla, se reintenta).
+ * Solo afecta qué slots ofrece el portal público; la agenda interna no cambia.
+ */
+export async function saveDoctorSchedule(
+  doctorId: string,
+  locationId: string | null,
+  ranges: { weekday: number; start: string; end: string }[],
+) {
+  const ctx = await requireOrgAdmin()
+  if (!ctx) return { error: 'No autorizado' }
+
+  const supabase = await createClient()
+
+  // El médico debe ser de la clínica y tener rol clínico (mismo criterio que la agenda).
+  const { data: doctor } = await supabase
+    .from('user_profiles')
+    .select('id, role')
+    .eq('id', doctorId)
+    .eq('clinic_id', ctx.clinicId)
+    .in('role', ['ADMIN', 'DOCTOR'])
+    .maybeSingle()
+  if (!doctor) return { error: 'Médico no válido.' }
+
+  if (locationId) {
+    const { data: location } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('id', locationId)
+      .eq('clinic_id', ctx.clinicId)
+      .maybeSingle()
+    if (!location) return { error: 'Clínica (sede) no válida.' }
+  }
+
+  const rangesError = validateScheduleRanges(ranges)
+  if (rangesError) return { error: rangesError }
+
+  let deleteQuery = supabase
+    .from('doctor_schedules')
+    .delete()
+    .eq('doctor_id', doctorId)
+    .eq('clinic_id', ctx.clinicId)
+  deleteQuery = locationId ? deleteQuery.eq('location_id', locationId) : deleteQuery.is('location_id', null)
+  const { error: deleteError } = await deleteQuery
+  if (deleteError) return { error: safeErrorMessage('No se pudo actualizar el horario.', 'saveDoctorSchedule', deleteError) }
+
+  if (ranges.length > 0) {
+    const { error: insertError } = await supabase
+      .from('doctor_schedules')
+      .insert(ranges.map(r => ({
+        clinic_id: ctx.clinicId,
+        doctor_id: doctorId,
+        location_id: locationId,
+        weekday: r.weekday,
+        start_time: r.start,
+        end_time: r.end,
+      })))
+    if (insertError) return { error: safeErrorMessage('No se pudo guardar el horario.', 'saveDoctorSchedule', insertError) }
+  }
 
   revalidatePath('/dashboard/config')
   return { success: true }

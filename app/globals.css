@@ -802,6 +802,7 @@ h1, h2, h3, h4, h5, h6 {
 .appointment-block.status-completed { border-left-color: #10b981; }
 .appointment-block.status-cancelled { border-left-color: #ef4444; opacity: 0.7; }
 .appointment-block.status-no-show { border-left-color: #6b7280; opacity: 0.7; }
+.appointment-block.status-pending-review { border-left-color: #a855f7; }
 
 .appointment-block-name {
   font-weight: 700;
@@ -1200,6 +1201,7 @@ h1, h2, h3, h4, h5, h6 {
 .month-appointment-bar.status-waiting { background: #fef3c7; color: #92400e; }
 .month-appointment-bar.status-in-progress { background: #dbeafe; color: #1e40af; }
 .month-appointment-bar.status-completed { background: #d1fae5; color: #065f46; }
+.month-appointment-bar.status-pending-review { background: #fae8ff; color: #86198f; }
 
 .month-more-label {
   font-size: 0.6rem;

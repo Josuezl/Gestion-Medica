@@ -14,20 +14,30 @@ import {
   User as UserIcon,
   MessageSquare,
   BarChart3,
-  Menu
+  Menu,
+  Inbox
 } from 'lucide-react'
 
 interface SidebarLinkProps {
   href: string
   label: string
   icon: React.ReactNode
+  badge?: number
 }
 
-function SidebarLink({ href, label, icon }: SidebarLinkProps) {
+function SidebarLink({ href, label, icon, badge }: SidebarLinkProps) {
   return (
     <a href={href} style={styles.sidebarLink}>
       {icon}
       <span>{label}</span>
+      {!!badge && (
+        <span style={{
+          marginLeft: 'auto', backgroundColor: '#a855f7', color: '#fff', fontSize: '0.7rem',
+          fontWeight: 700, borderRadius: '999px', padding: '0.1rem 0.45rem', minWidth: '1.2rem', textAlign: 'center',
+        }}>
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </a>
   )
 }
@@ -65,6 +75,12 @@ export default async function DashboardLayout({
   const doctorName = profile ? personShortName(profile.first_name, profile.last_name) : 'Médico'
   const specialty = profile?.specialty || 'General'
 
+  // Solicitudes del portal público pendientes de aprobar (RLS ya acota a la clínica del usuario).
+  const { count: pendingBookings } = await supabase
+    .from('booking_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'PENDING')
+
   // Derived UI Role
   let displayRole = 'Asistente'
   if (profile?.role === 'DOCTOR') {
@@ -96,6 +112,7 @@ export default async function DashboardLayout({
         <nav style={styles.navigation}>
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
+          <SidebarLink href="/dashboard/solicitudes" label="Solicitudes" icon={<Inbox size={20} />} badge={pendingBookings || 0} />
           {(profile?.role === 'ADMIN' || profile?.role === 'DOCTOR') && (
             <SidebarLink href="/dashboard/consultations" label="Historial de Consultas" icon={<FileText size={20} />} />
           )}

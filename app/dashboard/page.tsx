@@ -66,6 +66,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         id_card,
         gender,
         birth_date
+      ),
+      booking_requests (
+        id,
+        status,
+        submitted_first_name,
+        submitted_last_name,
+        submitted_phone
       )
     `)
     .eq('clinic_id', clinicId || '')

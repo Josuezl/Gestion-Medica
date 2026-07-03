@@ -26,6 +26,8 @@ import { isCreatableAppointmentStatus } from '@/utils/validation'
 import { STATUS_CONFIG } from './StatusDropdown'
 import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 import AppointmentCard from './components/AppointmentCard'
+import BookingLinkModal from './components/BookingLinkModal'
+import { Link2 } from 'lucide-react'
 
 // ============================================================================
 // TYPES
@@ -59,6 +61,14 @@ export interface Appointment {
   doctor_id: string
   location_id: string | null
   patients: Patient | null
+  // Solicitud del portal público vinculada (solo citas PENDING_REVIEW; join uno-a-muchos).
+  booking_requests?: {
+    id: string
+    status: string
+    submitted_first_name: string
+    submitted_last_name: string
+    submitted_phone: string | null
+  }[]
 }
 
 interface Location {
@@ -122,6 +132,8 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const router = useRouter()
   const preclinicalSet = useMemo(() => new Set(preclinicalPatientIds), [preclinicalPatientIds])
   const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: any; appointmentId: string | null } | null>(null)
+  // Modal de enlaces públicos de auto-agendamiento (portal /agendar/[token]).
+  const [showBookingLinks, setShowBookingLinks] = useState(false)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
   const [selectedLocationId, setSelectedLocationId] = useState<string>(
@@ -214,15 +226,28 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   }
 
   // --- Derived Data ---
+  // Las citas del portal público llegan con patients=null hasta que se aprueban: se sintetiza
+  // una ficha de display con el nombre/teléfono enviados para que TODAS las vistas lo muestren.
+  // El id vacío desactiva solo expediente/preclínica (requieren ficha real).
+  const normalizedAppointments = useMemo(() => initialAppointments.map(app => {
+    if (app.patients || app.status !== 'PENDING_REVIEW') return app
+    const req = app.booking_requests?.[0]
+    if (!req) return app
+    return {
+      ...app,
+      patients: { id: '', first_name: req.submitted_first_name, last_name: req.submitted_last_name, phone: req.submitted_phone || '' },
+    }
+  }), [initialAppointments])
+
   const filteredAppointments = useMemo(() => {
-    return initialAppointments.filter(app => {
+    return normalizedAppointments.filter(app => {
       // Filtrar doctor
       if (selectedDoctorId !== 'all' && app.doctor_id !== selectedDoctorId) return false
       // Filtrar clínica
       if (selectedLocationId !== 'all' && app.location_id !== selectedLocationId) return false
       return true
     })
-  }, [initialAppointments, selectedDoctorId, selectedLocationId])
+  }, [normalizedAppointments, selectedDoctorId, selectedLocationId])
 
   const appointmentsByDate = useMemo(() => {
     const map: Record<string, Appointment[]> = {}
@@ -1120,6 +1145,26 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               >
                 <Plus size={20} strokeWidth={3} />
               </button>
+              <button
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#ffffff',
+                  color: '#0d9488',
+                  border: 'none',
+                  borderLeft: '1px solid #e2e8f0',
+                  padding: '0 1rem',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                onClick={() => setShowBookingLinks(true)}
+                title="Enlace público de agendamiento"
+              >
+                <Link2 size={18} strokeWidth={2.5} />
+              </button>
             </div>
           </div>
           
@@ -1222,6 +1267,15 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
 
       {/* MODAL */}
       {renderFormModal()}
+
+      {/* MODAL: enlaces públicos de auto-agendamiento */}
+      {showBookingLinks && (
+        <BookingLinkModal
+          doctors={doctors}
+          locations={locations}
+          onClose={() => setShowBookingLinks(false)}
+        />
+      )}
 
       {/* MODAL: pre-clínica (signos vitales) */}
       {vitalsModalPatient && (

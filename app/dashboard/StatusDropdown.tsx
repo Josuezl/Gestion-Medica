@@ -15,7 +15,14 @@ export const STATUS_CONFIG: Record<string, { label: string, color: string, dotCo
   WAITING: { label: 'En sala de espera', color: '#fef3c7', dotColor: '#f59e0b', class: 'status-waiting' },
   IN_PROGRESS: { label: 'En consulta', color: '#dbeafe', dotColor: '#3b82f6', class: 'status-in-progress' },
   COMPLETED: { label: 'Realizada', color: '#d1fae5', dotColor: '#10b981', class: 'status-completed' },
+  PENDING_REVIEW: { label: 'Por aprobar', color: '#fae8ff', dotColor: '#a855f7', class: 'status-pending-review' },
 }
+
+/**
+ * PENDING_REVIEW no es seleccionable en el dropdown: solo el portal público crea citas en ese
+ * estado y su ciclo de vida se gestiona desde /dashboard/solicitudes (aprobar/rechazar).
+ */
+const SELECTABLE_STATUSES = Object.entries(STATUS_CONFIG).filter(([key]) => key !== 'PENDING_REVIEW')
 
 /**
  * Selector desplegable del estado de una cita. Componente presentacional con estado de apertura propio.
@@ -64,7 +71,7 @@ export default function StatusDropdown({ status, onChange, variant = 'default' }
       )}
       {open && (
         <div className="status-dropdown-menu">
-          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+          {SELECTABLE_STATUSES.map(([key, config]) => (
             <button
               key={key}
               type="button"

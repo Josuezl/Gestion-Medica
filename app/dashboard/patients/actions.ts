@@ -4,72 +4,11 @@ import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
 import { canDoClinical } from '@/utils/permissions'
-import { classifyNameDobDuplicate, type DuplicateMatch } from '@/utils/validation'
 import { safeErrorMessage } from '@/utils/errors'
+import { sanitizePhone } from '@/utils/phone'
+import { findDuplicatePatient } from '@/utils/patientDuplicates'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-
-// Utilidad para limpiar el teléfono al formato de Honduras (+504)
-// Normaliza el teléfono SIN guiones/espacios. Acepta números internacionales:
-// con '+' se respeta el código de país; un número local de 8 dígitos asume Honduras (+504).
-function sanitizePhone(phone: string): string | null {
-  const trimmed = phone.trim()
-  if (!trimmed) return null
-  const hasPlus = trimmed.startsWith('+')
-  const digits = trimmed.replace(/\D/g, '') // solo dígitos
-  if (!digits) return null
-  if (hasPlus) return `+${digits}`               // internacional: respeta su código de país
-  if (digits.length === 8) return `+504${digits}` // Honduras local (compat anterior)
-  return digits                                   // otro formato: se guarda solo con dígitos
-}
-
-// Busca un posible paciente duplicado en la clínica y lo clasifica:
-//  - `block: true`  => mismo nombre normalizado + misma fecha de nacimiento + mismo género
-//                      (duplicado casi seguro): se bloquea el registro, no se puede saltar.
-//  - `block: false` => coincidencia menos certera (mismo DNI, o mismo nombre+fecha con género
-//                      distinto): solo aviso, el usuario puede confirmar y guardar.
-// Devuelve el match (con id/nombre/fecha para el mensaje) o null.
-async function findDuplicatePatient(
-  supabase: any,
-  clinicId: string,
-  firstName: string,
-  lastName: string,
-  birthDate: string,
-  gender: string,
-  idCard: string | null,
-): Promise<DuplicateMatch | null> {
-  // 1. Por nombre + fecha de nacimiento (clasifica bloqueo vs aviso según el género).
-  if (birthDate) {
-    const { data: sameDob } = await supabase
-      .from('patients')
-      .select('id, first_name, last_name, birth_date, gender')
-      .eq('clinic_id', clinicId)
-      .eq('birth_date', birthDate)
-    const match = classifyNameDobDuplicate(sameDob || [], firstName, lastName, gender)
-    if (match) return match
-  }
-
-  // 2. Por DNI exacto (aviso): solo si no hubo coincidencia por nombre+fecha.
-  if (idCard) {
-    const { data } = await supabase
-      .from('patients')
-      .select('id, first_name, last_name, birth_date')
-      .eq('clinic_id', clinicId)
-      .eq('id_card', idCard)
-      .limit(1)
-      .maybeSingle()
-    if (data) {
-      return {
-        id: data.id,
-        name: `${data.first_name ?? ''} ${data.last_name ?? ''}`.replace(/\s+/g, ' ').trim(),
-        birthDate: data.birth_date,
-        block: false,
-      }
-    }
-  }
-
-  return null
-}
 
 // El N° de expediente debe ser único dentro de la clínica. Devuelve el paciente que YA lo usa
 // (distinto de excludeId, para permitir editar el mismo paciente), o null. Comparación
