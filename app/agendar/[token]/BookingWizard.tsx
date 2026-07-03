@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { identifyPatient, getAvailability, submitBooking } from './actions'
-import { weekdayOfYMD } from '@/utils/booking'
+import { weekdayOfYMD, splitFullName } from '@/utils/booking'
 
 /**
  * Wizard público de auto-agendamiento. Pasos:
@@ -67,6 +67,8 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Caja única del paso 1: se divide en nombres/apellidos solo para el registro y la ficha.
+  const [fullName, setFullName] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [isExisting, setIsExisting] = useState(false)
@@ -103,14 +105,22 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
   const handleIdentify = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    const split = splitFullName(fullName)
+    if (split.words < 4) {
+      setError('Escribe tus dos nombres y tus dos apellidos (4 palabras), tal como aparecen en tu identidad.')
+      return
+    }
     setBusy(true)
-    const res = await identifyPatient(token, firstName, lastName)
+    const res = await identifyPatient(token, fullName, idCard || undefined)
     if ('error' in res) { setError(res.error); setBusy(false); return }
     if (res.status === 'found') {
       setIsExisting(true)
       if (await loadAvailability()) setStep('calendar')
     } else {
       setIsExisting(false)
+      // Prefill del registro con el corte nombres/apellidos (el paciente puede corregirlo).
+      setFirstName(split.firstName)
+      setLastName(split.lastName)
       setStep('register')
     }
     setBusy(false)
@@ -131,12 +141,13 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
     setError(null)
     setBusy(true)
     const res = await submitBooking(token, {
-      firstName,
-      lastName,
+      // Paciente existente: el nombre tal como lo escribió en la caja única; nuevo: el corte
+      // nombres/apellidos que pudo corregir en el registro.
+      fullName: isExisting ? fullName : `${firstName} ${lastName}`,
       date: selectedDate,
       time: selectedTime,
+      idCard: idCard || undefined,
       birthDate: isExisting ? undefined : birthDate,
-      idCard: isExisting ? undefined : idCard,
       phone: isExisting ? undefined : phone,
     })
     setBusy(false)
@@ -247,19 +258,22 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
           </div>
         )}
 
-        {/* Paso 1: nombre completo */}
+        {/* Paso 1: nombre completo (caja única) + identidad opcional */}
         {step === 'name' && (
           <form onSubmit={handleIdentify} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b', lineHeight: 1.5, textAlign: 'center' }}>
-              Escribe tu <strong>nombre completo</strong> (dos nombres y dos apellidos) tal como aparece en tu identidad.
+              Escribe tus <strong>4 nombres</strong> (dos nombres y dos apellidos) tal como aparecen en tu identidad.
             </p>
             <div>
-              <label style={labelStyle}>Nombres</label>
-              <input style={inputStyle} type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Ej. María José" required maxLength={60} autoFocus />
+              <label style={labelStyle}>Nombre completo</label>
+              <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Ej. María José López García" required maxLength={80} autoFocus />
             </div>
             <div>
-              <label style={labelStyle}>Apellidos</label>
-              <input style={inputStyle} type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Ej. López García" required maxLength={60} />
+              <label style={labelStyle}>Número de identidad (opcional)</label>
+              <input style={inputStyle} type="text" value={idCard} onChange={e => setIdCard(e.target.value)} placeholder="0801-1990-12345" maxLength={30} />
+              <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: '#94a3b8', textAlign: 'left' }}>
+                Si ya eres paciente, tu identidad nos ayuda a encontrar tu expediente.
+              </p>
             </div>
             <button type="submit" style={{ ...primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy}>
               {busy ? 'Buscando…' : 'Continuar'}
@@ -305,7 +319,7 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {isExisting && (
               <div style={{ padding: '10px 14px', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px', fontSize: '13px', color: '#115e59', lineHeight: 1.5 }}>
-                ¡Te encontramos, {firstName.trim().split(/\s+/)[0]}! Elige el día y la hora de tu cita.
+                ¡Te encontramos, {(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '')(fullName.trim().split(/\s+/)[0] || '')}! Elige el día y la hora de tu cita.
               </div>
             )}
             {availableDates.length === 0 ? (
@@ -357,7 +371,7 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#0f172a', textAlign: 'center' }}>Confirma tu cita</h2>
             <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', fontSize: '14px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div><strong>Paciente:</strong> {firstName} {lastName}</div>
+              <div><strong>Paciente:</strong> {isExisting ? fullName.trim() : `${firstName} ${lastName}`}</div>
               <div><strong>Médico:</strong> {doctorName}</div>
               <div><strong>Lugar:</strong> {clinicName}{locationName ? ` · ${locationName}` : ''}</div>
               <div><strong>Fecha:</strong> {formatYMDLong(selectedDate)}</div>

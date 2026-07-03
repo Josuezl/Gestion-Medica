@@ -26,8 +26,6 @@ import { isCreatableAppointmentStatus } from '@/utils/validation'
 import { STATUS_CONFIG } from './StatusDropdown'
 import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 import AppointmentCard from './components/AppointmentCard'
-import BookingLinkModal from './components/BookingLinkModal'
-import { Link2 } from 'lucide-react'
 
 // ============================================================================
 // TYPES
@@ -132,8 +130,6 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const router = useRouter()
   const preclinicalSet = useMemo(() => new Set(preclinicalPatientIds), [preclinicalPatientIds])
   const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: any; appointmentId: string | null } | null>(null)
-  // Modal de enlaces públicos de auto-agendamiento (portal /agendar/[token]).
-  const [showBookingLinks, setShowBookingLinks] = useState(false)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
   const [selectedLocationId, setSelectedLocationId] = useState<string>(
@@ -1145,26 +1141,6 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
               >
                 <Plus size={20} strokeWidth={3} />
               </button>
-              <button
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#ffffff',
-                  color: '#0d9488',
-                  border: 'none',
-                  borderLeft: '1px solid #e2e8f0',
-                  padding: '0 1rem',
-                  cursor: 'pointer',
-                  transition: 'opacity 0.2s'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
-                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                onClick={() => setShowBookingLinks(true)}
-                title="Enlace público de agendamiento"
-              >
-                <Link2 size={18} strokeWidth={2.5} />
-              </button>
             </div>
           </div>
           
@@ -1267,15 +1243,6 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
 
       {/* MODAL */}
       {renderFormModal()}
-
-      {/* MODAL: enlaces públicos de auto-agendamiento */}
-      {showBookingLinks && (
-        <BookingLinkModal
-          doctors={doctors}
-          locations={locations}
-          onClose={() => setShowBookingLinks(false)}
-        />
-      )}
 
       {/* MODAL: pre-clínica (signos vitales) */}
       {vitalsModalPatient && (

@@ -152,7 +152,7 @@ export default function DoctorScheduleCard({ doctors, schedules, locations }: { 
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(265px, 1fr))', gap: '0.75rem' }}>
         {WEEKDAY_ORDER.map(weekday => (
           <div key={weekday} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.75rem', background: '#fff' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -175,12 +175,14 @@ export default function DoctorScheduleCard({ doctors, schedules, locations }: { 
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
                     {editing !== null ? (
                       <>
-                        <input type="time" className="form-input" value={r.start} onChange={e => updateRange(r, { start: e.target.value })} style={{ padding: '0.25rem 0.4rem', fontSize: '0.82rem' }} />
-                        <span>–</span>
-                        <input type="time" className="form-input" value={r.end} onChange={e => updateRange(r, { end: e.target.value })} style={{ padding: '0.25rem 0.4rem', fontSize: '0.82rem' }} />
+                        {/* width:auto + flex:1 + minWidth:0: sin esto los <input type=time>
+                            (heredan width:100% de .form-input) desbordan la caja del día. */}
+                        <input type="time" className="form-input" value={r.start} onChange={e => updateRange(r, { start: e.target.value })} style={{ padding: '0.25rem 0.3rem', fontSize: '0.8rem', width: 'auto', flex: 1, minWidth: 0 }} />
+                        <span style={{ flexShrink: 0 }}>–</span>
+                        <input type="time" className="form-input" value={r.end} onChange={e => updateRange(r, { end: e.target.value })} style={{ padding: '0.25rem 0.3rem', fontSize: '0.8rem', width: 'auto', flex: 1, minWidth: 0 }} />
                         <button
                           title="Quitar rango"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', flexShrink: 0, padding: 0 }}
                           onClick={() => removeRange(r)}
                         >
                           <Trash2 size={14} />

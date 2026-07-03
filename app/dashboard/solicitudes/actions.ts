@@ -125,6 +125,12 @@ export async function approveBookingRequest(requestId: string, decision: Approve
   if (!request) return { error: 'La solicitud ya no está pendiente (pudo aprobarse o rechazarse en otra pestaña).' }
   if (!request.appointments?.id) return { error: 'La cita de esta solicitud ya no existe. Recházala para cerrarla.' }
 
+  // Paciente ya identificado por el matching del portal: la cita es suya; crear otra ficha
+  // duplicaría al paciente (la UI ni lo ofrece — defensa en profundidad).
+  if (request.matched_patient_id && decision.mode === 'new') {
+    return { error: 'Este paciente ya está identificado en el sistema: no se puede crear otra ficha.' }
+  }
+
   // --- 1. Resolver el paciente (crear ficha o asignar existente) ---
   let patientId: string
   let patientFirstName: string

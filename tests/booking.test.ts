@@ -1,13 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import {
   PORTAL_SLOT_MINUTES,
-  MAX_BOOKING_DAYS,
   hondurasTodayYMD,
   weekdayOfYMD,
   isBlockingStatus,
   generateDaySlots,
   buildAvailability,
+  bookingWindowEndYMD,
   matchPatientByFullName,
+  matchPatientRecord,
+  splitFullName,
+  normalizeIdCard,
+  isDateBlocked,
   validateScheduleRanges,
   schedulesForLocation,
   type ScheduleRange,
@@ -28,9 +32,20 @@ const wedRange = (start: string, end: string): ScheduleRange => ({ weekday: 3, s
 const earlyNow = hn(WED, '00:30')
 
 describe('constantes del portal', () => {
-  it('slots de 1 hora y ventana de 30 días', () => {
+  it('slots de 1 hora', () => {
     expect(PORTAL_SLOT_MINUTES).toBe(60)
-    expect(MAX_BOOKING_DAYS).toBe(30)
+  })
+})
+
+describe('bookingWindowEndYMD (ventana de 3 meses calendario)', () => {
+  it('desde julio se ofrece hasta el último día de septiembre', () => {
+    expect(bookingWindowEndYMD('2026-07-08')).toBe('2026-09-30')
+    expect(bookingWindowEndYMD('2026-07-31')).toBe('2026-09-30')
+  })
+
+  it('cruza el año: desde diciembre se ofrece hasta fin de febrero', () => {
+    expect(bookingWindowEndYMD('2026-12-15')).toBe('2027-02-28')
+    expect(bookingWindowEndYMD('2027-12-01')).toBe('2028-02-29') // 2028 bisiesto
   })
 })
 
@@ -131,10 +146,13 @@ describe('generateDaySlots', () => {
 })
 
 describe('buildAvailability', () => {
-  it('solo incluye días con al menos un slot, dentro de la ventana de 30 días', () => {
-    // Solo lunes 08:00-09:00. Desde el miércoles 2026-07-08, los lunes en ventana: 13, 20, 27 de julio y 3 de agosto.
+  it('solo incluye días con al menos un slot, dentro de la ventana de 3 meses', () => {
+    // Solo lunes 08:00-09:00. Desde el miércoles 2026-07-08: todos los lunes hasta fin de septiembre.
     const days = buildAvailability([{ weekday: 1, start_time: '08:00', end_time: '09:00' }], [], earlyNow)
-    expect(Object.keys(days)).toEqual(['2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03'])
+    const keys = Object.keys(days)
+    expect(keys[0]).toBe('2026-07-13')
+    expect(keys[keys.length - 1]).toBe('2026-09-28')
+    expect(keys).toHaveLength(12) // 3 lunes de julio + 5 de agosto + 4 de septiembre
     expect(days['2026-07-13']).toEqual(['08:00'])
   })
 
@@ -146,13 +164,12 @@ describe('buildAvailability', () => {
     expect(night[WED]).toBeUndefined()
   })
 
-  it('la ventana es de exactamente MAX_BOOKING_DAYS días empezando hoy', () => {
-    // Horario todos los días => la última fecha ofrecida es hoy + 29.
+  it('la ventana va de hoy al último día del mes actual + 2 (Julio → fin de Septiembre)', () => {
     const all = [0, 1, 2, 3, 4, 5, 6].map(w => ({ weekday: w, start_time: '08:00', end_time: '09:00' }))
     const days = Object.keys(buildAvailability(all, [], earlyNow))
     expect(days[0]).toBe('2026-07-08')
-    expect(days[days.length - 1]).toBe('2026-08-06')
-    expect(days).toHaveLength(30)
+    expect(days[days.length - 1]).toBe('2026-09-30')
+    expect(days).toHaveLength(24 + 31 + 30) // resto de julio + agosto + septiembre
   })
 
   it('descuenta las citas ocupadas del día correspondiente', () => {
@@ -186,6 +203,106 @@ describe('matchPatientByFullName', () => {
 
   it('nombre vacío o solo símbolos => null', () => {
     expect(matchPatientByFullName([p('a', '', '')], '', '')).toBeNull()
+  })
+})
+
+describe('isDateBlocked y bloqueos en buildAvailability (vacaciones/congresos)', () => {
+  it('un día dentro del rango bloqueado (bordes inclusivos) está bloqueado', () => {
+    const blocks = [{ start_date: '2026-07-10', end_date: '2026-07-12' }]
+    expect(isDateBlocked('2026-07-09', blocks)).toBe(false)
+    expect(isDateBlocked('2026-07-10', blocks)).toBe(true)
+    expect(isDateBlocked('2026-07-11', blocks)).toBe(true)
+    expect(isDateBlocked('2026-07-12', blocks)).toBe(true)
+    expect(isDateBlocked('2026-07-13', blocks)).toBe(false)
+  })
+
+  it('sin bloqueos nada se bloquea', () => {
+    expect(isDateBlocked('2026-07-10', [])).toBe(false)
+  })
+
+  it('buildAvailability omite los días bloqueados y conserva el resto', () => {
+    const all = [0, 1, 2, 3, 4, 5, 6].map(w => ({ weekday: w, start_time: '08:00', end_time: '09:00' }))
+    const blocks = [{ start_date: '2026-07-10', end_date: '2026-07-12' }, { start_date: '2026-08-01', end_date: '2026-08-31' }]
+    const days = buildAvailability(all, [], earlyNow, blocks)
+    expect(days['2026-07-09']).toBeDefined()
+    expect(days['2026-07-10']).toBeUndefined()
+    expect(days['2026-07-12']).toBeUndefined()
+    expect(days['2026-07-13']).toBeDefined()
+    expect(days['2026-08-15']).toBeUndefined() // agosto completo de vacaciones
+    expect(days['2026-09-01']).toBeDefined()
+  })
+
+  it('buildAvailability sin el parámetro de bloqueos sigue funcionando (compatibilidad)', () => {
+    const all = [{ weekday: 3, start_time: '08:00', end_time: '09:00' }]
+    expect(buildAvailability(all, [], earlyNow)[WED]).toEqual(['08:00'])
+  })
+})
+
+describe('splitFullName (caja única: dos nombres + dos apellidos)', () => {
+  it('con 4 palabras: 2 nombres + 2 apellidos', () => {
+    expect(splitFullName('María José López García')).toEqual({ firstName: 'María José', lastName: 'López García', words: 4 })
+  })
+
+  it('con 5+ palabras: los 2 últimos son apellidos, el resto nombres', () => {
+    expect(splitFullName('Ana María de Jesús Pérez López')).toEqual({ firstName: 'Ana María de Jesús', lastName: 'Pérez López', words: 6 })
+  })
+
+  it('con 3 palabras: 1 nombre + 2 apellidos', () => {
+    expect(splitFullName('Juan Pérez López')).toEqual({ firstName: 'Juan', lastName: 'Pérez López', words: 3 })
+  })
+
+  it('con 2 palabras: 1 y 1', () => {
+    expect(splitFullName('Juan Pérez')).toEqual({ firstName: 'Juan', lastName: 'Pérez', words: 2 })
+  })
+
+  it('colapsa espacios extra y cuenta bien las palabras', () => {
+    expect(splitFullName('  Zulema   Karina  Portalprueba   Uno ')).toEqual({ firstName: 'Zulema Karina', lastName: 'Portalprueba Uno', words: 4 })
+  })
+
+  it('vacío => 0 palabras', () => {
+    expect(splitFullName('   ')).toEqual({ firstName: '', lastName: '', words: 0 })
+  })
+})
+
+describe('normalizeIdCard', () => {
+  it('deja solo letras y números, en minúsculas (guiones/espacios fuera)', () => {
+    expect(normalizeIdCard('0801-1990-12345')).toBe('0801199012345')
+    expect(normalizeIdCard(' 0801 1990 12345 ')).toBe('0801199012345')
+    expect(normalizeIdCard('ABC-123')).toBe('abc123')
+  })
+
+  it('null/vacío => cadena vacía', () => {
+    expect(normalizeIdCard(null)).toBe('')
+    expect(normalizeIdCard('---')).toBe('')
+  })
+})
+
+describe('matchPatientRecord (identidad primero, luego nombre completo)', () => {
+  const patients = [
+    { id: 'a', first_name: 'María', last_name: 'Jose Lopez Garcia', id_card: '0801-1990-12345' },
+    { id: 'b', first_name: 'Pedro Pablo', last_name: 'Mejía Cruz', id_card: null },
+    { id: 'c', first_name: 'Carmen', last_name: 'Díaz', id_card: '0801-1985-54321' },
+  ]
+
+  it('la identidad manda: encuentra al paciente aunque el nombre venga escrito distinto', () => {
+    expect(matchPatientRecord(patients, 'Mari Jose Lopez G', '0801199012345')?.id).toBe('a')
+  })
+
+  it('sin identidad: matching por nombre completo normalizado', () => {
+    expect(matchPatientRecord(patients, 'pedro pablo mejia cruz', null)?.id).toBe('b')
+  })
+
+  it('identidad que no existe: cae al matching por nombre', () => {
+    expect(matchPatientRecord(patients, 'Carmen Díaz', '9999-9999-99999')?.id).toBe('c')
+  })
+
+  it('ni identidad ni nombre coinciden => null', () => {
+    expect(matchPatientRecord(patients, 'Nadie Conocido Apellido Raro', null)).toBeNull()
+  })
+
+  it('dos pacientes con la misma identidad => la identidad no decide (ambiguo) y decide el nombre', () => {
+    const dup = [...patients, { id: 'd', first_name: 'Otra', last_name: 'Persona', id_card: '0801 1990 12345' }]
+    expect(matchPatientRecord(dup, 'Maria Jose Lopez Garcia', '0801-1990-12345')?.id).toBe('a')
   })
 })
 

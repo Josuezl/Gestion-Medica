@@ -15,7 +15,9 @@ import {
   MessageSquare,
   BarChart3,
   Menu,
-  Inbox
+  Inbox,
+  Globe,
+  BookOpen
 } from 'lucide-react'
 
 interface SidebarLinkProps {
@@ -112,12 +114,17 @@ export default async function DashboardLayout({
         <nav style={styles.navigation}>
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
+          {/* Auto-agendamiento: lo gestiona todo el personal (asistentes, médicos y enfermería) */}
+          <SidebarLink href="/dashboard/agenda-publica" label="Agenda en línea" icon={<Globe size={20} />} />
           <SidebarLink href="/dashboard/solicitudes" label="Solicitudes" icon={<Inbox size={20} />} badge={pendingBookings || 0} />
           {(profile?.role === 'ADMIN' || profile?.role === 'DOCTOR') && (
             <SidebarLink href="/dashboard/consultations" label="Historial de Consultas" icon={<FileText size={20} />} />
           )}
           <SidebarLink href="/dashboard/reports" label="Reportes" icon={<BarChart3 size={20} />} />
           <SidebarLink href="/dashboard/profile" label="Usuario" icon={<UserIcon size={20} />} />
+          {profile?.is_org_admin && (
+            <SidebarLink href="/dashboard/catalogos" label="Catálogos" icon={<BookOpen size={20} />} />
+          )}
           {profile?.is_org_admin && (
             <SidebarLink href="/dashboard/config" label="Configuración" icon={<Settings size={20} />} />
           )}

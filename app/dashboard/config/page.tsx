@@ -3,7 +3,6 @@ import { createClient } from '@/utils/supabase/server'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { effectiveLimit, canInviteDoctors, canManageLocations } from '@/utils/clinicLimits'
 import ConfigClient from './ConfigClient'
-import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
 import { Settings } from 'lucide-react'
 
 export default async function ConfigPage() {
@@ -74,39 +73,8 @@ export default async function ConfigPage() {
   const { data: storageUsedBytes } = await supabase.rpc('clinic_storage_bytes')
   const maxStorageMb = planData?.max_storage_mb || 1024
 
-  // Catálogo de laboratorio (categorías + todos los exámenes, activos e inactivos)
-  const { data: labCategories } = await supabase
-    .from('lab_test_categories')
-    .select('*')
-    .eq('clinic_id', ctx.clinicId)
-    .order('sort_order', { ascending: true })
-  const { data: labTests } = await supabase
-    .from('lab_tests')
-    .select('*')
-    .eq('clinic_id', ctx.clinicId)
-    .order('sort_order', { ascending: true })
-
-  // Catálogo de estudios habilitado por defecto: sembrar si la clínica aún no lo tiene (idempotente).
-  await ensureStudyCatalogSeeded(supabase, ctx.clinicId)
-
-  // Catálogo de estudios (secciones + todos los estudios, activos e inactivos)
-  const { data: studySections } = await supabase
-    .from('study_sections')
-    .select('*')
-    .eq('clinic_id', ctx.clinicId)
-    .order('sort_order', { ascending: true })
-  const { data: studyItems } = await supabase
-    .from('study_catalog')
-    .select('*')
-    .eq('clinic_id', ctx.clinicId)
-    .order('sort_order', { ascending: true })
-
-  // Horarios semanales por médico (general y por sede) para el portal de auto-agendamiento
-  const { data: doctorSchedules } = await supabase
-    .from('doctor_schedules')
-    .select('id, doctor_id, location_id, weekday, start_time, end_time')
-    .eq('clinic_id', ctx.clinicId)
-    .order('weekday', { ascending: true })
+  // Los catálogos (Laboratorio/Estudios) viven en /dashboard/catalogos y el horario de agenda
+  // pública en /dashboard/agenda-publica — se movieron de aquí a secciones propias.
 
   return (
     <div>
@@ -129,11 +97,6 @@ export default async function ConfigPage() {
         maxLocations={maxLocations}
         storageUsedBytes={storageUsedBytes || 0}
         maxStorageMb={maxStorageMb}
-        labCategories={labCategories || []}
-        labTests={labTests || []}
-        studySections={studySections || []}
-        studyItems={studyItems || []}
-        doctorSchedules={doctorSchedules || []}
       />
     </div>
   )

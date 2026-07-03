@@ -50,7 +50,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
   // Modal de aprobación
   const [approving, setApproving] = useState<RequestRow | null>(null)
   const [mode, setMode] = useState<'new' | 'existing'>('new')
-  const [existingPatient, setExistingPatient] = useState<{ id: string; label: string } | null>(null)
+  const [existingPatient, setExistingPatient] = useState<{ id: string; label: string; phone: string | null } | null>(null)
   const [patientSearch, setPatientSearch] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
@@ -72,12 +72,12 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
   // Prompt de WhatsApp tras aprobar/rechazar
   const [waPrompt, setWaPrompt] = useState<{ wa: WhatsAppPrompt | undefined; title: string } | null>(null)
 
-  const openApprove = (req: RequestRow, preselect?: { id: string; label: string }) => {
+  const openApprove = (req: RequestRow, preselect?: { id: string; label: string; phone: string | null }) => {
     setApproving(req)
     setError(null)
     setDuplicateWarn(null)
     const matched = req.matched_patient
-    const chosen = preselect || (matched ? { id: matched.id, label: `${matched.first_name} ${matched.last_name}` } : null)
+    const chosen = preselect || (matched ? { id: matched.id, label: `${matched.first_name} ${matched.last_name}`, phone: matched.phone } : null)
     setMode(chosen ? 'existing' : 'new')
     setExistingPatient(chosen)
     setPatientSearch('')
@@ -230,7 +230,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                         className="btn btn-secondary"
                         style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem', gap: '0.3rem' }}
                         disabled={busy}
-                        onClick={() => openApprove(req, { id: s.id, label: `${s.first_name} ${s.last_name}` })}
+                        onClick={() => openApprove(req, { id: s.id, label: `${s.first_name} ${s.last_name}`, phone: s.phone })}
                       >
                         <UserCheck size={13} /> Usar este paciente
                       </button>
@@ -266,7 +266,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                     {duplicateWarn.birthDate ? ` (${formatDateHN(`${duplicateWarn.birthDate}T12:00:00Z`)})` : ''} con el mismo nombre, fecha y género.
                     No se puede crear otra ficha: usa «Asignar a paciente existente».
                     <div style={{ marginTop: '0.5rem' }}>
-                      <button className="btn btn-primary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => { setMode('existing'); setExistingPatient({ id: duplicateWarn.id, label: duplicateWarn.name }); setDuplicateWarn(null) }}>
+                      <button className="btn btn-primary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => { setMode('existing'); setExistingPatient({ id: duplicateWarn.id, label: duplicateWarn.name, phone: null }); setDuplicateWarn(null) }}>
                         Asignar a {duplicateWarn.name}
                       </button>
                     </div>
@@ -276,7 +276,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                     <strong>Posible duplicado:</strong> existe <strong>{duplicateWarn.name}</strong>
                     {duplicateWarn.birthDate ? ` (${formatDateHN(`${duplicateWarn.birthDate}T12:00:00Z`)})` : ''}. ¿Crear la ficha de todas formas?
                     <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <button className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => { setMode('existing'); setExistingPatient({ id: duplicateWarn.id, label: duplicateWarn.name }); setDuplicateWarn(null) }}>
+                      <button className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => { setMode('existing'); setExistingPatient({ id: duplicateWarn.id, label: duplicateWarn.name, phone: null }); setDuplicateWarn(null) }}>
                         Mejor asignar a {duplicateWarn.name}
                       </button>
                       <button className="btn btn-primary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} disabled={busy} onClick={() => submitApprove(true)}>
@@ -288,7 +288,30 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
               </div>
             )}
 
-            {/* Selector de modo */}
+            {/* Paciente ya identificado por el matching (nombre exacto o identidad): la cita es
+                suya — no aplica crear ficha nueva ni reasignar; solo se muestra su ficha. */}
+            {approving.matched_patient ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.75rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px', marginBottom: '1rem' }}>
+                <UserCheck size={16} color="#0d9488" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong style={{ fontSize: '0.9rem', display: 'block' }}>{approving.matched_patient.first_name} {approving.matched_patient.last_name}</strong>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Paciente confirmado · Tel: {approving.matched_patient.phone || 'Sin teléfono'}
+                    {approving.matched_patient.birth_date ? ` · Nac.: ${formatDateHN(`${approving.matched_patient.birth_date}T12:00:00Z`)}` : ''}
+                  </span>
+                </div>
+                <a
+                  href={`/dashboard/patients/${approving.matched_patient.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}
+                >
+                  Ver expediente
+                </a>
+              </div>
+            ) : (
+            <>
+            {/* Selector de modo (solo pacientes NO identificados) */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
               <button
                 className={mode === 'new' ? 'btn btn-primary' : 'btn btn-secondary'}
@@ -342,7 +365,10 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                 {existingPatient ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.75rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px' }}>
                     <UserCheck size={16} color="#0d9488" />
-                    <strong style={{ flex: 1, fontSize: '0.9rem' }}>{existingPatient.label}</strong>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ fontSize: '0.9rem', display: 'block' }}>{existingPatient.label}</strong>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tel: {existingPatient.phone || 'Sin teléfono'}</span>
+                    </div>
                     <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }} onClick={() => setExistingPatient(null)}>Cambiar</button>
                   </div>
                 ) : (
@@ -363,7 +389,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                           <button
                             key={p.id}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '0.85rem' }}
-                            onClick={() => setExistingPatient({ id: p.id, label: `${p.first_name} ${p.last_name}` })}
+                            onClick={() => setExistingPatient({ id: p.id, label: `${p.first_name} ${p.last_name}`, phone: p.phone || null })}
                           >
                             <strong>{p.first_name} {p.last_name}</strong>
                             <span style={{ color: 'var(--text-muted)' }}>
@@ -376,6 +402,8 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                   </div>
                 )}
               </div>
+            )}
+            </>
             )}
 
             {/* Fecha/hora (editable) y estado final */}

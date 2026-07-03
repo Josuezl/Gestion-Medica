@@ -3,9 +3,6 @@
 import React, { useState } from 'react'
 import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature, uploadClinicLogo } from './actions'
 import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, Stethoscope, Image as ImageIcon } from 'lucide-react'
-import LabCatalogCard from './LabCatalogCard'
-import StudyCatalogCard from './StudyCatalogCard'
-import DoctorScheduleCard from './DoctorScheduleCard'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
 const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
@@ -25,11 +22,6 @@ interface ConfigClientProps {
   maxLocations: number
   storageUsedBytes: number
   maxStorageMb: number
-  labCategories: any[]
-  labTests: any[]
-  studySections: any[]
-  studyItems: any[]
-  doctorSchedules: any[]
 }
 
 export default function ConfigClient({
@@ -45,12 +37,7 @@ export default function ConfigClient({
   canInviteDoctors,
   maxLocations,
   storageUsedBytes,
-  maxStorageMb,
-  labCategories,
-  labTests,
-  studySections,
-  studyItems,
-  doctorSchedules
+  maxStorageMb
 }: ConfigClientProps) {
   const usedMb = storageUsedBytes / (1024 * 1024)
   const usedGb = usedMb / 1024
@@ -839,19 +826,6 @@ export default function ConfigClient({
           </div>
         </div>
       )}
-
-      {/* Horario para agenda pública (portal de auto-agendamiento) */}
-      <DoctorScheduleCard
-        doctors={teamMembers.filter((m: any) => m.role === 'ADMIN' || m.role === 'DOCTOR')}
-        schedules={doctorSchedules}
-        locations={locations}
-      />
-
-      {/* Catálogo de Laboratorio */}
-      <LabCatalogCard labCategories={labCategories} labTests={labTests} />
-
-      {/* Catálogo de Estudios */}
-      <StudyCatalogCard studySections={studySections} studyItems={studyItems} />
 
     </div>
   )

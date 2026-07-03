@@ -13,7 +13,7 @@
 
 import { createAdminClient } from '@/utils/supabase/admin'
 import { sanitizeName } from '@/utils/validation'
-import { buildAvailability, matchPatientByFullName, schedulesForLocation, type ScheduleRange, type BlockingAppointment } from '@/utils/booking'
+import { buildAvailability, bookingWindowEndYMD, hondurasTodayYMD, matchPatientRecord, splitFullName, schedulesForLocation, type ScheduleRange, type BlockingAppointment, type DoctorBlock } from '@/utils/booking'
 import { checkRateLimit } from '@/utils/rateLimit'
 import { getClientIp } from '@/utils/clientIp'
 import { sanitizePhone } from '@/utils/phone'
@@ -57,11 +57,11 @@ async function resolveActiveLink(admin: ReturnType<typeof createAdminClient>, to
 async function loadClinicPatients(admin: ReturnType<typeof createAdminClient>, clinicId: string) {
   const PAGE = 1000
   const MAX_PAGES = 20
-  const all: { id: string; first_name: string | null; last_name: string | null }[] = []
+  const all: { id: string; first_name: string | null; last_name: string | null; id_card: string | null }[] = []
   for (let i = 0; i < MAX_PAGES; i++) {
     const { data } = await admin
       .from('patients')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, id_card')
       .eq('clinic_id', clinicId)
       .order('id', { ascending: true })
       .range(i * PAGE, i * PAGE + PAGE - 1)
@@ -88,32 +88,47 @@ async function loadAvailability(admin: ReturnType<typeof createAdminClient>, lin
   if (schedules.length === 0) return {}
 
   const now = new Date()
+  const todayYMD = hondurasTodayYMD(now)
   const fromIso = new Date(now.getTime() - 24 * 60 * 60_000).toISOString()
-  const toIso = new Date(now.getTime() + 31 * 24 * 60 * 60_000).toISOString()
-  // Todas las citas vivas del médico (de cualquier sede: el médico no puede estar en dos lugares).
-  const { data: appointments } = await admin
-    .from('appointments')
-    .select('scheduled_at, duration_minutes, status')
-    .eq('doctor_id', link.doctor_id)
-    .gte('scheduled_at', fromIso)
-    .lte('scheduled_at', toIso)
+  // Hasta el fin de la ventana de 3 meses (+1 día de margen por el desfase UTC/Honduras).
+  const endYMD = bookingWindowEndYMD(todayYMD)
+  const toIso = new Date(`${endYMD}T23:59:59-06:00`).toISOString()
+  // Citas vivas y días bloqueados (vacaciones/congresos) del médico, de cualquier sede:
+  // el médico no puede estar en dos lugares.
+  const [{ data: appointments }, { data: blocks }] = await Promise.all([
+    admin
+      .from('appointments')
+      .select('scheduled_at, duration_minutes, status')
+      .eq('doctor_id', link.doctor_id)
+      .gte('scheduled_at', fromIso)
+      .lte('scheduled_at', toIso),
+    admin
+      .from('doctor_schedule_blocks')
+      .select('start_date, end_date')
+      .eq('doctor_id', link.doctor_id)
+      .gte('end_date', todayYMD)
+      .lte('start_date', endYMD),
+  ])
 
   return buildAvailability(
     (schedules as ScheduleRange[]) || [],
     (appointments as BlockingAppointment[]) || [],
     now,
+    (blocks as DoctorBlock[]) || [],
   )
 }
 
 /**
- * Paso 1 del portal: ¿el nombre completo corresponde a EXACTAMENTE un paciente de la clínica?
- * Solo devuelve found/not_found — jamás datos del paciente (un tercero no debe poder confirmar
- * quién es paciente más allá de este bit, y el rate limit frena el sondeo de nombres).
+ * Paso 1 del portal: ¿el nombre completo (y opcionalmente la identidad) corresponde a
+ * EXACTAMENTE un paciente de la clínica? La identidad manda: si coincide con un paciente
+ * único, lo encontramos aunque el nombre venga escrito distinto. Solo devuelve
+ * found/not_found — jamás datos del paciente (un tercero no debe poder confirmar quién es
+ * paciente más allá de este bit, y el rate limit frena el sondeo de nombres).
  */
 export async function identifyPatient(
   token: string,
-  firstName: string,
-  lastName: string,
+  fullName: string,
+  idCard?: string,
 ): Promise<{ status: 'found' | 'not_found' } | { error: string }> {
   try {
     const admin = createAdminClient()
@@ -126,19 +141,21 @@ export async function identifyPatient(
     const link = await resolveActiveLink(admin, token)
     if (!link) return { error: LINK_ERROR }
 
-    const first = sanitizeName(firstName, '')
-    const last = sanitizeName(lastName, '')
-    if (!first || !last) return { error: 'Escribe tu nombre completo (nombres y apellidos).' }
+    const cleanName = sanitizeName(fullName, '')
+    if (splitFullName(cleanName).words < 2) {
+      return { error: 'Escribe tu nombre completo (nombres y apellidos).' }
+    }
+    const cleanIdCard = (idCard || '').trim().slice(0, 30) || null
 
     const patients = await loadClinicPatients(admin, link.clinic_id)
-    const match = matchPatientByFullName(patients, first, last)
+    const match = matchPatientRecord(patients, cleanName, cleanIdCard)
     return { status: match ? 'found' : 'not_found' }
   } catch (e) {
     return { error: safeErrorMessage('No se pudo verificar el nombre. Inténtalo de nuevo.', 'identifyPatient', e) }
   }
 }
 
-/** Paso 2 del portal: días y horas disponibles (slots de 1 hora, ventana de 30 días). */
+/** Paso 2 del portal: días y horas disponibles (slots de 1 hora, ventana de 3 meses). */
 export async function getAvailability(
   token: string,
 ): Promise<{ days: Record<string, string[]> } | { error: string }> {
@@ -160,13 +177,12 @@ export async function getAvailability(
 }
 
 export interface SubmitBookingPayload {
-  firstName: string
-  lastName: string
+  fullName: string // caja única del portal (≥4 palabras; se divide con splitFullName)
   date: string // YYYY-MM-DD (slot elegido)
   time: string // HH:MM
-  birthDate?: string
-  idCard?: string
-  phone?: string
+  idCard?: string // identidad opcional (ayuda al matching y va a la solicitud)
+  birthDate?: string // solo pacientes nuevos
+  phone?: string // solo pacientes nuevos
 }
 
 /**
@@ -190,22 +206,22 @@ export async function submitBooking(
     const link = await resolveActiveLink(admin, token)
     if (!link) return { error: LINK_ERROR }
 
-    const first = sanitizeName(payload.firstName, '')
-    const last = sanitizeName(payload.lastName, '')
-    if (!first || !last) return { error: 'Escribe tu nombre completo (nombres y apellidos).' }
+    const cleanName = sanitizeName(payload.fullName, '')
+    const { firstName: first, lastName: last, words } = splitFullName(cleanName)
+    if (words < 2 || !first || !last) return { error: 'Escribe tu nombre completo (nombres y apellidos).' }
 
     if (!YMD_RE.test(payload.date) || !HHMM_RE.test(payload.time)) {
       return { error: 'Selecciona una fecha y hora válidas.' }
     }
 
+    const idCard = (payload.idCard || '').trim().slice(0, 30) || null
     // Datos de registro (solo se usan si el paciente NO existe todavía).
     const birthDate = (payload.birthDate || '').trim()
-    const idCard = (payload.idCard || '').trim().slice(0, 30) || null
     const phone = payload.phone ? sanitizePhone(payload.phone) : null
 
-    // Re-matching en servidor: la fuente de verdad, no lo que diga el cliente.
+    // Re-matching en servidor (identidad primero): la fuente de verdad, no lo que diga el cliente.
     const patients = await loadClinicPatients(admin, link.clinic_id)
-    const match = matchPatientByFullName(patients, first, last)
+    const match = matchPatientRecord(patients, cleanName, idCard)
 
     if (!match) {
       if (!YMD_RE.test(birthDate)) return { error: 'Indica tu fecha de nacimiento.' }
@@ -232,7 +248,7 @@ export async function submitBooking(
       p_first_name: first,
       p_last_name: last,
       p_birth_date: match ? null : birthDate,
-      p_id_card: match ? null : idCard,
+      p_id_card: idCard, // la identidad tecleada siempre viaja (ayuda al staff a verificar)
       p_phone: match ? null : phone,
       p_tracking_code: trackingCode,
       p_ip: ip,
