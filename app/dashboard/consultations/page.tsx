@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
@@ -107,10 +108,10 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
           <h2 style={styles.title}>Consultas Médicas</h2>
           <p style={styles.subtitle}>Historial de consultas de evolución, diagnósticos y tratamientos de la clínica</p>
         </div>
-        <a href="/dashboard/patients" className="btn btn-primary" style={{ gap: '0.5rem' }}>
+        <Link href="/dashboard/patients" className="btn btn-primary" style={{ gap: '0.5rem' }}>
           Nueva Consulta (Buscar Paciente)
           <ArrowRight size={18} />
-        </a>
+        </Link>
       </div>
 
       {/* Search Bar */}

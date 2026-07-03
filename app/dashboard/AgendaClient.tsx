@@ -129,17 +129,23 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
     defaultLocationId === 'all' || locations.some(l => l.id === defaultLocationId) ? defaultLocationId : 'all'
   )
   
-  const [showForm, setShowForm] = useState(false)
+  // Al venir de "Registrar Paciente" → "Sí, agendar cita": el modal arranca abierto con el paciente ya seleccionado.
+  const autoOpen = autoOpenAppointment && !!preSelectedPatient?.id
+  const [showForm, setShowForm] = useState(autoOpen)
   const [selectedHourForForm, setSelectedHourForForm] = useState<string>('08:00')
   const [editAppointment, setEditAppointment] = useState<Appointment | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
-  const [patientSearch, setPatientSearch] = useState('')
-  const [selectedPatientId, setSelectedPatientId] = useState('')
+
+  const [patientSearch, setPatientSearch] = useState(autoOpen ? preSelectedPatient!.name : '')
+  const [selectedPatientId, setSelectedPatientId] = useState(autoOpen ? preSelectedPatient!.id : '')
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false)
   const [patientSearchResults, setPatientSearchResults] = useState<Patient[]>([])
-  const [isSearchingPatients, setIsSearchingPatients] = useState(false)
+  // Query cuyos resultados ya llegaron del servidor; "buscando" se deriva de compararla con la actual.
+  const [loadedPatientQuery, setLoadedPatientQuery] = useState('')
+  const patientQuery = patientSearch.trim()
+  const isSearchingPatients = patientQuery.length >= 2 && loadedPatientQuery !== patientQuery
+  const visiblePatientResults = patientQuery.length >= 2 && loadedPatientQuery === patientQuery ? patientSearchResults : []
   // Nombre escrito que no corresponde a un paciente registrado (dispara el modal de registro).
   const [unregisteredName, setUnregisteredName] = useState<string | null>(null)
 
@@ -152,7 +158,10 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
   const [historyResults, setHistoryResults] = useState<Patient[]>([])
-  const [isSearchingHistory, setIsSearchingHistory] = useState(false)
+  const [loadedHistoryQuery, setLoadedHistoryQuery] = useState('')
+  const historyQuery = historySearch.trim()
+  const isSearchingHistory = historyQuery.length >= 2 && loadedHistoryQuery !== historyQuery
+  const visibleHistoryResults = historyQuery.length >= 2 && loadedHistoryQuery === historyQuery ? historyResults : []
   const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false)
 
   // Cita que se intentó marcar "Realizada" sin consulta registrada → dispara el modal de bloqueo.
@@ -166,15 +175,11 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   // Funciona con cualquier cantidad de pacientes (no hay límite de carga inicial).
   useEffect(() => {
     const q = patientSearch.trim()
-    if (q.length < 2) {
-      setPatientSearchResults([])
-      return
-    }
-    setIsSearchingPatients(true)
+    if (q.length < 2) return
     const timer = setTimeout(async () => {
       const results = await searchPatientsForAgenda(q)
       setPatientSearchResults(results as Patient[])
-      setIsSearchingPatients(false)
+      setLoadedPatientQuery(q)
     }, 300)
     return () => clearTimeout(timer)
   }, [patientSearch])
@@ -182,12 +187,11 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   // Búsqueda de pacientes para el historial (mismo debounce/Server Action que el selector de citas).
   useEffect(() => {
     const q = historySearch.trim()
-    if (q.length < 2) { setHistoryResults([]); return }
-    setIsSearchingHistory(true)
+    if (q.length < 2) return
     const timer = setTimeout(async () => {
       const results = await searchPatientsForAgenda(q)
       setHistoryResults(results as Patient[])
-      setIsSearchingHistory(false)
+      setLoadedHistoryQuery(q)
     }, 300)
     return () => clearTimeout(timer)
   }, [historySearch])
@@ -322,17 +326,6 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
     else setSelectedHourForForm('08:00')
     setShowForm(true)
   }
-
-  // Al venir de "Registrar Paciente" → "Sí, agendar cita": abre el modal con el paciente ya seleccionado.
-  useEffect(() => {
-    if (autoOpenAppointment && preSelectedPatient?.id) {
-      setEditAppointment(null)
-      setSelectedPatientId(preSelectedPatient.id)
-      setPatientSearch(preSelectedPatient.name)
-      setShowForm(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handlePrev = () => {
     const d = new Date(selectedDate)
@@ -928,7 +921,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
                     {isSearchingPatients && (
                       <div style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>Buscando...</div>
                     )}
-                    {!isSearchingPatients && patientSearchResults.map(p => (
+                    {!isSearchingPatients && visiblePatientResults.map(p => (
                       <div 
                         key={p.id} 
                         style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '8px', backgroundColor: selectedPatientId === p.id ? 'rgba(45, 212, 191, 0.1)' : 'transparent', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
@@ -942,7 +935,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
                         <div style={{ fontWeight: 600, color: '#1e293b' }}>{p.first_name} {p.last_name}</div>
                       </div>
                     ))}
-                    {!isSearchingPatients && patientSearch.trim().length >= 2 && patientSearchResults.length === 0 && (
+                    {!isSearchingPatients && patientSearch.trim().length >= 2 && visiblePatientResults.length === 0 && (
                       <button
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
@@ -1190,7 +1183,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
                       {isSearchingHistory && (
                         <div style={{ padding: '0.75rem', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>Buscando...</div>
                       )}
-                      {!isSearchingHistory && historyResults.map(p => (
+                      {!isSearchingHistory && visibleHistoryResults.map(p => (
                         <div
                           key={p.id}
                           style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '8px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}
@@ -1203,7 +1196,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
                           </div>
                         </div>
                       ))}
-                      {!isSearchingHistory && historySearch.trim().length >= 2 && historyResults.length === 0 && (
+                      {!isSearchingHistory && historySearch.trim().length >= 2 && visibleHistoryResults.length === 0 && (
                         <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center' }}>No se encontraron pacientes.</div>
                       )}
                       {!isSearchingHistory && historySearch.trim().length < 2 && (

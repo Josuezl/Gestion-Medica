@@ -9,6 +9,14 @@ type Msg = { type: 'success' | 'error'; text: string } | null
 const LOGO_MIME = ['image/png', 'image/jpeg']
 const LOGO_MAX_BYTES = 2097152 // 2 MB
 
+const MsgBox = ({ msg }: { msg: Msg }) => msg ? (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.85rem', borderRadius: '8px', fontSize: '0.85rem', margin: '0 0 1rem',
+    background: msg.type === 'success' ? '#ecfdf5' : '#fee2e2', color: msg.type === 'success' ? '#065f46' : '#b91c1c',
+    border: `1px solid ${msg.type === 'success' ? '#a7f3d0' : '#fecaca'}` }}>
+    {msg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />} {msg.text}
+  </div>
+) : null
+
 export default function ProfileClient({ profile, email }: { profile: any; email: string }) {
   const clinical = profile?.role === 'DOCTOR' || profile?.role === 'ADMIN'
 
@@ -51,14 +59,6 @@ export default function ProfileClient({ profile, email }: { profile: any; email:
     if (res?.error) { setPassMsg({ type: 'error', text: res.error }) }
     else { setPassMsg({ type: 'success', text: 'Contraseña actualizada.' }); form.reset() }
   }
-
-  const MsgBox = ({ msg }: { msg: Msg }) => msg ? (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.85rem', borderRadius: '8px', fontSize: '0.85rem', margin: '0 0 1rem',
-      background: msg.type === 'success' ? '#ecfdf5' : '#fee2e2', color: msg.type === 'success' ? '#065f46' : '#b91c1c',
-      border: `1px solid ${msg.type === 'success' ? '#a7f3d0' : '#fecaca'}` }}>
-      {msg.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />} {msg.text}
-    </div>
-  ) : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

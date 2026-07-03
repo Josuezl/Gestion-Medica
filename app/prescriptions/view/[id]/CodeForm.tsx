@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface CodeFormProps {
@@ -11,25 +11,21 @@ interface CodeFormProps {
 
 export default function CodeForm({ prescriptionId, defaultValue = '', hasError }: CodeFormProps) {
   const [code, setCode] = useState(defaultValue)
-  const [loading, setLoading] = useState(false)
+  // isPending cubre toda la navegación (ida y respuesta del servidor): si el código es
+  // incorrecto y la página vuelve con hasError, el botón se rehabilita solo.
+  const [loading, startNavigation] = useTransition()
   const router = useRouter()
-
-  // Resetear el estado de cargando si la validación falla (ha retornado con error)
-  useEffect(() => {
-    if (hasError) {
-      setLoading(false)
-    }
-  }, [hasError])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     
     // Limpiar el código antes de enviar
     const sanitizedCode = code.trim().toUpperCase().replace(/[\u2013\u2014]/g, '-')
     
     // Navegación del lado del cliente en Next.js (más fluida, no recarga la página entera)
-    router.push(`/prescriptions/view/${prescriptionId}?code=${encodeURIComponent(sanitizedCode)}`)
+    startNavigation(() => {
+      router.push(`/prescriptions/view/${prescriptionId}?code=${encodeURIComponent(sanitizedCode)}`)
+    })
   }
 
   return (

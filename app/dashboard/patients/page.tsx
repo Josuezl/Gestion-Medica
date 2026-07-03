@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
@@ -98,10 +99,10 @@ export default async function PatientsPage({ searchParams }: PageProps) {
             </span>
           </div>
         </div>
-        <a href="/dashboard/patients/new" className="btn btn-primary" style={{ gap: '0.5rem' }}>
+        <Link href="/dashboard/patients/new" className="btn btn-primary" style={{ gap: '0.5rem' }}>
           <Plus size={18} />
           Registrar Paciente
-        </a>
+        </Link>
       </div>
 
       {/* Search and Filters Bar */}
@@ -121,9 +122,9 @@ export default async function PatientsPage({ searchParams }: PageProps) {
             Buscar
           </button>
           {searchQuery && (
-            <a href="/dashboard/patients" className="btn btn-secondary" style={{ padding: '0.75rem' }}>
+            <Link href="/dashboard/patients" className="btn btn-secondary" style={{ padding: '0.75rem' }}>
               Limpiar
-            </a>
+            </Link>
           )}
         </form>
       </div>
@@ -140,9 +141,9 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                 : 'Comienza registrando a tu primer paciente para ver su expediente clínico aquí.'}
             </p>
             {!searchQuery && (
-              <a href="/dashboard/patients/new" className="btn btn-primary" style={{ marginTop: '1.25rem' }}>
+              <Link href="/dashboard/patients/new" className="btn btn-primary" style={{ marginTop: '1.25rem' }}>
                 Registrar Primer Paciente
-              </a>
+              </Link>
             )}
           </div>
         ) : (

@@ -4,6 +4,7 @@ import React from 'react'
 import { Clipboard, FileText, Stethoscope, Edit2, Trash2, Clock } from 'lucide-react'
 import StatusDropdown, { STATUS_CONFIG } from '../StatusDropdown'
 import { doctorShortName } from '@/utils/doctorName'
+import { calculateAge } from '@/utils/age'
 import type { Appointment, Doctor } from '../AgendaClient'
 
 interface AppointmentCardProps {
@@ -44,13 +45,7 @@ export default function AppointmentCard({
   const meridiem = spaceIdx === -1 ? '' : hhmm.slice(spaceIdx + 1)
 
   // Edad del paciente (años cumplidos).
-  let ageText = ''
-  if (app.patients?.birth_date) {
-    const birth = new Date(app.patients.birth_date)
-    const ageDt = new Date(Date.now() - birth.getTime())
-    const age = Math.abs(ageDt.getUTCFullYear() - 1970)
-    ageText = `${age} años • `
-  }
+  const ageText = app.patients?.birth_date ? `${calculateAge(app.patients.birth_date)} años • ` : ''
 
   const fullName = `${app.patients?.first_name || ''} ${app.patients?.last_name || ''}`.trim()
 

@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { Suspense, useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createPatient, getRecordNumberConfig } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import {
@@ -13,7 +15,16 @@ import {
   Save
 } from 'lucide-react'
 
+// useSearchParams exige un límite de Suspense durante el prerender de la página.
 export default function NewPatientPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewPatientForm />
+    </Suspense>
+  )
+}
+
+function NewPatientForm() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   // Posible duplicado. `block: true` => duplicado exacto (nombre+fecha+género): NO se puede
@@ -24,21 +35,18 @@ export default function NewPatientPage() {
   const [isPediatric, setIsPediatric] = useState(false)
 
   // Pre-carga del nombre cuando se llega desde "Agendar cita" con un paciente no registrado
-  // (/dashboard/patients/new?nombre=...). Controlado + efecto de montaje para no romper la hidratación.
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  // (/dashboard/patients/new?nombre=...).
+  const searchParams = useSearchParams()
+  const prefillName = (searchParams.get('nombre') || '').trim()
+  const prefillParts = prefillName ? prefillName.split(/\s+/) : []
+  const [firstName, setFirstName] = useState(prefillParts[0] || '')
+  const [lastName, setLastName] = useState(prefillParts.slice(1).join(' '))
   // N° de expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San
   // Martín). Si está activo, se sugiere el siguiente (último + 1) al abrir el formulario.
   const [recordNumber, setRecordNumber] = useState('')
   const [recordSuggested, setRecordSuggested] = useState(false)
   const [showRecordNumber, setShowRecordNumber] = useState(false)
   useEffect(() => {
-    const nombre = new URLSearchParams(window.location.search).get('nombre')?.trim()
-    if (nombre) {
-      const parts = nombre.split(/\s+/)
-      setFirstName(parts[0] || '')
-      setLastName(parts.slice(1).join(' '))
-    }
     getRecordNumberConfig()
       .then(cfg => {
         setShowRecordNumber(cfg.enabled)
@@ -81,10 +89,10 @@ export default function NewPatientPage() {
     <div style={styles.container}>
       {/* Navigation and Title */}
       <div style={styles.headerRow}>
-        <a href="/dashboard/patients" style={styles.backLink}>
+        <Link href="/dashboard/patients" style={styles.backLink}>
           <ChevronLeft size={16} />
           Volver a Pacientes
-        </a>
+        </Link>
         <h2 style={styles.title}>Registrar Nuevo Paciente</h2>
         <p style={styles.subtitle}>Crea la ficha y el expediente inicial del paciente</p>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Activity,
   Beaker,
@@ -19,6 +19,7 @@ import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
 import { medicineDetail } from '@/utils/medicines'
+import { useAppOrigin } from '@/utils/useAppOrigin'
 
 /** Agrupa los exámenes [{category,name}] de una orden por categoría conservando el orden. */
 function groupLabTests(tests: any[]): { category: string; names: string[] }[] {
@@ -52,12 +53,7 @@ export default function PatientHistoryTabs({
   currentUserRole,
   isOrgAdmin
 }: PatientHistoryTabsProps) {
-  const [appUrl, setAppUrl] = useState('')
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setAppUrl(window.location.origin)
-    }
-  }, [])
+  const appUrl = useAppOrigin()
   const [activeTab, setActiveTab] = useState<'consultations' | 'history' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)

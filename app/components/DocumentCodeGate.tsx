@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
 /**
@@ -16,16 +16,17 @@ export default function DocumentCodeGate({ basePath, extraQuery = '', hasError, 
   docLabel?: string
 }) {
   const [code, setCode] = useState(defaultValue)
-  const [loading, setLoading] = useState(false)
+  // isPending cubre toda la navegación (ida y respuesta del servidor): si el código es
+  // incorrecto y la página vuelve con hasError, el botón se rehabilita solo.
+  const [loading, startNavigation] = useTransition()
   const router = useRouter()
-
-  useEffect(() => { if (hasError) setLoading(false) }, [hasError])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     const sanitized = code.trim().toUpperCase().replace(/[–—]/g, '-')
-    router.push(`${basePath}?code=${encodeURIComponent(sanitized)}${extraQuery}`)
+    startNavigation(() => {
+      router.push(`${basePath}?code=${encodeURIComponent(sanitized)}${extraQuery}`)
+    })
   }
 
   return (

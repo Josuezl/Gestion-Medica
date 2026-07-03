@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updatePatient, updatePatientGender } from '../actions'
 import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, sendStudyRequestByEmail } from './email-actions'
@@ -8,6 +8,7 @@ import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { isPediatric } from '@/utils/age'
 import { medicineDetail } from '@/utils/medicines'
+import { useAppOrigin } from '@/utils/useAppOrigin'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import {
@@ -95,12 +96,7 @@ export default function PatientDetailsClient({
   currentUserRole,
   isOrgAdmin
 }: PatientDetailsClientProps) {
-  const [appUrl, setAppUrl] = useState('')
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setAppUrl(window.location.origin)
-    }
-  }, [])
+  const appUrl = useAppOrigin()
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
   const canClinical = canDoClinical(currentUserRole)
   const canTakeVitals = canEnterVitals(currentUserRole)
