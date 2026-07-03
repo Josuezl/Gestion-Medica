@@ -14,11 +14,28 @@ import {
 } from './actions'
 import { Stethoscope, Plus, Loader2, Check, X, Edit, Trash2, Power } from 'lucide-react'
 
+/** Fila de study_sections / study_catalog tal como llegan de la página (select *). */
+interface StudySection {
+  id: string
+  name: string
+}
+interface StudyItem {
+  id: string
+  section_id: string
+  name: string
+  description?: string | null
+  patient_indication?: string | null
+  is_active: boolean
+}
+
+/** Resultado estándar de las server actions del catálogo. */
+type ActionResult = { error?: string } | null | undefined | void
+
 /**
  * Tarjeta de mantenimiento del Catálogo de Estudios (solo org-admin).
  * Espejo de LabCatalogCard, pero cada estudio incluye descripción e indicaciones para el paciente.
  */
-export default function StudyCatalogCard({ studySections, studyItems }: { studySections: any[]; studyItems: any[] }) {
+export default function StudyCatalogCard({ studySections, studyItems }: { studySections: StudySection[]; studyItems: StudyItem[] }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [newSectionName, setNewSectionName] = useState('')
@@ -33,7 +50,7 @@ export default function StudyCatalogCard({ studySections, studyItems }: { studyS
   const [fDesc, setFDesc] = useState('')
   const [fInd, setFInd] = useState('')
 
-  async function run(fn: () => Promise<any>) {
+  async function run(fn: () => Promise<ActionResult>) {
     setError(null)
     setBusy(true)
     const res = await fn()
@@ -42,9 +59,9 @@ export default function StudyCatalogCard({ studySections, studyItems }: { studyS
     return res
   }
 
-  const itemsBySection = (secId: string) => studyItems.filter((t: any) => t.section_id === secId)
+  const itemsBySection = (secId: string) => studyItems.filter((t) => t.section_id === secId)
 
-  function startEditItem(item: any) {
+  function startEditItem(item: StudyItem) {
     setAddingSectionId(null)
     setEditingItemId(item.id)
     setFName(item.name || '')
@@ -150,7 +167,7 @@ export default function StudyCatalogCard({ studySections, studyItems }: { studyS
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-              {studySections.map((sec: any) => (
+              {studySections.map((sec) => (
                 <div key={sec.id} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.85rem', background: '#fff' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.6rem' }}>
                     {editingSecId === sec.id ? (
@@ -168,9 +185,9 @@ export default function StudyCatalogCard({ studySections, studyItems }: { studyS
                               title="Activar o desactivar todos los estudios de esta sección"
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: 700, padding: 0, whiteSpace: 'nowrap' }}
                               disabled={busy}
-                              onClick={() => { const allActive = itemsBySection(sec.id).every((t: any) => t.is_active); run(() => setStudySectionItemsActive(sec.id, !allActive)) }}
+                              onClick={() => { const allActive = itemsBySection(sec.id).every((t) => t.is_active); run(() => setStudySectionItemsActive(sec.id, !allActive)) }}
                             >
-                              {itemsBySection(sec.id).every((t: any) => t.is_active) ? 'Desactivar todos' : 'Activar todos'}
+                              {itemsBySection(sec.id).every((t) => t.is_active) ? 'Desactivar todos' : 'Activar todos'}
                             </button>
                           )}
                           <button title="Renombrar sección" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} onClick={() => { setEditingSecId(sec.id); setEditingSecName(sec.name) }}><Edit size={14} /></button>
@@ -181,7 +198,7 @@ export default function StudyCatalogCard({ studySections, studyItems }: { studyS
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                    {itemsBySection(sec.id).map((item: any) => (
+                    {itemsBySection(sec.id).map((item) => (
                       <div key={item.id} style={{ opacity: item.is_active ? 1 : 0.5 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
                           <span style={{ flex: 1, textDecoration: item.is_active ? 'none' : 'line-through' }} title={item.patient_indication || item.description || ''}>{item.name}</span>

@@ -196,7 +196,7 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
 
   const gender = ['M', 'F', 'O'].includes(data.gender) ? data.gender : null
 
-  const updates: Record<string, any> = {
+  const updates: Record<string, string | null> = {
     first_name: firstName,
     last_name: lastName,
     specialty: (data.specialty || '').trim() || null,

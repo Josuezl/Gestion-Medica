@@ -17,7 +17,22 @@ const MsgBox = ({ msg }: { msg: Msg }) => msg ? (
   </div>
 ) : null
 
-export default function ProfileClient({ profile, email }: { profile: any; email: string }) {
+/** Campos del propio perfil que edita esta pantalla (user_profiles). */
+interface OwnProfile {
+  first_name?: string | null
+  last_name?: string | null
+  gender?: string | null
+  phone?: string | null
+  role?: string | null
+  specialty?: string | null
+  professional_id?: string | null
+  practice_name?: string | null
+  practice_phone?: string | null
+  practice_address?: string | null
+  practice_logo_url?: string | null
+}
+
+export default function ProfileClient({ profile, email }: { profile: OwnProfile | null; email: string }) {
   const clinical = profile?.role === 'DOCTOR' || profile?.role === 'ADMIN'
 
   const [savingProfile, setSavingProfile] = useState(false)

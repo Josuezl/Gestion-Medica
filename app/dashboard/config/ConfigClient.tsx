@@ -8,11 +8,64 @@ const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
 const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
 const LOGO_MIME = ['image/png', 'image/jpeg']
 
+interface ClinicInfo {
+  id?: string
+  name?: string | null
+  phone?: string | null
+  address?: string | null
+  logo_url?: string | null
+}
+
+interface TeamMember {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  role: string
+  email?: string | null
+  specialty?: string | null
+  professional_id?: string | null
+  gender?: string | null
+  practice_name?: string | null
+  practice_phone?: string | null
+  practice_address?: string | null
+  signature_url?: string | null
+}
+
+interface Invitation {
+  id: string
+  email?: string | null
+  role?: string | null
+  expires_at?: string | null
+  invited_by_user?: { first_name?: string | null; last_name?: string | null } | null
+}
+
+interface ClinicLocation {
+  id: string
+  name: string
+  address?: string | null
+  is_active?: boolean | null
+}
+
+/** Estado del modal "Editar miembro" (campos del formulario en camelCase). */
+interface EditMemberForm {
+  id: string
+  firstName: string
+  lastName: string
+  specialty: string
+  professionalId: string
+  gender: string
+  practiceName: string
+  practicePhone: string
+  practiceAddress: string
+  signatureUrl: string
+  role: string
+}
+
 interface ConfigClientProps {
-  clinic: any
-  teamMembers: any[]
-  invitations: any[]
-  locations: any[]
+  clinic: ClinicInfo
+  teamMembers: TeamMember[]
+  invitations: Invitation[]
+  locations: ClinicLocation[]
   currentUserId: string
   maxDoctors: number
   maxAssistants: number
@@ -56,7 +109,7 @@ export default function ConfigClient({
   const [editLocAddress, setEditLocAddress] = useState('')
 
   // Edición de un miembro del equipo (médico/asistente)
-  const [editMember, setEditMember] = useState<any | null>(null)
+  const [editMember, setEditMember] = useState<EditMemberForm | null>(null)
   const [memberSaving, setMemberSaving] = useState(false)
   const [memberError, setMemberError] = useState<string | null>(null)
   const [signatureUploading, setSignatureUploading] = useState(false)
@@ -79,7 +132,7 @@ export default function ConfigClient({
     setClinicLogoUrl(res.url || '')
   }
 
-  function openEditMember(member: any) {
+  function openEditMember(member: TeamMember) {
     setMemberError(null)
     setEditMember({
       id: member.id,
@@ -118,7 +171,7 @@ export default function ConfigClient({
       setMemberError(res.error)
       return
     }
-    setEditMember((prev: any) => (prev ? { ...prev, signatureUrl: res.url } : prev))
+    setEditMember((prev) => (prev ? { ...prev, signatureUrl: res.url || '' } : prev))
   }
 
   async function handleSaveMember() {
@@ -194,9 +247,9 @@ export default function ConfigClient({
       } else {
         alert('Información actualizada')
       }
-    } catch (err: any) {
+    } catch (err) {
       setClinicLoading(false)
-      setClinicError('Error inesperado: ' + err.message)
+      setClinicError('Error inesperado: ' + (err instanceof Error ? err.message : String(err)))
     }
   }
 
@@ -530,7 +583,7 @@ export default function ConfigClient({
                   <td data-label="Nombre" style={{ padding: '0.75rem 1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        {member.first_name[0]}{member.last_name[0]}
+                        {(member.first_name || '?')[0]}{(member.last_name || '?')[0]}
                       </div>
                       <div>
                         <div style={{ fontWeight: 600 }}>{member.first_name} {member.last_name} {member.id === currentUserId ? '(Tú)' : ''}</div>
@@ -596,7 +649,7 @@ export default function ConfigClient({
                         {inv.invited_by_user?.first_name} {inv.invited_by_user?.last_name}
                       </td>
                       <td data-label="Expiración" style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
-                        {new Date(inv.expires_at).toLocaleDateString('es-HN')}
+                        {inv.expires_at ? new Date(inv.expires_at).toLocaleDateString('es-HN') : '—'}
                       </td>
                       <td data-label="Acciones" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                         <button
@@ -632,7 +685,7 @@ export default function ConfigClient({
           <div className="grid-2">
             <div className="form-group">
               <label className="form-label">Nombre de la Organización</label>
-              <input type="text" name="name" className="form-input" defaultValue={clinic.name} required />
+              <input type="text" name="name" className="form-input" defaultValue={clinic.name ?? ''} required />
             </div>
             <div className="form-group">
               <label className="form-label">Teléfono</label>
@@ -801,7 +854,7 @@ export default function ConfigClient({
                               <Edit size={14} /> Editar
                             </button>
                             <button 
-                              onClick={() => handleToggleLocation(loc.id, loc.is_active)}
+                              onClick={() => handleToggleLocation(loc.id, !!loc.is_active)}
                               style={{ background: 'none', border: 'none', color: loc.is_active ? 'var(--danger)' : 'var(--primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8rem', fontWeight: 600 }}
                             >
                               <Power size={14} />

@@ -14,11 +14,26 @@ import {
 } from './actions'
 import { FlaskConical, Plus, Loader2, Check, X, Edit, Trash2, Power } from 'lucide-react'
 
+/** Fila de lab_test_categories / lab_tests tal como llegan de la página (select *). */
+interface LabCategory {
+  id: string
+  name: string
+}
+interface LabTest {
+  id: string
+  category_id: string
+  name: string
+  is_active: boolean
+}
+
+/** Resultado estándar de las server actions del catálogo. */
+type ActionResult = { error?: string } | null | undefined | void
+
 /**
  * Tarjeta de mantenimiento del Catálogo de Laboratorio (solo org-admin).
  * Estado y handlers locales — extraído de ConfigClient sin alterar la lógica.
  */
-export default function LabCatalogCard({ labCategories, labTests }: { labCategories: any[]; labTests: any[] }) {
+export default function LabCatalogCard({ labCategories, labTests }: { labCategories: LabCategory[]; labTests: LabTest[] }) {
   const [labBusy, setLabBusy] = useState(false)
   const [labError, setLabError] = useState<string | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -29,7 +44,7 @@ export default function LabCatalogCard({ labCategories, labTests }: { labCategor
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
 
-  async function runLab(fn: () => Promise<any>) {
+  async function runLab(fn: () => Promise<ActionResult>) {
     setLabError(null)
     setLabBusy(true)
     const res = await fn()
@@ -39,7 +54,7 @@ export default function LabCatalogCard({ labCategories, labTests }: { labCategor
   }
 
   const labTestsByCategory = (catId: string) =>
-    labTests.filter((t: any) => t.category_id === catId)
+    labTests.filter((t) => t.category_id === catId)
 
   return (
       <div className="card" style={{ marginTop: '1.5rem' }}>
@@ -96,7 +111,7 @@ export default function LabCatalogCard({ labCategories, labTests }: { labCategor
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-              {labCategories.map((cat: any) => (
+              {labCategories.map((cat) => (
                 <div key={cat.id} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.85rem', background: '#fff' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.6rem' }}>
                     {editingCatId === cat.id ? (
@@ -114,9 +129,9 @@ export default function LabCatalogCard({ labCategories, labTests }: { labCategor
                               title="Activar o desactivar todos los exámenes de esta categoría"
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: 700, padding: 0, whiteSpace: 'nowrap' }}
                               disabled={labBusy}
-                              onClick={() => { const allActive = labTestsByCategory(cat.id).every((t: any) => t.is_active); runLab(() => setLabCategoryTestsActive(cat.id, !allActive)) }}
+                              onClick={() => { const allActive = labTestsByCategory(cat.id).every((t) => t.is_active); runLab(() => setLabCategoryTestsActive(cat.id, !allActive)) }}
                             >
-                              {labTestsByCategory(cat.id).every((t: any) => t.is_active) ? 'Desactivar todos' : 'Activar todos'}
+                              {labTestsByCategory(cat.id).every((t) => t.is_active) ? 'Desactivar todos' : 'Activar todos'}
                             </button>
                           )}
                           <button title="Renombrar categoría" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} onClick={() => { setEditingCatId(cat.id); setEditingCatName(cat.name) }}><Edit size={14} /></button>
@@ -127,7 +142,7 @@ export default function LabCatalogCard({ labCategories, labTests }: { labCategor
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                    {labTestsByCategory(cat.id).map((test: any) => (
+                    {labTestsByCategory(cat.id).map((test) => (
                       <div key={test.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', opacity: test.is_active ? 1 : 0.5 }}>
                         {editingTestId === test.id ? (
                           <>

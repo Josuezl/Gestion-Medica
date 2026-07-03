@@ -26,7 +26,7 @@ export async function updateOwnProfile(formData: FormData) {
   const g = formData.get('gender') as string
   const gender = ['M', 'F', 'O'].includes(g) ? g : null
 
-  const updates: Record<string, any> = {
+  const updates: Record<string, string | null> = {
     first_name: firstName,
     last_name: lastName,
     gender,
