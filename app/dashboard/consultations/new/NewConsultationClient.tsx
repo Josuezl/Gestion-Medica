@@ -39,7 +39,6 @@ interface NewConsultationClientProps {
   labOrders?: any[]
   studyCatalog?: CatalogSection[]
   lastStudyRequest?: { studies: { section: string; name: string }[]; other_studies: string | null; created_at: string } | null
-  studyRequests?: any[]
 }
 
 export default function NewConsultationClient({
@@ -56,8 +55,7 @@ export default function NewConsultationClient({
   lastLabOrder = null,
   labOrders = [],
   studyCatalog = [],
-  lastStudyRequest = null,
-  studyRequests = []
+  lastStudyRequest = null
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
   

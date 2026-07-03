@@ -1,18 +1,16 @@
 import React from 'react'
+import Image from 'next/image'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { logout } from '../auth/actions'
-import { personShortName, firstWord } from '@/utils/doctorName'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  FileText, 
+import { personShortName } from '@/utils/doctorName'
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
   Settings,
   LogOut,
-  Stethoscope,
   User as UserIcon,
-  MessageSquare,
   BarChart3,
   Menu,
   Inbox,
@@ -103,7 +101,7 @@ export default async function DashboardLayout({
       <aside className="dashboard-sidebar">
         <div style={styles.logoContainer}>
           <div style={styles.logoIcon}>
-            <img src="/Logo%20de%20Honduras.png" alt="CloudMedHN" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={40} height={40} style={{ objectFit: 'contain' }} />
           </div>
           <div>
             <h1 style={styles.logoText}>CloudMedHN</h1>

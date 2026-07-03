@@ -3,15 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { createPatient, getRecordNumberConfig } from '../actions'
 import { isPediatric as isPediatricAge } from '@/utils/age'
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  Activity, 
+import {
+  User,
+  Phone,
+  Activity,
   AlertCircle,
-  FileText,
   Loader2,
   ChevronLeft,
   Save

@@ -3,7 +3,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendMedicalRecordEmail, sendPrescriptionEmail, sendDocumentLinkEmail } from '@/utils/email'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
-import { safeErrorMessage } from '@/utils/errors'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 

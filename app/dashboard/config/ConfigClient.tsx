@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { sendInvitation, revokeInvitation, updateClinicInfo, createLocation, toggleLocationStatus, updateLocation, updateTeamMember, uploadMemberSignature, uploadClinicLogo } from './actions'
-import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, ArrowUpCircle, Edit, HardDrive, Stamp, Loader2, Stethoscope, Image as ImageIcon } from 'lucide-react'
+import { Users, Building2, UserPlus, Trash2, Mail, Shield, User, MapPin, Plus, Power, Edit, HardDrive, Stamp, Loader2, Stethoscope, Image as ImageIcon } from 'lucide-react'
 
 const SIGNATURE_MAX_BYTES = 2097152 // 2 MB
 const SIGNATURE_MIME = ['image/png', 'image/jpeg', 'image/webp']
@@ -16,7 +16,6 @@ interface ConfigClientProps {
   currentUserId: string
   maxDoctors: number
   maxAssistants: number
-  planCode: string
   canManageLocations: boolean
   canInviteDoctors: boolean
   maxLocations: number
@@ -32,7 +31,6 @@ export default function ConfigClient({
   currentUserId,
   maxDoctors,
   maxAssistants,
-  planCode,
   canManageLocations,
   canInviteDoctors,
   maxLocations,
@@ -323,6 +321,7 @@ export default function ConfigClient({
                 </p>
                 {editMember.signatureUrl ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- vista previa de la firma desde Storage (URL dinámica por tenant); no pasa por el optimizador */}
                     <img
                       src={editMember.signatureUrl}
                       alt="Firma y sello"

@@ -3,21 +3,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Search, 
+import {
+  Calendar as CalendarIcon,
+  User,
+  Search,
   Plus,
   ChevronLeft,
   ChevronRight,
-  Filter,
-  CheckCircle2,
   XCircle,
-  AlertCircle,
   Stethoscope,
-  Phone,
-  MoreHorizontal,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { doctorShortName } from '@/utils/doctorName'
@@ -76,7 +70,6 @@ interface Location {
 }
 
 interface AgendaClientProps {
-  patients: Patient[]
   initialAppointments: Appointment[]
   doctors: Doctor[]
   locations: Location[]
@@ -117,7 +110,7 @@ const getWeekDays = (date: Date) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export default function AgendaClient({ patients, initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
+export default function AgendaClient({ initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -145,7 +138,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
   const [patientSearch, setPatientSearch] = useState('')
   const [selectedPatientId, setSelectedPatientId] = useState('')
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false)
-  const [patientSearchResults, setPatientSearchResults] = useState<typeof patients>([])
+  const [patientSearchResults, setPatientSearchResults] = useState<Patient[]>([])
   const [isSearchingPatients, setIsSearchingPatients] = useState(false)
   // Nombre escrito que no corresponde a un paciente registrado (dispara el modal de registro).
   const [unregisteredName, setUnregisteredName] = useState<string | null>(null)
@@ -180,7 +173,7 @@ export default function AgendaClient({ patients, initialAppointments, doctors, l
     setIsSearchingPatients(true)
     const timer = setTimeout(async () => {
       const results = await searchPatientsForAgenda(q)
-      setPatientSearchResults(results as typeof patients)
+      setPatientSearchResults(results as Patient[])
       setIsSearchingPatients(false)
     }, 300)
     return () => clearTimeout(timer)

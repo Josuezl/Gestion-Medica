@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
 import PatientVitalsButton from './PatientVitalsButton'
-import { Search, Plus, User, Eye, Phone, Calendar, Clipboard, Edit } from 'lucide-react'
+import { Search, Plus, User, Eye, Phone, Clipboard, Edit } from 'lucide-react'
 
 // Calcular edad
 function calculateAge(birthDateString: string) {
@@ -65,7 +65,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     })
   }
 
-  const { data: patients, count, error } = await dbQuery
+  const { data: patients, count } = await dbQuery
     .order('first_name', { ascending: true })
     .range(from, to)
 

@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 import { login } from '../auth/actions'
-import { Stethoscope, Lock, Mail, Loader2, ArrowRight } from 'lucide-react'
+import { Lock, Mail, Loader2, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +32,7 @@ export default function LoginPage() {
       <div className="card-glass animate-fade-in" style={styles.loginCard}>
         <div style={styles.logoHeader}>
           <div style={styles.logoIconContainer}>
-            <img src="/Logo%20de%20Honduras.png" alt="CloudMedHN" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
+            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={64} height={64} priority style={{ objectFit: 'contain' }} />
           </div>
           <h1 style={styles.appName}>CloudMedHN</h1>
           <p style={styles.tagline}>Gestión Médica & Comunicación Automatizada</p>

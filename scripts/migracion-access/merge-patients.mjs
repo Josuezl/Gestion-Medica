@@ -100,7 +100,7 @@ const keep = await resolvePatient(keepArg, allIds);
 let merge;
 try {
   merge = await resolvePatient(mergeArg, allIds);
-} catch (e) {
+} catch {
   // Idempotencia: si el duplicado ya no existe, probablemente ya se fusionó.
   console.log(`El paciente a eliminar ("${mergeArg}") no existe. ¿Ya se fusionó? Nada que hacer.`);
   process.exit(0);

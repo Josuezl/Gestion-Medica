@@ -741,9 +741,10 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
           <div className="signature-block">
             {doctor.signature_url ? (
               <>
-                <img 
-                  src={doctor.signature_url} 
-                  alt="Firma Digital" 
+                {/* eslint-disable-next-line @next/next/no-img-element -- documento imprimible: la firma debe cargar siempre (sin lazy/optimizador) y viene de Storage */}
+                <img
+                  src={doctor.signature_url}
+                  alt="Firma Digital"
                   style={{ maxHeight: '96px', maxWidth: '260px', objectFit: 'contain', marginBottom: '5px' }}
                 />
                 <div className="signature-line">

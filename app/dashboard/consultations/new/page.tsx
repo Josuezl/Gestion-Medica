@@ -154,7 +154,6 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
       labOrders={labOrders || []}
       studyCatalog={studyCatalog}
       lastStudyRequest={lastStudyRequest || null}
-      studyRequests={studyRequests || []}
     />
   )
 }

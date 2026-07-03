@@ -91,7 +91,6 @@ export default async function ConfigPage() {
         currentUserId={ctx.user.id}
         maxDoctors={maxDoctors}
         maxAssistants={maxAssistants}
-        planCode={ctx.planCode}
         canManageLocations={showLocations}
         canInviteDoctors={doctorsEnabled}
         maxLocations={maxLocations}

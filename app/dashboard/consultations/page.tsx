@@ -92,7 +92,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
   }
 
   // Paginación en el servidor — solo trae la página actual, no todo el historial
-  const { data: consultations, count, error } = await dbQuery
+  const { data: consultations, count } = await dbQuery
     .order('created_at', { ascending: false })
     .range(from, to)
 

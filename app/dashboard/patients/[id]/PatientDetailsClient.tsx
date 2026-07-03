@@ -10,11 +10,9 @@ import { isPediatric } from '@/utils/age'
 import { medicineDetail } from '@/utils/medicines'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
+  Phone,
+  Mail,
   Calendar,
   Activity,
   Beaker,
@@ -23,19 +21,15 @@ import {
   FileBadge,
   Loader2,
   Edit,
-  ChevronRight,
   ClipboardList,
   FileSpreadsheet,
   Plus,
   Printer,
   Share2,
-
   Pill,
   ChevronDown,
   ChevronUp,
   Baby,
-  Copy,
-  Globe,
   Stethoscope,
 } from 'lucide-react'
 import PediatricGrowthChart from '../../components/PediatricGrowthChart'
@@ -110,14 +104,11 @@ export default function PatientDetailsClient({
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
   const canClinical = canDoClinical(currentUserRole)
   const canTakeVitals = canEnterVitals(currentUserRole)
-  // Imprimir incapacidad médica de la última consulta (solo si la más reciente la tiene).
+  // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
   const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
-  const canPrintLeave = !!(lastConsult?.medical_leave && String(lastConsult.medical_leave).trim() !== '')
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
-  const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
-  const [copiedFicha, setCopiedFicha] = useState(false)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
   const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest' } | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
@@ -130,25 +121,6 @@ export default function PatientDetailsClient({
       ...prev,
       [id]: !prev[id]
     }))
-  }
-
-  const handleCopyFicha = () => {
-    navigator.clipboard.writeText(generateFichaText())
-    setCopiedFicha(true)
-    setTimeout(() => {
-      setCopiedFicha(false)
-    }, 2000)
-  }
-  
-  const handleCopyPrescription = (presc: any) => {
-    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
-    const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
-    navigator.clipboard.writeText(text)
-    
-    setCopiedPrescId(presc.id)
-    setTimeout(() => {
-      setCopiedPrescId(null)
-    }, 2000)
   }
 
   const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: any) => {
@@ -666,10 +638,6 @@ export default function PatientDetailsClient({
     // Liberar el objeto URL después de un segundo
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-
-  const generateFichaText = () => {
-    return `*Ficha Médica*\nPaciente: ${patient.first_name} ${patient.last_name}\nEdad: ${calculateAge(patient.birth_date)} años\nDNI: ${patient.id_card || 'N/A'}\nSangre: ${patient.blood_type || 'N/A'}\nAlergias: ${patient.allergies || 'Ninguna'}\n\n*Antecedentes:*\nPatológicos: ${patient.pathological_history || 'N/A'}\nNo Patológicos: ${patient.non_pathological_history || 'N/A'}\nFamiliares: ${patient.family_history || 'N/A'}`;
-  }
 
   // Estados para envío de correo
   const [sendingPrescEmail, setSendingPrescEmail] = useState<string | null>(null)

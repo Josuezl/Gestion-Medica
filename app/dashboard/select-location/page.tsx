@@ -1,7 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import SelectLocationClient from './SelectLocationClient'
 import { firstWord, doctorTitle } from '@/utils/doctorName'
 

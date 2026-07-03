@@ -1,22 +1,17 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { 
+import {
   Activity,
   Beaker,
   ClipboardList,
   FileSpreadsheet,
-  FileText, 
-  Pill, 
-  ChevronDown, 
-  ChevronUp, 
-  Download,
+  FileText,
+  Pill,
+  ChevronDown,
+  ChevronUp,
   Baby,
   Printer,
-
-  Copy,
-  Check,
-  Globe,
 } from 'lucide-react'
 import PediatricGrowthChart from './PediatricGrowthChart'
 import StudyUploader from './StudyUploader'
@@ -66,7 +61,6 @@ export default function PatientHistoryTabs({
   const [activeTab, setActiveTab] = useState<'consultations' | 'history' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
-  const [copiedPrescId, setCopiedPrescId] = useState<string | null>(null)
   const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
@@ -74,17 +68,6 @@ export default function PatientHistoryTabs({
       ...prev,
       [id]: !prev[id]
     }))
-  }
-
-  const handleCopyPrescription = (presc: any) => {
-    const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
-    const text = `Hola ${patient.first_name}, el ${docName} te ha compartido la siguiente receta médica:\n${appUrl}/prescriptions/view/${presc.id}\n\nCódigo de acceso: ${presc.verification_code}`
-    navigator.clipboard.writeText(text)
-    
-    setCopiedPrescId(presc.id)
-    setTimeout(() => {
-      setCopiedPrescId(null)
-    }, 2000)
   }
 
   const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: any) => {
@@ -413,8 +396,7 @@ export default function PatientHistoryTabs({
                   const date = new Date(presc.created_at).toLocaleDateString('es-HN')
                   const docName = doctorShortName(presc.user_profiles?.first_name, presc.user_profiles?.last_name, presc.user_profiles?.gender)
                   const isExpanded = expandedPrescription === presc.id
-                  const patientPhoneClean = patient.phone ? patient.phone.replace(/\D/g, '') : ''
-                  
+
                   return (
                     <div key={presc.id} className="card" style={{ ...styles.studyRow, flexDirection: 'column', alignItems: 'stretch' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
