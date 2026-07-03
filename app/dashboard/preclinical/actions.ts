@@ -137,7 +137,7 @@ export async function getPendingPreclinicalPatientIds(): Promise<string[]> {
       .is('consumed_at', null)
       .gte('created_at', startOfTodayHondurasUTC())
     if (error || !data) return []
-    return Array.from(new Set(data.map((r: any) => r.patient_id)))
+    return Array.from(new Set((data as { patient_id: string }[]).map((r) => r.patient_id)))
   } catch {
     return []
   }

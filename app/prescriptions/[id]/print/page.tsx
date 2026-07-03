@@ -5,7 +5,7 @@ import { notFound, redirect } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
-import { medicineDetail } from '@/utils/medicines'
+import { medicineDetail, type Medicine } from '@/utils/medicines'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -67,10 +67,10 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
   const formattedDate = formatDateTimeHN(prescription.created_at)
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
+  const logoUrl = doctor.practice_logo_url || clinic.logo_url
   // Si el médico usa SU PROPIO logo, este suele incluir su nombre/especialidad → se ocultan del
   // encabezado. Con el logo global de la clínica (o sin logo) sí se muestran.
-  const usingOwnLogo = !!(doctor as any).practice_logo_url
+  const usingOwnLogo = !!doctor.practice_logo_url
   // Con el logo global de la clínica, acercar la línea de tel/dirección al logo (se ve muy separada).
   const isGlobalLogo = !!logoUrl && !usingOwnLogo
   const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
@@ -264,7 +264,7 @@ export default async function PrintPrescriptionPage({ params }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {(prescription.medicines || []).map((med: any, index: number) => (
+                {(prescription.medicines || []).map((med: Medicine, index: number) => (
                   <tr key={index}>
                     <td>
                       <span className="med-name">{index + 1}. {med.name}</span>

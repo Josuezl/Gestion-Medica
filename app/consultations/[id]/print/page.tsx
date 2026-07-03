@@ -6,19 +6,12 @@ import { loadPublicDocument } from '@/utils/publicDocument'
 import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
+import { calculateAge } from '@/utils/age'
+import type { ConsultationRow } from '@/utils/clinicalTypes'
 
 interface PageProps {
   params: Promise<{ id: string }>
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
-}
-
-function calculateAge(birthDateString: string) {
-  const today = new Date()
-  const birthDate = new Date(birthDateString)
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const m = today.getMonth() - birthDate.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
-  return age
 }
 
 export default async function PrintConsultationSummaryPage({ params, searchParams }: PageProps) {
@@ -32,7 +25,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
     : Array.isArray(resolvedSearchParams?.code) ? resolvedSearchParams.code[0] : undefined
 
   // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
-  const access = await loadPublicDocument('consultations', consultationId, code)
+  const access = await loadPublicDocument<ConsultationRow>('consultations', consultationId, code)
   if (access.status === 'notfound') return notFound()
   if (access.status === 'gate') {
     return (
@@ -44,10 +37,8 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
       />
     )
   }
-  const consultation = access.doc
-  const patient = access.patient
-  const doctor = access.doctor
-  const clinic = access.clinic
+  const { doc: consultation, patient, doctor, clinic } = access
+  if (!consultation || !patient || !doctor || !clinic) return notFound()
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
@@ -56,15 +47,15 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
+  const logoUrl = doctor.practice_logo_url || clinic.logo_url
   // Si el médico usa SU PROPIO logo, este suele incluir su nombre/especialidad → se ocultan del
   // encabezado. Con el logo global de la clínica (o sin logo) sí se muestran.
-  const usingOwnLogo = !!(doctor as any).practice_logo_url
+  const usingOwnLogo = !!doctor.practice_logo_url
   // Con el logo global de la clínica, acercar la línea de tel/dirección al logo (se ve muy separada).
   const isGlobalLogo = !!logoUrl && !usingOwnLogo
-  const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
+  const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
-  const c: any = consultation
+  const c = consultation
   const hc = c.head_circumference
   const hasVitals = c.weight || c.height || c.blood_pressure || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 

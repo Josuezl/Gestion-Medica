@@ -3,11 +3,15 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { WHO_GROWTH, PERCENTILE_Z, lmsValue, WhoMeasure } from './who-growth-data'
+import type { ConsultationRow, PatientRow } from '@/utils/clinicalTypes'
 
 interface PediatricGrowthChartProps {
-  consultations: any[]
-  patient: any
+  consultations: ConsultationRow[]
+  patient: PatientRow
 }
+
+/** Punto de la gráfica: mes + percentiles OMS (P3..P97) + medida del paciente si existe. */
+type GrowthPoint = Record<string, number | undefined> & { month: number }
 
 // Edad en meses entre nacimiento y la fecha de la consulta
 function getAgeInMonths(birthDate: string, consultDate: string) {
@@ -28,9 +32,9 @@ function buildData(
   maxMonth: number,
   patientPoints: Map<number, number>
 ) {
-  const data: any[] = []
+  const data: GrowthPoint[] = []
   for (let m = 0; m <= maxMonth; m++) {
-    const point: any = { month: m }
+    const point: GrowthPoint = { month: m }
     if (measure && sex) {
       const lms = measure[sex][m]
       if (lms) {
@@ -54,7 +58,7 @@ const PERC_IN_LEGEND = new Set(['P3', 'P50', 'P97'])
 function GrowthChart({
   title, unit, color, data, maxMonth, hasReference, note,
 }: {
-  title: string; unit: string; color: string; data: any[]; maxMonth: number
+  title: string; unit: string; color: string; data: GrowthPoint[]; maxMonth: number
   hasReference: boolean; note?: string
 }) {
   const tickStep = maxMonth <= 60 ? 12 : 24
@@ -114,11 +118,15 @@ export default function PediatricGrowthChart({ consultations, patient }: Pediatr
   let maxPatientMonth = 0
 
   for (const c of consultations) {
-    const m = getAgeInMonths(patient.birth_date, c.created_at)
+    const m = getAgeInMonths(patient.birth_date || '', c.created_at)
     maxPatientMonth = Math.max(maxPatientMonth, m)
-    if (c.weight != null && c.weight !== '') weightPts.set(m, Number(c.weight))
-    if (c.height != null && c.height !== '') heightPts.set(m, Number(c.height))
-    if (c.head_circumference != null && c.head_circumference !== '') hcPts.set(m, Number(c.head_circumference))
+    // Los vitales pueden venir como texto en datos migrados; se normalizan con Number().
+    const w = c.weight as number | string | null
+    const h = c.height as number | string | null
+    const hc = c.head_circumference as number | string | null
+    if (w != null && w !== '') weightPts.set(m, Number(w))
+    if (h != null && h !== '') heightPts.set(m, Number(h))
+    if (hc != null && hc !== '') hcPts.set(m, Number(hc))
   }
 
   // Rango por gráfica: cubre la referencia OMS y, si el paciente la excede, sus puntos

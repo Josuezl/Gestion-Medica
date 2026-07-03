@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       ${doctors?.map(d => `- Dr. ${d.first_name} ${d.last_name} (Especialidad: ${d.specialty || 'General'}) [ID: ${d.id}]`).join('\n') || 'No hay doctores registrados.'}
 
       CITAS YA AGENDADAS (NO DISPONIBLES) EN LOS PRÓXIMOS 7 DÍAS:
-      ${appointments?.map(a => `- ${new Date(a.scheduled_at).toLocaleString('es-HN')} con Dr. ${(a.user_profiles as any)?.first_name} ${(a.user_profiles as any)?.last_name}`).join('\n') || 'No hay citas ocupadas en este rango.'}
+      ${appointments?.map(a => { const up = a.user_profiles as unknown as { first_name?: string | null; last_name?: string | null } | null; return `- ${new Date(a.scheduled_at).toLocaleString('es-HN')} con Dr. ${up?.first_name} ${up?.last_name}` }).join('\n') || 'No hay citas ocupadas en este rango.'}
     `
 
     // Historial básico (para simplicidad de este webhook serverless)

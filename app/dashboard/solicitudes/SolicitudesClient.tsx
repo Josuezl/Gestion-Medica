@@ -7,6 +7,7 @@ import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import type { PatientSuggestion } from './page'
 import { formatDateTimeHN, formatDateHN } from '@/utils/datetime'
 import { doctorShortName } from '@/utils/doctorName'
+import type { PatientRow } from '@/utils/clinicalTypes'
 import { CheckCircle2, XCircle, Search, Loader2, UserPlus, UserCheck, Inbox, Globe } from 'lucide-react'
 
 /**
@@ -16,7 +17,7 @@ import { CheckCircle2, XCircle, Search, Loader2, UserPlus, UserCheck, Inbox, Glo
  * WhatsApp click-to-chat (manual, igual que el botón de la agenda).
  */
 
-interface RequestRow {
+export interface RequestRow {
   id: string
   matched_patient_id: string | null
   created_at: string
@@ -52,7 +53,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
   const [mode, setMode] = useState<'new' | 'existing'>('new')
   const [existingPatient, setExistingPatient] = useState<{ id: string; label: string; phone: string | null } | null>(null)
   const [patientSearch, setPatientSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<PatientRow[]>([])
   const [searching, setSearching] = useState(false)
   const [npFirst, setNpFirst] = useState('')
   const [npLast, setNpLast] = useState('')
@@ -345,7 +346,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Género (requerido)</label>
-                  <select className="form-input" value={npGender} onChange={e => setNpGender(e.target.value as any)}>
+                  <select className="form-input" value={npGender} onChange={e => setNpGender(e.target.value as '' | 'M' | 'F')}>
                     <option value="">Seleccionar…</option>
                     <option value="F">Femenino</option>
                     <option value="M">Masculino</option>
@@ -385,7 +386,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid var(--border-color)', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 16px rgba(0,0,0,0.08)' }}>
                         {searching ? (
                           <div style={{ padding: '0.6rem', textAlign: 'center' }}><Loader2 size={16} className="animate-spin" /></div>
-                        ) : searchResults.map((p: any) => (
+                        ) : searchResults.map((p) => (
                           <button
                             key={p.id}
                             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 0.75rem', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '0.85rem' }}
@@ -418,7 +419,7 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Estado final</label>
-                <select className="form-input" value={finalStatus} onChange={e => setFinalStatus(e.target.value as any)}>
+                <select className="form-input" value={finalStatus} onChange={e => setFinalStatus(e.target.value as 'CONFIRMED' | 'PENDING')}>
                   <option value="CONFIRMED">Confirmada</option>
                   <option value="PENDING">Pendiente</option>
                 </select>

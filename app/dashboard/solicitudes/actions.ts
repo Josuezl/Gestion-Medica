@@ -57,6 +57,25 @@ async function getSessionClinic(supabase: Awaited<ReturnType<typeof createClient
   return { userId: user.id, clinicId: profile.clinic_id as string }
 }
 
+/** Solicitud PENDING con sus joins a-uno resueltos como objeto (no arreglo). */
+interface PendingRequest {
+  id: string
+  clinic_id: string
+  appointment_id: string | null
+  doctor_id: string
+  location_id: string | null
+  matched_patient_id: string | null
+  status: string
+  submitted_first_name: string
+  submitted_last_name: string
+  submitted_birth_date: string | null
+  submitted_id_card: string | null
+  submitted_phone: string | null
+  appointments: { id: string; scheduled_at: string; status: string; duration_minutes: number } | null
+  doctor: { first_name: string; last_name: string; gender?: string | null } | null
+  locations: { name: string } | null
+}
+
 /** Carga la solicitud PENDING con su cita, acotada a la clínica del usuario. */
 async function loadPendingRequest(supabase: Awaited<ReturnType<typeof createClient>>, requestId: string, clinicId: string) {
   const { data } = await supabase
@@ -72,7 +91,7 @@ async function loadPendingRequest(supabase: Awaited<ReturnType<typeof createClie
     .eq('clinic_id', clinicId)
     .eq('status', 'PENDING')
     .maybeSingle()
-  return data as any
+  return data as unknown as PendingRequest | null
 }
 
 /** ¿Otra cita viva del médico solapa este slot de 1 hora? (para cuando el staff mueve la fecha). */

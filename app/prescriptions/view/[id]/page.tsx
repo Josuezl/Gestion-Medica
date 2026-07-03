@@ -6,7 +6,7 @@ import CodeForm from './CodeForm'
 import PatientControlBar from './PatientControlBar'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
-import { medicineDetail } from '@/utils/medicines'
+import { medicineDetail, type Medicine } from '@/utils/medicines'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -698,7 +698,7 @@ export default async function ViewPrescriptionPage({ params, searchParams }: Pag
                 </tr>
               </thead>
               <tbody>
-                {(prescription.medicines || []).map((med: any, index: number) => (
+                {(prescription.medicines || []).map((med: Medicine, index: number) => (
                   <tr key={index}>
                     <td>
                       <span className="med-name">{index + 1}. {med.name}</span>

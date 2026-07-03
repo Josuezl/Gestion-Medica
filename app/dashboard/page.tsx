@@ -1,6 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import AgendaClient from './AgendaClient'
+import AgendaClient, { type Appointment } from './AgendaClient'
 import { getPendingPreclinicalPatientIds } from './preclinical/actions'
 
 import { cookies } from 'next/headers'
@@ -90,7 +90,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <AgendaClient
-      initialAppointments={(appointments as any) || []}
+      initialAppointments={(appointments as unknown as Appointment[]) || []}
       doctors={doctors || []}
       locations={locations || []}
       defaultLocationId={defaultLocationId}

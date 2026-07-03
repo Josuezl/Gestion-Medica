@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendAppointmentReminder } from '@/utils/whatsapp'
 import { personShortName } from '@/utils/doctorName'
+import { errorMessage } from '@/utils/errors'
+
+// Los joins patients(...)/user_profiles(...) llegan a-uno como objeto (aunque la inferencia diga arreglo).
+type ReminderPatient = { first_name?: string | null; last_name?: string | null; phone?: string | null } | null
+type ReminderDoctor = { first_name?: string | null; last_name?: string | null } | null
 
 export async function GET(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -75,9 +80,9 @@ export async function GET(request: NextRequest) {
     // Enviar recordatorios de 24 horas
     if (appts24h) {
       for (const app of appts24h) {
-        const patient = app.patients as any
-        const doctor = app.user_profiles as any
-        
+        const patient = app.patients as unknown as ReminderPatient
+        const doctor = app.user_profiles as unknown as ReminderDoctor
+
         if (patient?.phone) {
           const apptDate = new Date(app.scheduled_at)
           const formattedDate = apptDate.toLocaleDateString('es-HN', {
@@ -101,9 +106,9 @@ export async function GET(request: NextRequest) {
     // Enviar recordatorios de 2 horas
     if (appts2h) {
       for (const app of appts2h) {
-        const patient = app.patients as any
-        const doctor = app.user_profiles as any
-        
+        const patient = app.patients as unknown as ReminderPatient
+        const doctor = app.user_profiles as unknown as ReminderDoctor
+
         if (patient?.phone) {
           const apptDate = new Date(app.scheduled_at)
           const formattedDate = `Hoy a las ${apptDate.toLocaleTimeString('es-HN', {
@@ -122,8 +127,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, reminders_sent: sentCount }, { status: 200 })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error enviando recordatorios programados:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: errorMessage(error, 'Error interno') }, { status: 500 })
   }
 }

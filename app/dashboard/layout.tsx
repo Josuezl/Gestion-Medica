@@ -71,7 +71,9 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
-  const clinicName = (profile?.clinics as any)?.name || 'Mi Consultorio'
+  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
+  const clinicRef = profile?.clinics as unknown as { name?: string | null } | null
+  const clinicName = clinicRef?.name || 'Mi Consultorio'
   const doctorName = profile ? personShortName(profile.first_name, profile.last_name) : 'Médico'
   const specialty = profile?.specialty || 'General'
 

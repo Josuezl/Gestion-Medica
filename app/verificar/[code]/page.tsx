@@ -3,7 +3,30 @@ import { createClient } from '@supabase/supabase-js'
 import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList, FlaskConical } from 'lucide-react'
 import { formatDateHN } from '@/utils/datetime'
 import { doctorTitle } from '@/utils/doctorName'
-import { medicineDetail } from '@/utils/medicines'
+import { medicineDetail, type Medicine } from '@/utils/medicines'
+
+/**
+ * Forma común de los documentos verificables por código (receta, incapacidad/referencia,
+ * orden de laboratorio, solicitud de estudios). Los joins a-uno llegan como objeto, aunque
+ * la inferencia del cliente diga arreglo — de ahí el cast en cada consulta.
+ */
+interface VerifiableDoc {
+  id: string
+  created_at: string
+  verification_code?: string | null
+  medicines?: Medicine[] | null
+  notes?: string | null
+  medical_leave?: string | null
+  referral?: string | null
+  reason_for_visit?: string | null
+  tests?: { category: string; name: string }[] | null
+  other_tests?: string | null
+  studies?: { section: string; name: string }[] | null
+  other_studies?: string | null
+  clinics?: { name?: string | null; phone?: string | null; address?: string | null } | null
+  patients?: { first_name?: string | null; last_name?: string | null } | null
+  user_profiles?: { first_name?: string | null; last_name?: string | null; specialty?: string | null; gender?: string | null; practice_name?: string | null } | null
+}
 
 // Página PÚBLICA: usa el cliente service_role porque RLS bloquea el acceso anónimo.
 // Se instancia DENTRO del componente (no a nivel de módulo) para no romper el build.
@@ -19,7 +42,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: prescription } = await supabaseAdmin
+  const { data: prescriptionData } = await supabaseAdmin
     .from('prescriptions')
     .select(`
       id, created_at, medicines, notes, verification_code,
@@ -29,9 +52,10 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     `)
     .eq('verification_code', code)
     .single()
+  const prescription = prescriptionData as unknown as VerifiableDoc | null
 
   // Si no es una receta, buscar una incapacidad/consulta con ese código.
-  let leave: any = null
+  let leave: VerifiableDoc | null = null
   if (!prescription) {
     const { data } = await supabaseAdmin
       .from('consultations')
@@ -43,11 +67,11 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
       `)
       .eq('verification_code', code)
       .single()
-    leave = data
+    leave = data as unknown as VerifiableDoc | null
   }
 
   // Si no es receta ni incapacidad, buscar una orden de laboratorio con ese código.
-  let labOrder: any = null
+  let labOrder: VerifiableDoc | null = null
   if (!prescription && !leave) {
     const { data } = await supabaseAdmin
       .from('lab_orders')
@@ -59,11 +83,11 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
       `)
       .eq('verification_code', code)
       .single()
-    labOrder = data
+    labOrder = data as unknown as VerifiableDoc | null
   }
 
   // Si no es receta, incapacidad ni orden de laboratorio, buscar una solicitud de estudios.
-  let studyRequest: any = null
+  let studyRequest: VerifiableDoc | null = null
   if (!prescription && !leave && !labOrder) {
     const { data } = await supabaseAdmin
       .from('study_requests')
@@ -75,10 +99,10 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
       `)
       .eq('verification_code', code)
       .single()
-    studyRequest = data
+    studyRequest = data as unknown as VerifiableDoc | null
   }
 
-  const doc: any = prescription || leave || labOrder || studyRequest
+  const doc = prescription || leave || labOrder || studyRequest
   const isValid = !!doc
   const isReferral = !prescription && !!leave && wantReferral
   const isLeave = !prescription && !!leave && !wantReferral
@@ -89,24 +113,24 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
   const docDoctor = doc?.user_profiles
 
   // Exámenes de la orden, agrupados por categoría (para mostrarlos en la verificación).
-  const labTests: { category: string; name: string }[] = isLabOrder && Array.isArray(labOrder.tests) ? labOrder.tests : []
+  const labTests: { category: string; name: string }[] = isLabOrder && Array.isArray(labOrder?.tests) ? labOrder.tests : []
   const labGroups: { category: string; names: string[] }[] = []
   for (const t of labTests) {
     let g = labGroups.find((x) => x.category === t.category)
     if (!g) { g = { category: t.category, names: [] }; labGroups.push(g) }
     g.names.push(t.name)
   }
-  const labOtherLines = isLabOrder ? (labOrder.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
+  const labOtherLines = isLabOrder ? (labOrder?.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
 
   // Estudios de la solicitud, agrupados por sección (para mostrarlos en la verificación).
-  const studyItems: { section: string; name: string; indication?: string | null }[] = isStudyRequest && Array.isArray(studyRequest.studies) ? studyRequest.studies : []
+  const studyItems: { section: string; name: string; indication?: string | null }[] = isStudyRequest && Array.isArray(studyRequest?.studies) ? studyRequest.studies : []
   const studyGroups: { section: string; names: string[] }[] = []
   for (const s of studyItems) {
     let g = studyGroups.find((x) => x.section === s.section)
     if (!g) { g = { section: s.section, names: [] }; studyGroups.push(g) }
     g.names.push(s.name)
   }
-  const studyOtherLines = isStudyRequest ? (studyRequest.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
+  const studyOtherLines = isStudyRequest ? (studyRequest?.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean) : []
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
@@ -167,11 +191,11 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     <ClipboardList size={20} color="#0d9488" /> Referencia Médica
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
-                    {leave.reason_for_visit && (
-                      <p style={{ margin: '0 0 0.75rem' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de consulta:</strong> {leave.reason_for_visit}</p>
+                    {leave?.reason_for_visit && (
+                      <p style={{ margin: '0 0 0.75rem' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de consulta:</strong> {leave?.reason_for_visit}</p>
                     )}
-                    {leave.referral && String(leave.referral).trim() !== ''
-                      ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de referencia:</strong> {leave.referral}</p>
+                    {leave?.referral && String(leave?.referral).trim() !== ''
+                      ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de referencia:</strong> {leave?.referral}</p>
                       : <p style={{ margin: 0, color: '#64748b' }}>Referencia médica.</p>}
                   </div>
                 </div>
@@ -181,11 +205,11 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     <ClipboardList size={20} color="#0d9488" /> Incapacidad Médica
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
-                    {leave.medical_leave && String(leave.medical_leave).trim() !== ''
-                      ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{leave.medical_leave}</p>
+                    {leave?.medical_leave && String(leave?.medical_leave).trim() !== ''
+                      ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{leave?.medical_leave}</p>
                       : <p style={{ margin: 0, color: '#64748b' }}>Constancia de consulta médica.</p>}
-                    {leave.reason_for_visit && (
-                      <p style={{ margin: '0.75rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>Motivo: {leave.reason_for_visit}</p>
+                    {leave?.reason_for_visit && (
+                      <p style={{ margin: '0.75rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>Motivo: {leave?.reason_for_visit}</p>
                     )}
                   </div>
                 </div>
@@ -241,8 +265,8 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     <FileText size={20} color="#0d9488" /> Medicamentos Recetados
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                    {(prescription!.medicines as any[]).map((med, idx) => (
-                      <div key={idx} style={{ padding: '1rem', borderBottom: idx !== (prescription!.medicines as any[]).length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                    {(prescription!.medicines || []).map((med, idx) => (
+                      <div key={idx} style={{ padding: '1rem', borderBottom: idx !== (prescription!.medicines || []).length - 1 ? '1px solid #e2e8f0' : 'none' }}>
                         <p style={{ margin: '0 0 0.25rem', fontWeight: 600, color: '#0f172a' }}>{idx + 1}. {med.name}</p>
                         {medicineDetail(med) && (
                           <p style={{ margin: '0', fontSize: '0.875rem', color: '#64748b' }}>{medicineDetail(med)}</p>

@@ -42,7 +42,21 @@ export default async function BookingStatusPage({ params }: { params: Promise<{ 
   const { code } = await params
   const sanitized = decodeURIComponent(code).trim().toUpperCase().replace(/[–—]/g, '-')
 
-  let request: any = null
+  // Solicitud con sus joins a-uno resueltos como objeto (no arreglo, pese a la inferencia del cliente).
+  type BookingStatusRow = {
+    status: string
+    requested_at: string | null
+    rejection_reason: string | null
+    submitted_first_name: string
+    submitted_last_name: string
+    created_at: string
+    appointments: { scheduled_at: string; status: string } | null
+    doctor: { first_name: string; last_name: string; gender?: string | null } | null
+    clinics: { name: string } | null
+    locations: { name: string } | null
+  }
+
+  let request: BookingStatusRow | null = null
   if (/^CITA-[0-9A-Z]{10}$/.test(sanitized)) {
     const admin = createAdminClient()
     const { data } = await admin
@@ -56,7 +70,7 @@ export default async function BookingStatusPage({ params }: { params: Promise<{ 
       `)
       .eq('tracking_code', sanitized)
       .maybeSingle()
-    request = data
+    request = data as unknown as BookingStatusRow | null
   }
 
   if (!request) {

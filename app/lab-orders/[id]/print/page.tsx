@@ -6,6 +6,8 @@ import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { loadPublicDocument } from '@/utils/publicDocument'
 import DocumentCodeGate from '@/app/components/DocumentCodeGate'
+import { calculateAge } from '@/utils/age'
+import type { LabOrderRow } from '@/utils/clinicalTypes'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -14,42 +16,31 @@ interface PageProps {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
-function calculateAge(birthDateString: string) {
-  const today = new Date()
-  const birthDate = new Date(birthDateString)
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const m = today.getMonth() - birthDate.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--
-  return age
-}
-
 export default async function PrintLabOrderPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const sp = searchParams ? await searchParams : {}
   const code = typeof sp.code === 'string' ? sp.code : undefined
 
   // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
-  const access = await loadPublicDocument('lab_orders', id, code)
+  const access = await loadPublicDocument<LabOrderRow>('lab_orders', id, code)
   if (access.status === 'notfound') return notFound()
   if (access.status === 'gate') {
     return <DocumentCodeGate basePath={`/lab-orders/${id}/print`} hasError={!!access.hasError} docLabel="Orden de Laboratorio" />
   }
-  const order = access.doc
-  const patient = access.patient
-  const doctor = access.doctor
-  const clinic = access.clinic
+  const { doc: order, patient, doctor, clinic } = access
+  if (!order || !patient || !doctor || !clinic) return notFound()
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(order.created_at)
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const logoUrl = (doctor as any).practice_logo_url || (clinic as any).logo_url
+  const logoUrl = doctor.practice_logo_url || clinic.logo_url
   // Si el médico usa SU PROPIO logo, este suele incluir su nombre/especialidad → se ocultan del
   // encabezado. Con el logo global de la clínica (o sin logo) sí se muestran.
-  const usingOwnLogo = !!(doctor as any).practice_logo_url
+  const usingOwnLogo = !!doctor.practice_logo_url
   // Con el logo global de la clínica, acercar la línea de tel/dirección al logo (se ve muy separada).
   const isGlobalLogo = !!logoUrl && !usingOwnLogo
-  const getGenderText = (g: string) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
+  const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   // Agrupar los exámenes solicitados por categoría conservando el orden.
   const tests: { category: string; name: string }[] = Array.isArray(order.tests) ? order.tests : []

@@ -42,6 +42,9 @@ export interface Patient {
   birth_date?: string
   gender?: string
   id_card?: string
+  is_pediatric?: boolean | null
+  // Pacientes migrados sin fecha de nacimiento confiable ('unknown' dispara el aviso del formulario).
+  dob_status?: string | null
 }
 
 export interface Appointment {
@@ -122,7 +125,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   // Pacientes con pre-clínica pendiente de hoy (badge "Signos listos") y paciente del modal de signos.
   const router = useRouter()
   const preclinicalSet = useMemo(() => new Set(preclinicalPatientIds), [preclinicalPatientIds])
-  const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: any; appointmentId: string | null } | null>(null)
+  const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: Patient; appointmentId: string | null } | null>(null)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
   const [selectedLocationId, setSelectedLocationId] = useState<string>(
@@ -665,7 +668,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
               onStatusChange={(s) => handleStatusChange(app, s)}
               onEdit={() => handleOpenForm(selectedDate, undefined, app)}
               onDelete={() => handleDeleteAppointment(app)}
-              onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
+              onTakeVitals={() => { if (app.patients) setVitalsModalPatient({ patient: app.patients, appointmentId: app.id }) }}
             />
           ))}
         </div>
@@ -724,7 +727,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
               onStatusChange={(s) => handleStatusChange(app, s)}
               onEdit={() => handleOpenForm(undefined, undefined, app)}
               onDelete={() => handleDeleteAppointment(app)}
-              onTakeVitals={() => setVitalsModalPatient({ patient: app.patients, appointmentId: app.id })}
+              onTakeVitals={() => { if (app.patients) setVitalsModalPatient({ patient: app.patients, appointmentId: app.id }) }}
             />
           ))}
         </div>
@@ -955,7 +958,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
             </div>
 
             {(() => {
-              const sel = patientSearchResults.find(p => p.id === selectedPatientId) as any
+              const sel = patientSearchResults.find(p => p.id === selectedPatientId)
               return sel && sel.dob_status === 'unknown' ? (
                 <div style={{ padding: '0.6rem 0.75rem', borderRadius: '10px', background: 'rgba(180, 83, 9, 0.08)', border: '1px solid rgba(180, 83, 9, 0.35)', color: '#b45309', fontSize: '0.82rem', fontWeight: 600 }}>
                   ⚠️ Este paciente no tiene fecha de nacimiento registrada. Actualízala con urgencia: afecta el cálculo de edad y de dosis.

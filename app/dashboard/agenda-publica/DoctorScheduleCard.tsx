@@ -10,6 +10,19 @@ const WEEKDAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'V
 // Orden de despliegue: lunes primero (semana laboral), domingo al final.
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
+interface DoctorOption {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  gender?: string | null
+}
+
+interface LocationOption {
+  id: string
+  name: string
+  is_active?: boolean | null
+}
+
 interface ScheduleRow {
   id: string
   doctor_id: string
@@ -26,8 +39,8 @@ interface ScheduleRow {
  * "Horario general": el portal usa el de la sede del link, y si no existe cae al general.
  * No afecta la agenda interna (el staff puede agendar a cualquier hora).
  */
-export default function DoctorScheduleCard({ doctors, schedules, locations }: { doctors: any[]; schedules: ScheduleRow[]; locations: any[] }) {
-  const activeLocations = locations.filter((l: any) => l.is_active)
+export default function DoctorScheduleCard({ doctors, schedules, locations }: { doctors: DoctorOption[]; schedules: ScheduleRow[]; locations: LocationOption[] }) {
+  const activeLocations = locations.filter((l) => l.is_active)
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(doctors[0]?.id || '')
   // '' = horario general (location_id NULL); un id = horario propio de esa sede.
   const [selectedLocationId, setSelectedLocationId] = useState<string>('')
@@ -109,7 +122,7 @@ export default function DoctorScheduleCard({ doctors, schedules, locations }: { 
           onChange={e => { setSelectedDoctorId(e.target.value); setEditing(null); setError(null); setSaved(false) }}
           style={{ minWidth: '220px', maxWidth: '320px' }}
         >
-          {doctors.map((d: any) => (
+          {doctors.map((d) => (
             <option key={d.id} value={d.id}>{doctorShortName(d.first_name, d.last_name, d.gender)}</option>
           ))}
         </select>
@@ -121,7 +134,7 @@ export default function DoctorScheduleCard({ doctors, schedules, locations }: { 
             style={{ minWidth: '180px', maxWidth: '280px' }}
           >
             <option value="">Horario general</option>
-            {activeLocations.map((l: any) => (
+            {activeLocations.map((l) => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>

@@ -206,7 +206,7 @@ export async function createConsultation(
 
     // La columna `diagnosis` solo se incluye en el insert cuando hay valor, para no romper
     // la creación de recetas normales si la migración (ALTER TABLE) aún no se ha aplicado.
-    const prescriptionInsert: Record<string, any> = {
+    const prescriptionInsert: Record<string, string | Medicine[] | null> = {
       clinic_id: clinicId,
       patient_id: patientId,
       consultation_id: consultation.id,

@@ -14,12 +14,19 @@ interface BlockRow {
   reason: string | null
 }
 
+interface DoctorOption {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  gender?: string | null
+}
+
 /**
  * Card de "Agenda en línea": días bloqueados por médico (vacaciones, congresos, permisos).
  * El portal público deja de ofrecer esas fechas en todas sus sedes; la agenda interna no
  * cambia (el staff puede seguir agendando a mano si hace falta).
  */
-export default function DoctorBlocksCard({ doctors, blocks }: { doctors: any[]; blocks: BlockRow[] }) {
+export default function DoctorBlocksCard({ doctors, blocks }: { doctors: DoctorOption[]; blocks: BlockRow[] }) {
   const [doctorId, setDoctorId] = useState(doctors[0]?.id || '')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -76,7 +83,7 @@ export default function DoctorBlocksCard({ doctors, blocks }: { doctors: any[]; 
         <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '180px', maxWidth: '280px' }}>
           <label className="form-label">Médico</label>
           <select className="form-input" value={doctorId} onChange={e => setDoctorId(e.target.value)}>
-            {doctors.map((d: any) => (
+            {doctors.map((d) => (
               <option key={d.id} value={d.id}>{doctorShortName(d.first_name, d.last_name, d.gender)}</option>
             ))}
           </select>

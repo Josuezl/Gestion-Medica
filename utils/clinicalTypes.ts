@@ -130,6 +130,30 @@ export interface StudyRequestRow {
   user_profiles?: DoctorRef | null
 }
 
+/** Fila de user_profiles con los datos que usan los documentos con membrete. */
+export interface DoctorProfileRow {
+  id?: string
+  first_name?: string | null
+  last_name?: string | null
+  gender?: string | null
+  specialty?: string | null
+  professional_id?: string | null
+  signature_url?: string | null
+  practice_name?: string | null
+  practice_phone?: string | null
+  practice_address?: string | null
+  practice_logo_url?: string | null
+}
+
+/** Fila de clinics con los datos del membrete. */
+export interface ClinicRow {
+  id?: string
+  name?: string | null
+  phone?: string | null
+  address?: string | null
+  logo_url?: string | null
+}
+
 /** Fila de preclinical_vitals (signos tomados por enfermería antes de la consulta). */
 export interface PreclinicalVitalsRow {
   id: string

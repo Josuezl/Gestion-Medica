@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import type { PatientRow, DoctorProfileRow, ClinicRow } from '@/utils/clinicalTypes'
 
 /**
  * Acceso público (por código) a los documentos con membrete para que el paciente los abra desde el
@@ -17,12 +18,12 @@ export function sanitizeDocCode(raw?: string | null): string {
     .replace(/[\s-]/g, '')
 }
 
-type LoadResult = {
+export type PublicDocResult<Doc = Record<string, unknown>> = {
   status: 'ok' | 'gate' | 'notfound'
-  doc?: any
-  patient?: any
-  doctor?: any
-  clinic?: any
+  doc?: Doc
+  patient?: PatientRow
+  doctor?: DoctorProfileRow
+  clinic?: ClinicRow
   hasError?: boolean
 }
 
@@ -30,8 +31,9 @@ type LoadResult = {
  * Carga un documento (consultation | lab_order | study_request) autorizando por sesión de personal
  * de la clínica O por `code`. Devuelve también paciente/médico/clínica (vía service_role, ya que el
  * acceso quedó autorizado). `status: 'gate'` = existe pero falta/!coincide el código (mostrar portal).
+ * `Doc` es la forma de la fila de `table` que espera la página que lo consume.
  */
-export async function loadPublicDocument(table: 'consultations' | 'lab_orders' | 'study_requests', id: string, code: string | undefined): Promise<LoadResult> {
+export async function loadPublicDocument<Doc = Record<string, unknown>>(table: 'consultations' | 'lab_orders' | 'study_requests', id: string, code: string | undefined): Promise<PublicDocResult<Doc>> {
   const admin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

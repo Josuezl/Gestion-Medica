@@ -2,7 +2,7 @@ import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Inbox } from 'lucide-react'
-import SolicitudesClient from './SolicitudesClient'
+import SolicitudesClient, { type RequestRow } from './SolicitudesClient'
 
 /**
  * Bandeja de solicitudes del portal público de auto-agendamiento (pendientes de aprobación).
@@ -92,8 +92,11 @@ export default async function SolicitudesPage() {
     .eq('status', 'PENDING')
     .order('created_at', { ascending: true })
 
-  const withSuggestions = await Promise.all(
-    (requests || []).map(async (r: any) => ({
+  // La fila de booking_requests con sus joins (a-uno). findSuggestions solo lee submitted_* y
+  // matched_patient_id; el resto viaja tal cual a SolicitudesClient. `suggestions` la añade el map.
+  const rows = (requests || []) as unknown as Omit<RequestRow, 'suggestions'>[]
+  const withSuggestions: RequestRow[] = await Promise.all(
+    rows.map(async (r) => ({
       ...r,
       suggestions: await findSuggestions(supabase, profile.clinic_id, r),
     }))

@@ -4,9 +4,10 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteMedicalStudy, getStudySignedUrl } from '../patients/actions'
 import { FileSpreadsheet, Download, Trash2, Loader2 } from 'lucide-react'
+import type { StudyRow } from '@/utils/clinicalTypes'
 
 interface StudyListProps {
-  studies: any[]
+  studies: StudyRow[]
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
@@ -38,7 +39,7 @@ export default function StudyList({ studies, currentUserId, currentUserRole, isO
     if (win) win.location.href = res.url
   }
 
-  const canDeleteStudy = (study: any) =>
+  const canDeleteStudy = (study: StudyRow) =>
     isOrgAdmin || (study.uploaded_by === currentUserId && currentUserRole === 'DOCTOR')
 
   async function handleDeleteStudy(studyId: string) {
