@@ -4,6 +4,7 @@ import React, { useState, useTransition } from 'react'
 import { FileText, X, Loader2, Printer, CheckCircle2 } from 'lucide-react'
 import { updateConsultationMedicalLeave } from '@/app/dashboard/consultations/actions'
 import { doctorShortName } from '@/utils/doctorName'
+import type { ConsultationRow, PatientRow } from '@/utils/clinicalTypes'
 
 /**
  * Modal para EMITIR (o corregir) la incapacidad médica sobre la ÚLTIMA consulta del paciente, sin
@@ -12,8 +13,9 @@ import { doctorShortName } from '@/utils/doctorName'
  * solo lectura. Si la consulta ya tenía incapacidad, se puede corregir y queda auditado (old→new).
  */
 export default function MedicalLeaveModal({ consultation, patient, onClose, onSaved }: {
-  consultation: any // última consulta: id, created_at, diagnosis, medical_leave, user_profiles
-  patient: any
+  /** Última consulta del paciente: id, created_at, diagnosis, medical_leave, user_profiles. */
+  consultation: ConsultationRow
+  patient: Pick<PatientRow, 'first_name' | 'last_name'>
   onClose: () => void
   onSaved?: () => void
 }) {

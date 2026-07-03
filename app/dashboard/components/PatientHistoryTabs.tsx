@@ -18,11 +18,19 @@ import StudyUploader from './StudyUploader'
 import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
-import { medicineDetail } from '@/utils/medicines'
+import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
+import type {
+  PatientRow,
+  ConsultationRow,
+  PrescriptionRow,
+  StudyRow,
+  LabOrderRow,
+  LabTestItem,
+} from '@/utils/clinicalTypes'
 
 /** Agrupa los exámenes [{category,name}] de una orden por categoría conservando el orden. */
-function groupLabTests(tests: any[]): { category: string; names: string[] }[] {
+function groupLabTests(tests: LabTestItem[] | null | undefined): { category: string; names: string[] }[] {
   const out: { category: string; names: string[] }[] = []
   for (const t of (Array.isArray(tests) ? tests : [])) {
     let g = out.find((x) => x.category === t.category)
@@ -33,11 +41,11 @@ function groupLabTests(tests: any[]): { category: string; names: string[] }[] {
 }
 
 interface PatientHistoryTabsProps {
-  patient: any
-  consultations: any[]
-  studies: any[]
-  prescriptions: any[]
-  labOrders?: any[]
+  patient: PatientRow
+  consultations: ConsultationRow[]
+  studies: StudyRow[]
+  prescriptions: PrescriptionRow[]
+  labOrders?: LabOrderRow[]
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
@@ -57,7 +65,7 @@ export default function PatientHistoryTabs({
   const [activeTab, setActiveTab] = useState<'consultations' | 'history' | 'prescriptions' | 'laborders' | 'studies' | 'pediatrics'>('consultations')
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
-  const [whatsappModalPresc, setWhatsappModalPresc] = useState<any | null>(null)
+  const [whatsappModalPresc, setWhatsappModalPresc] = useState<PrescriptionRow | null>(null)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
     setExpandedConsultations(prev => ({
@@ -66,7 +74,7 @@ export default function PatientHistoryTabs({
     }))
   }
 
-  const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: any) => {
+  const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: PrescriptionRow) => {
     e.preventDefault()
     setWhatsappModalPresc(presc)
   }
@@ -316,7 +324,7 @@ export default function PatientHistoryTabs({
                                       <span style={{ flex: 1 }}>Medicamento</span>
                                     </div>
 
-                                    {(consult.prescriptions[0].medicines || []).map((med: any, idx: number) => (
+                                    {(consult.prescriptions[0].medicines || []).map((med: Medicine, idx: number) => (
                                       <div key={idx} style={{
                                         display: 'flex',
                                         gap: '0.75rem',
@@ -460,7 +468,7 @@ export default function PatientHistoryTabs({
                             }}>
                               <span>Medicamento</span>
                             </div>
-                            {(presc.medicines || []).map((med: any, idx: number) => (
+                            {(presc.medicines || []).map((med: Medicine, idx: number) => (
                               <div key={idx} style={{
                                 padding: '0.5rem 0.6rem',
                                 backgroundColor: 'var(--bg-card)',

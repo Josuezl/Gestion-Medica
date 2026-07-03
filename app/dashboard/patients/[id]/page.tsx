@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
 import PatientDetailsClient from './PatientDetailsClient'
+import type { ConsultationRow, MedicalLeaveRow, ReferralRow, StudyRow } from '@/utils/clinicalTypes'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -30,7 +31,9 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     .eq('id', user.id)
     .single()
   // N° de Expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San Martín).
-  const showRecordNumber = !!(currentProfile as any)?.clinics?.show_record_number
+  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
+  const profileCfg = currentProfile as unknown as { clinics: { show_record_number: boolean | null } | null } | null
+  const showRecordNumber = !!profileCfg?.clinics?.show_record_number
 
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase
@@ -56,7 +59,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
 
   // 3. Cargar consultas de evolución (con recetas asociadas)
   const { data: consultations } = !clinical
-    ? { data: [] as any[] }
+    ? { data: [] as ConsultationRow[] }
     : await supabase
         .from('consultations')
         .select('*, user_profiles(first_name, last_name, gender), prescriptions(id, medicines, notes, verification_code, pdf_url)')
@@ -66,7 +69,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   // 4. Cargar estudios médicos. Las URLs firmadas se generan BAJO DEMANDA (al hacer clic en
   //    "Ver/Descargar"), no aquí, para evitar el N+1 a Storage por carga de página (M5).
   const { data: studies } = !clinical
-    ? { data: [] as any[] }
+    ? { data: [] as StudyRow[] }
     : await supabase
         .from('studies')
         .select('*')
@@ -127,8 +130,8 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       prescriptions={prescriptions || []}
       labOrders={labOrders || []}
       studyRequests={studyRequests || []}
-      medicalLeaves={medicalLeaves || []}
-      referrals={referrals || []}
+      medicalLeaves={(medicalLeaves as unknown as MedicalLeaveRow[]) || []}
+      referrals={(referrals as unknown as ReferralRow[]) || []}
       showRecordNumber={showRecordNumber}
       initialEdit={isEditing}
       justCreated={justCreated}

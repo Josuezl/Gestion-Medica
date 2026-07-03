@@ -4,13 +4,14 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Stethoscope } from 'lucide-react'
 import PreclinicalVitalsModal from '@/app/dashboard/components/PreclinicalVitalsModal'
+import type { PatientRow } from '@/utils/clinicalTypes'
 
 /**
  * Botón "Tomar signos" para la lista de pacientes: abre la pre-clínica (signos vitales) del
  * paciente sin entrar al expediente. Pensado para que la enfermera busque por nombre y registre
  * en un clic. Solo se monta para roles con canEnterVitals (enfermera/médico/admin).
  */
-export default function PatientVitalsButton({ patient }: { patient: any }) {
+export default function PatientVitalsButton({ patient }: { patient: Pick<PatientRow, 'id' | 'first_name' | 'last_name' | 'is_pediatric'> }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   return (

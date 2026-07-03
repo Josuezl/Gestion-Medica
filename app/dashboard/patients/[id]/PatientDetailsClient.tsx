@@ -6,9 +6,20 @@ import { updatePatient, updatePatientGender } from '../actions'
 import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, sendStudyRequestByEmail } from './email-actions'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
-import { isPediatric } from '@/utils/age'
-import { medicineDetail } from '@/utils/medicines'
+import { isPediatric, calculateAge } from '@/utils/age'
+import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
+import type {
+  PatientRow,
+  ConsultationRow,
+  PrescriptionRow,
+  StudyRow,
+  LabOrderRow,
+  StudyRequestRow,
+  MedicalLeaveRow,
+  ReferralRow,
+  ShareableDoc,
+} from '@/utils/clinicalTypes'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
 import {
@@ -40,18 +51,6 @@ import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
 
-// Utilidad para calcular edad
-function calculateAge(birthDateString: string) {
-  const today = new Date()
-  const birthDate = new Date(birthDateString)
-  let age = today.getFullYear() - birthDate.getFullYear()
-  const m = today.getMonth() - birthDate.getMonth()
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--
-  }
-  return age
-}
-
 // Convierte 'YYYY-MM-DD' a Date en hora LOCAL para evitar el corrimiento de un día que provoca
 // `new Date('YYYY-MM-DD')` (se interpreta como UTC y, en zonas como Honduras UTC-6, retrocede al
 // día anterior). Los timestamps con hora/zona se dejan al parseo normal.
@@ -64,14 +63,14 @@ function parseLocalDate(value: string) {
 }
 
 interface PatientDetailsClientProps {
-  patient: any
-  consultations: any[]
-  studies: any[]
-  prescriptions: any[]
-  labOrders?: any[]
-  studyRequests?: any[]
-  medicalLeaves?: any[]
-  referrals?: any[]
+  patient: PatientRow
+  consultations: ConsultationRow[]
+  studies: StudyRow[]
+  prescriptions: PrescriptionRow[]
+  labOrders?: LabOrderRow[]
+  studyRequests?: StudyRequestRow[]
+  medicalLeaves?: MedicalLeaveRow[]
+  referrals?: ReferralRow[]
   showRecordNumber?: boolean
   initialEdit?: boolean
   justCreated?: boolean
@@ -101,12 +100,12 @@ export default function PatientDetailsClient({
   const canClinical = canDoClinical(currentUserRole)
   const canTakeVitals = canEnterVitals(currentUserRole)
   // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
-  const lastConsult: any = consultations && consultations.length > 0 ? consultations[0] : null
+  const lastConsult: ConsultationRow | null = consultations && consultations.length > 0 ? consultations[0] : null
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
-  const [whatsappShare, setWhatsappShare] = useState<{ doc: any; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest' } | null>(null)
+  const [whatsappShare, setWhatsappShare] = useState<{ doc: ShareableDoc; docType: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest' } | null>(null)
   const [showVitalsModal, setShowVitalsModal] = useState(false)
   // Modal para emitir/corregir la incapacidad de la última consulta (sin editar lo clínico).
   const [showLeaveModal, setShowLeaveModal] = useState(false)
@@ -119,20 +118,20 @@ export default function PatientDetailsClient({
     }))
   }
 
-  const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: any) => {
+  const handleWhatsAppPrescriptionShare = (e: React.MouseEvent<HTMLAnchorElement>, presc: PrescriptionRow) => {
     e.preventDefault()
     setWhatsappShare({ doc: presc, docType: 'prescription' })
   }
-  const handleWhatsAppLabShare = (order: any) => {
+  const handleWhatsAppLabShare = (order: LabOrderRow) => {
     setWhatsappShare({ doc: order, docType: 'laborder' })
   }
-  const handleWhatsAppLeaveShare = (leave: any) => {
+  const handleWhatsAppLeaveShare = (leave: MedicalLeaveRow) => {
     setWhatsappShare({ doc: leave, docType: 'incapacidad' })
   }
-  const handleWhatsAppReferralShare = (ref: any) => {
+  const handleWhatsAppReferralShare = (ref: ReferralRow) => {
     setWhatsappShare({ doc: ref, docType: 'referral' })
   }
-  const handleWhatsAppStudyShare = (order: any) => {
+  const handleWhatsAppStudyShare = (order: StudyRequestRow) => {
     setWhatsappShare({ doc: order, docType: 'studyrequest' })
   }
   const [expandedPrescription, setExpandedPrescription] = useState<string | null>(null)
@@ -172,7 +171,7 @@ export default function PatientDetailsClient({
 
     const consultationsHtml = consultations.length === 0
       ? `<p style="color:#888;font-style:italic;">No hay consultas registradas.</p>`
-      : consultations.map((c: any, index: number) => {
+      : consultations.map((c, index) => {
           const docName = doctorShortName(c.user_profiles?.first_name, c.user_profiles?.last_name, c.user_profiles?.gender);
           const consultDate = formatDate(c.created_at);
 
@@ -189,7 +188,7 @@ export default function PatientDetailsClient({
             ? `<table class="med-table">
                 <thead><tr><th>#</th><th>Medicamento</th></tr></thead>
                 <tbody>
-                  ${c.prescriptions[0].medicines.map((m: any, i: number) => {
+                  ${c.prescriptions[0].medicines!.map((m, i) => {
                     const det = medicineDetail(m)
                     return `<tr>
                       <td>${i + 1}</td>
@@ -575,7 +574,7 @@ export default function PatientDetailsClient({
             <div class="info-grid">
               <div class="info-field"><label>Nombre completo</label><span>${patient.first_name} ${patient.last_name}</span></div>
               <div class="info-field"><label>Identidad (DNI)</label><span>${patient.id_card || 'N/A'}</span></div>
-              <div class="info-field"><label>Fecha de nacimiento</label><span>${formatDate(patient.birth_date)}</span></div>
+              <div class="info-field"><label>Fecha de nacimiento</label><span>${formatDate(patient.birth_date || '')}</span></div>
               <div class="info-field"><label>Edad</label><span>${calculateAge(patient.birth_date)} años</span></div>
               <div class="info-field"><label>Sexo</label><span>${patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}</span></div>
               <div class="info-field"><label>Tipo de sangre</label><span>${patient.blood_type || 'N/A'}</span></div>
@@ -779,7 +778,7 @@ export default function PatientDetailsClient({
               {patient.dob_status === 'unknown' ? (
                 <span style={{ color: '#b45309', fontWeight: 700 }}>⚠️ Fecha de nacimiento por confirmar</span>
               ) : (
-                <>{calculateAge(patient.birth_date)} años{patient.dob_status === 'estimated' ? ' (estimada)' : ''} • Nacido el {parseLocalDate(patient.birth_date).toLocaleDateString('es-HN')}</>
+                <>{calculateAge(patient.birth_date)} años{patient.dob_status === 'estimated' ? ' (estimada)' : ''} • Nacido el {patient.birth_date ? parseLocalDate(patient.birth_date).toLocaleDateString('es-HN') : '—'}</>
               )} •
               Género:
               <select
@@ -942,7 +941,7 @@ export default function PatientDetailsClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Identidad (DNI)</label>
-                <input className="form-input" name="id_card" defaultValue={patient.id_card} />
+                <input className="form-input" name="id_card" defaultValue={patient.id_card ?? ''} />
               </div>
               {showRecordNumber && (
                 <div className="form-group">
@@ -952,7 +951,7 @@ export default function PatientDetailsClient({
               )}
               <div className="form-group">
                 <label className="form-label">Fecha de Nacimiento *</label>
-                <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date} onChange={(e) => setIsEditPediatric(isPediatric(e.target.value))} required />
+                <input className="form-input" type="date" name="birth_date" defaultValue={patient.birth_date ?? ''} onChange={(e) => setIsEditPediatric(isPediatric(e.target.value))} required />
               </div>
               <div className="form-group">
                 <label className="form-label">WhatsApp (Honduras)</label>
@@ -960,7 +959,7 @@ export default function PatientDetailsClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Correo Electrónico</label>
-                <input className="form-input" type="email" name="email" defaultValue={patient.email} />
+                <input className="form-input" type="email" name="email" defaultValue={patient.email ?? ''} />
               </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label">Dirección</label>
@@ -1004,11 +1003,11 @@ export default function PatientDetailsClient({
                 <>
                   <div className="form-group">
                     <label className="form-label">Nombre del Padre</label>
-                    <input className="form-input" name="father_name" defaultValue={patient.father_name} />
+                    <input className="form-input" name="father_name" defaultValue={patient.father_name ?? ''} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Nombre de la Madre</label>
-                    <input className="form-input" name="mother_name" defaultValue={patient.mother_name} />
+                    <input className="form-input" name="mother_name" defaultValue={patient.mother_name ?? ''} />
                   </div>
                 </>
               )}
@@ -1020,22 +1019,22 @@ export default function PatientDetailsClient({
               <>
                 <div className="form-group">
                   <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
-                  <textarea className="form-input" name="allergies" defaultValue={patient.allergies} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
+                  <textarea className="form-input" name="allergies" defaultValue={patient.allergies ?? ''} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
                 </div>
 
                 <div style={styles.formGrid}>
                   <div className="form-group">
                     <label className="form-label">Antecedentes Patológicos</label>
-                    <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history} rows={3} />
+                    <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history ?? ''} rows={3} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Antecedentes No Patológicos</label>
-                    <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history} rows={3} />
+                    <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history ?? ''} rows={3} />
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Antecedentes Heredofamiliares</label>
-                  <textarea className="form-input" name="family_history" defaultValue={patient.family_history} rows={3} />
+                  <textarea className="form-input" name="family_history" defaultValue={patient.family_history ?? ''} rows={3} />
                 </div>
               </>
             )}
@@ -1324,7 +1323,7 @@ export default function PatientDetailsClient({
                                       <span style={{ flex: 1 }}>Medicamento</span>
                                     </div>
 
-                                    {(consult.prescriptions[0].medicines || []).map((med: any, idx: number) => (
+                                    {(consult.prescriptions[0].medicines || []).map((med: Medicine, idx: number) => (
                                       <div key={idx} style={{
                                         display: 'flex',
                                         gap: '0.75rem',
@@ -1487,7 +1486,7 @@ export default function PatientDetailsClient({
                                 <span>Medicamento</span>
                               </div>
                               {/* Medicine Rows */}
-                              {(presc.medicines || []).map((med: any, idx: number) => (
+                              {(presc.medicines || []).map((med: Medicine, idx: number) => (
                                 <div key={idx} style={{
                                   padding: '0.5rem 0.6rem',
                                   backgroundColor: 'var(--bg-card)',
@@ -1754,7 +1753,7 @@ export default function PatientDetailsClient({
       </div>
 
       <WhatsAppShareModal
-        presc={whatsappShare?.doc}
+        presc={whatsappShare?.doc ?? null}
         docType={whatsappShare?.docType || 'prescription'}
         patient={patient}
         appUrl={appUrl}

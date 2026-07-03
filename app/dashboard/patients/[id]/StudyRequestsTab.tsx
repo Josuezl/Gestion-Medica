@@ -3,9 +3,10 @@
 import React from 'react'
 import { ClipboardList, Printer, ChevronUp, ChevronDown, Mail, Loader2 } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
+import type { StudyRequestRow, StudyRequestItem } from '@/utils/clinicalTypes'
 
 /** Agrupa los estudios [{section,name}] de una solicitud por sección conservando el orden. */
-function groupStudies(studies: any[]): { section: string; names: string[] }[] {
+function groupStudies(studies: StudyRequestItem[] | null | undefined): { section: string; names: string[] }[] {
   const out: { section: string; names: string[] }[] = []
   for (const s of (Array.isArray(studies) ? studies : [])) {
     let g = out.find((x) => x.section === s.section)
@@ -21,11 +22,11 @@ function groupStudies(studies: any[]): { section: string; names: string[] }[] {
  * Espejo de LabOrdersTab (solo impresión).
  */
 export default function StudyRequestsTab({ studyRequests, styles, expandedStudyRequest, setExpandedStudyRequest, onWhatsApp, onSendEmail, sendingEmailId, emailMsg }: {
-  studyRequests: any[]
-  styles: any
+  studyRequests: StudyRequestRow[]
+  styles: Record<string, React.CSSProperties>
   expandedStudyRequest: string | null
   setExpandedStudyRequest: (id: string | null) => void
-  onWhatsApp?: (order: any) => void
+  onWhatsApp?: (order: StudyRequestRow) => void
   onSendEmail?: (orderId: string) => void
   sendingEmailId?: string | null
   emailMsg?: { type: 'success' | 'error', text: string, id?: string } | null
@@ -51,7 +52,7 @@ export default function StudyRequestsTab({ studyRequests, styles, expandedStudyR
                     const groups = groupStudies(order.studies)
                     const otherLines = (order.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
                     const total = (Array.isArray(order.studies) ? order.studies.length : 0) + otherLines.length
-                    const withIndication = (Array.isArray(order.studies) ? order.studies : []).filter((s: any) => (s.indication || '').trim())
+                    const withIndication = (Array.isArray(order.studies) ? order.studies : []).filter((s) => (s.indication || '').trim())
 
                     return (
                       <div key={order.id} className="card" style={{ ...styles.studyRow, flexDirection: 'column', alignItems: 'stretch' }}>
@@ -136,7 +137,7 @@ export default function StudyRequestsTab({ studyRequests, styles, expandedStudyR
                               <div style={{ borderTop: '1px solid rgba(13, 148, 136, 0.12)', paddingTop: '0.75rem' }}>
                                 <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Indicaciones para el paciente</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                  {withIndication.map((s: any, i: number) => (
+                                  {withIndication.map((s, i) => (
                                     <div key={i}>
                                       <p style={{ margin: '0 0 0.15rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{s.name}</p>
                                       <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'pre-line' }}>{(s.indication || '').trim()}</p>

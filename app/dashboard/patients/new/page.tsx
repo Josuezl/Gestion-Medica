@@ -29,7 +29,7 @@ function NewPatientForm() {
   const [loading, setLoading] = useState(false)
   // Posible duplicado. `block: true` => duplicado exacto (nombre+fecha+género): NO se puede
   // guardar de todas formas. `block: false` => solo aviso, se puede confirmar y guardar.
-  const [duplicate, setDuplicate] = useState<{ id: string; name: string; birthDate: string; block: boolean } | null>(null)
+  const [duplicate, setDuplicate] = useState<{ id: string; name: string; birthDate: string | null; block: boolean } | null>(null)
   const pendingForm = useRef<FormData | null>(null)
   // Se detecta automáticamente por la fecha de nacimiento (menor de 19 años).
   const [isPediatric, setIsPediatric] = useState(false)
@@ -64,7 +64,7 @@ function NewPatientForm() {
     setDuplicate(null)
     setLoading(true)
 
-    const result: any = await createPatient(formData, force)
+    const result = await createPatient(formData, force)
 
     if (result?.error) {
       setError(result.error)

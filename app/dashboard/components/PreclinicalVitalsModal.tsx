@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useTransition } from 'react'
 import { Heart, X, Loader2, Stethoscope } from 'lucide-react'
 import { savePreclinicalVitals, getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
+import type { PatientRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 
 /**
  * Modal de PRE-CLÍNICA: la Auxiliar de Enfermería (o el médico) toma los signos vitales del
@@ -10,13 +11,13 @@ import { savePreclinicalVitals, getPendingPreclinical } from '@/app/dashboard/pr
  * para editarla (no se duplica). Reusa los mismos nombres de campo del formulario de consulta.
  */
 export default function PreclinicalVitalsModal({ patient, appointmentId = null, onClose, onSaved }: {
-  patient: any
+  patient: Pick<PatientRow, 'id' | 'first_name' | 'last_name' | 'is_pediatric'>
   appointmentId?: string | null
   onClose: () => void
   onSaved?: () => void
 }) {
   const [loading, setLoading] = useState(true)
-  const [existing, setExisting] = useState<any | null>(null)
+  const [existing, setExisting] = useState<PreclinicalVitalsRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 

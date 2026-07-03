@@ -1,5 +1,6 @@
 'use server'
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/server'
 import { effectiveLimit } from '@/utils/clinicLimits'
 import { isPediatric } from '@/utils/age'
@@ -14,7 +15,7 @@ import { redirect } from 'next/navigation'
 // (distinto de excludeId, para permitir editar el mismo paciente), o null. Comparación
 // case-insensitive (ilike sin comodines = match exacto sin distinguir mayúsculas).
 async function findPatientByRecordNumber(
-  supabase: any,
+  supabase: SupabaseClient,
   clinicId: string,
   recordNumber: string,
   excludeId?: string,
@@ -54,7 +55,7 @@ export async function suggestNextRecordNumber(): Promise<string | null> {
   let best: RegExpMatchArray | null = null
   let bestNum = -1
   for (const row of data) {
-    const m = String((row as any).record_number).match(/^(.*?)(\d+)(\D*)$/)
+    const m = String(row.record_number ?? '').match(/^(.*?)(\d+)(\D*)$/)
     if (!m) continue
     const n = parseInt(m[2], 10)
     if (n > bestNum) { bestNum = n; best = m }
@@ -77,7 +78,9 @@ export async function getRecordNumberConfig(): Promise<{ enabled: boolean; sugge
     .select('clinic_id, clinics(show_record_number)')
     .eq('id', user.id)
     .single()
-  const enabled = !!(profile as any)?.clinics?.show_record_number
+  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
+  const cfg = profile as unknown as { clinics: { show_record_number: boolean | null } | null } | null
+  const enabled = !!cfg?.clinics?.show_record_number
   if (!enabled) return { enabled: false, suggested: null }
   const suggested = await suggestNextRecordNumber()
   return { enabled: true, suggested }
@@ -202,7 +205,7 @@ export async function updatePatient(id: string, formData: FormData) {
   }
 
   // Datos personales: editables por cualquier miembro de la clínica (incluida asistente/enfermera).
-  const patientData: Record<string, any> = {
+  const patientData: Record<string, string | boolean | null> = {
     first_name: formData.get('first_name') as string,
     last_name: formData.get('last_name') as string,
     id_card: formData.get('id_card') as string || null,
@@ -309,7 +312,8 @@ export async function checkStudyQuota(fileSize: number) {
     .select('max_storage_mb_override, plans(max_storage_mb)')
     .eq('id', profile.clinic_id)
     .single()
-  const maxStorageMb = effectiveLimit((clinicPlan as any)?.max_storage_mb_override, (clinicPlan?.plans as any)?.max_storage_mb) ?? 1024
+  const limits = clinicPlan as unknown as { max_storage_mb_override: number | null; plans: { max_storage_mb: number | null } | null } | null
+  const maxStorageMb = effectiveLimit(limits?.max_storage_mb_override, limits?.plans?.max_storage_mb) ?? 1024
   const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
   if ((usedBytes ?? 0) + fileSize > maxStorageMb * 1024 * 1024) {
     return { error: 'Límite de almacenamiento del plan alcanzado. Contacta para ampliar tu plan.' }
@@ -348,7 +352,8 @@ export async function recordMedicalStudy(patientId: string, name: string, filePa
     .select('max_storage_mb_override, plans(max_storage_mb)')
     .eq('id', profile.clinic_id)
     .single()
-  const maxStorageMb = effectiveLimit((clinicPlan as any)?.max_storage_mb_override, (clinicPlan?.plans as any)?.max_storage_mb) ?? 1024
+  const limits = clinicPlan as unknown as { max_storage_mb_override: number | null; plans: { max_storage_mb: number | null } | null } | null
+  const maxStorageMb = effectiveLimit(limits?.max_storage_mb_override, limits?.plans?.max_storage_mb) ?? 1024
   const { data: usedBytes } = await supabase.rpc('clinic_storage_bytes')
   if ((usedBytes ?? 0) > maxStorageMb * 1024 * 1024) {
     await supabase.storage.from('medical-studies').remove([filePath])

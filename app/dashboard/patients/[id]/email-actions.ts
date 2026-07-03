@@ -5,6 +5,7 @@ import { sendMedicalRecordEmail, sendPrescriptionEmail, sendDocumentLinkEmail } 
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
+import type { DoctorRef, LabTestItem, StudyRequestItem } from '@/utils/clinicalTypes'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -230,14 +231,14 @@ export async function sendLabOrderByEmail(patientId: string, labOrderId: string)
   if (!order.verification_code) return { error: 'La orden no tiene código de verificación.' }
 
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
-  const od: any = order.user_profiles
+  const od = order.user_profiles as DoctorRef | null
   const doctorName = od
     ? doctorShortName(od.first_name, od.last_name, od.gender)
     : doctorShortName(profile.first_name, profile.last_name, profile.gender)
 
   // Resumen legible de los exámenes solicitados.
-  const tests = Array.isArray(order.tests) ? order.tests : []
-  const testNames = tests.map((t: any) => t?.name).filter(Boolean)
+  const tests: LabTestItem[] = Array.isArray(order.tests) ? order.tests : []
+  const testNames = tests.map((t) => t?.name).filter(Boolean)
   const otherLines = (order.other_tests || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
   const examenes = [...testNames, ...otherLines].join(' · ')
 
@@ -304,14 +305,14 @@ export async function sendStudyRequestByEmail(patientId: string, studyRequestId:
   if (!order.verification_code) return { error: 'La solicitud no tiene código de verificación.' }
 
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
-  const od: any = order.user_profiles
+  const od = order.user_profiles as DoctorRef | null
   const doctorName = od
     ? doctorShortName(od.first_name, od.last_name, od.gender)
     : doctorShortName(profile.first_name, profile.last_name, profile.gender)
 
   // Resumen legible de los estudios solicitados.
-  const studies = Array.isArray(order.studies) ? order.studies : []
-  const studyNames = studies.map((s: any) => s?.name).filter(Boolean)
+  const studies: StudyRequestItem[] = Array.isArray(order.studies) ? order.studies : []
+  const studyNames = studies.map((s) => s?.name).filter(Boolean)
   const otherLines = (order.other_studies || '').split('\n').map((s: string) => s.trim()).filter(Boolean)
   const estudios = [...studyNames, ...otherLines].join(' · ')
 
@@ -380,7 +381,7 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
   if (!consultation.verification_code) return { error: 'La incapacidad no tiene código de verificación.' }
 
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
-  const cd: any = consultation.user_profiles
+  const cd = consultation.user_profiles as DoctorRef | null
   const doctorName = cd
     ? doctorShortName(cd.first_name, cd.last_name, cd.gender)
     : doctorShortName(profile.first_name, profile.last_name, profile.gender)
@@ -451,7 +452,7 @@ export async function sendReferralByEmail(patientId: string, consultationId: str
   if (!consultation.verification_code) return { error: 'La referencia no tiene código de verificación.' }
 
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
-  const cd: any = consultation.user_profiles
+  const cd = consultation.user_profiles as DoctorRef | null
   const doctorName = cd
     ? doctorShortName(cd.first_name, cd.last_name, cd.gender)
     : doctorShortName(profile.first_name, profile.last_name, profile.gender)

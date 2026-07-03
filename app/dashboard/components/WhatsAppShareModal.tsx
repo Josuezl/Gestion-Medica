@@ -3,6 +3,7 @@
 import React from 'react'
 import { X, Lock, Zap, Send } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
+import type { ShareableDoc, PatientRow } from '@/utils/clinicalTypes'
 
 /**
  * Modal para compartir un documento por WhatsApp.
@@ -12,8 +13,8 @@ import { doctorShortName } from '@/utils/doctorName'
  * Componente presentacional compartido por PatientHistoryTabs y PatientDetailsClient (dedup B1).
  */
 export default function WhatsAppShareModal({ presc, patient, appUrl, onClose, docType = 'prescription' }: {
-  presc: any
-  patient: any
+  presc: ShareableDoc | null
+  patient: Pick<PatientRow, 'first_name' | 'phone'>
   appUrl: string
   onClose: () => void
   docType?: 'prescription' | 'laborder' | 'incapacidad' | 'referral' | 'studyrequest'

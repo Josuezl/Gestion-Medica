@@ -3,9 +3,10 @@
 import React from 'react'
 import { Beaker, Printer, ChevronUp, ChevronDown, Mail, Loader2 } from 'lucide-react'
 import { doctorShortName } from '@/utils/doctorName'
+import type { LabOrderRow, LabTestItem } from '@/utils/clinicalTypes'
 
 /** Agrupa los exámenes [{category,name}] de una orden por categoría conservando el orden. */
-function groupLabTests(tests: any[]): { category: string; names: string[] }[] {
+function groupLabTests(tests: LabTestItem[] | null | undefined): { category: string; names: string[] }[] {
   const out: { category: string; names: string[] }[] = []
   for (const t of (Array.isArray(tests) ? tests : [])) {
     let g = out.find((x) => x.category === t.category)
@@ -21,11 +22,11 @@ function groupLabTests(tests: any[]): { category: string; names: string[] }[] {
  * Extraído de PatientDetailsClient sin alterar el marcado ni la lógica.
  */
 export default function LabOrdersTab({ labOrders, styles, expandedLabOrder, setExpandedLabOrder, onWhatsApp, onSendEmail, sendingEmailId, emailMsg }: {
-  labOrders: any[]
-  styles: any
+  labOrders: LabOrderRow[]
+  styles: Record<string, React.CSSProperties>
   expandedLabOrder: string | null
   setExpandedLabOrder: (id: string | null) => void
-  onWhatsApp?: (order: any) => void
+  onWhatsApp?: (order: LabOrderRow) => void
   onSendEmail?: (orderId: string) => void
   sendingEmailId?: string | null
   emailMsg?: { type: 'success' | 'error', text: string, id?: string } | null
