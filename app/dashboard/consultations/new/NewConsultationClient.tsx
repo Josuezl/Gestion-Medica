@@ -22,23 +22,24 @@ import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
 import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
 import { LastValueRef } from './LastValueRef'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
-import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue } from './StudyRequestModal'
+import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
+import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 
 interface NewConsultationClientProps {
-  patient: any
+  patient: PatientRow
   appointmentId: string | null
-  preclinical?: any | null
-  consultations?: any[]
-  studies?: any[]
-  prescriptions?: any[]
+  preclinical?: PreclinicalVitalsRow | null
+  consultations?: ConsultationRow[]
+  studies?: StudyRow[]
+  prescriptions?: PrescriptionRow[]
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
   labCatalog?: { category: string; tests: string[] }[]
   lastLabOrder?: { tests: { category: string; name: string }[]; other_tests: string | null; created_at: string } | null
-  labOrders?: any[]
+  labOrders?: LabOrderRow[]
   studyCatalog?: CatalogSection[]
-  lastStudyRequest?: { studies: { section: string; name: string }[]; other_studies: string | null; created_at: string } | null
+  lastStudyRequest?: { studies: RequestStudy[]; other_studies: string | null; created_at: string } | null
 }
 
 export default function NewConsultationClient({
@@ -112,13 +113,13 @@ export default function NewConsultationClient({
     const medicines = parseMedicinesText(medicinesText)
     const result = await createConsultation(patient.id, appointmentId, medicines, formData, preclinical?.id ?? null)
 
-    if (result && (result as any).error) {
-      setError((result as any).error)
+    if (result && 'error' in result && result.error) {
+      setError(result.error)
       setLoading(false)
       return
     }
 
-    const r = result as any
+    const r = result && 'success' in result ? result : null
 
     // Avisos de pasos secundarios que fallaron (la consulta sí se guardó). No bloquean el flujo,
     // pero el médico debe enterarse en vez de recibir un "éxito" silencioso con estado parcial.
@@ -480,7 +481,7 @@ export default function NewConsultationClient({
                   <LastValueRef
                     label={`Último diagnóstico · ${formatDateHN(lastConsultation.created_at)}`}
                     value={lastConsultation.diagnosis}
-                    onUse={() => setDiagnosisText(lastConsultation.diagnosis)}
+                    onUse={() => setDiagnosisText(lastConsultation.diagnosis || '')}
                   />
                 )}
               </div>
@@ -500,7 +501,7 @@ export default function NewConsultationClient({
                   <LastValueRef
                     label={`Último plan de tratamiento · ${formatDateHN(lastConsultation.created_at)}`}
                     value={lastConsultation.treatment_plan}
-                    onUse={() => setTreatmentText(lastConsultation.treatment_plan)}
+                    onUse={() => setTreatmentText(lastConsultation.treatment_plan || '')}
                   />
                 )}
               </div>
@@ -672,13 +673,13 @@ export default function NewConsultationClient({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setStudyRequest({ studies: (lastStudyRequest.studies as any) || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] })}
+                      onClick={() => setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] })}
                       style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                     >
                       Importar
                     </button>
                   </div>
-                  <StudyRequestList studies={lastStudyRequest.studies as any} otherStudies={lastStudyRequest.other_studies} />
+                  <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />
                 </div>
               )}
             </div>

@@ -77,7 +77,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
       )
     })
     const { data: matchingPatients } = await patientQuery.limit(200)
-    const patientIds = (matchingPatients || []).map((p: any) => p.id)
+    const patientIds = (matchingPatients || []).map((p) => p.id)
 
     // Paso 2: filtrar consultas — por patient_id O por diagnóstico/motivo
     if (patientIds.length > 0) {
@@ -164,12 +164,16 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {paginatedConsultations.map((consultation: any) => {
+                {paginatedConsultations.map((consultation) => {
                   const date = formatDateTimeHN(consultation.created_at)
-                  const patientName = consultation.patients 
-                    ? `${consultation.patients.first_name} ${consultation.patients.last_name}` 
+                  // Los joins patients(...)/user_profiles(...) son a-uno: llegan como objeto,
+                  // aunque la inferencia del cliente diga arreglo.
+                  const patientRef = consultation.patients as unknown as { id: string; first_name?: string | null; last_name?: string | null } | null
+                  const doctorRef = consultation.user_profiles as unknown as { first_name?: string | null; last_name?: string | null; gender?: string | null } | null
+                  const patientName = patientRef
+                    ? `${patientRef.first_name} ${patientRef.last_name}`
                     : 'Paciente Desconocido'
-                  const doctorName = doctorShortName(consultation.user_profiles?.first_name, consultation.user_profiles?.last_name, consultation.user_profiles?.gender)
+                  const doctorName = doctorShortName(doctorRef?.first_name, doctorRef?.last_name, doctorRef?.gender)
 
                   return (
                     <tr key={consultation.id}>
@@ -202,9 +206,9 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                         <span style={styles.doctorText}>{doctorName}</span>
                       </td>
                       <td data-label="Acciones" style={{ textAlign: 'right' }}>
-                        {consultation.patients && (
+                        {patientRef && (
                           <a
-                            href={`/dashboard/patients/${consultation.patients.id}`}
+                            href={`/dashboard/patients/${patientRef.id}`}
                             className="btn btn-secondary"
                             style={styles.viewBtn}
                             title="Ver Expediente y Evolución"

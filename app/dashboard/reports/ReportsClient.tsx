@@ -25,6 +25,28 @@ const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
   pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }, { key: 'creado_por', label: 'Creado por' }],
 }
 
+/** Forma del JSON que devuelve el RPC clinic_report. */
+export interface ClinicReport {
+  error?: string
+  kpis?: {
+    consultas?: number
+    citas?: number
+    no_show?: number
+    pacientes_nuevos?: number
+    pacientes_total?: number
+  }
+  por_medico?: { nombre: string; genero?: string | null; total: number }[]
+  por_especialidad?: { especialidad: string; total: number }[]
+  citas_estado?: { status: string; total: number }[]
+  demografia?: {
+    genero?: Record<string, number>
+    edad?: { adultos?: number; pediatricos?: number }
+  }
+}
+
+/** Fila del RPC clinic_report_detail (columnas variables según el tipo de detalle). */
+type DetailRow = Record<string, string | number | null>
+
 const title = (g?: string | null) => (g === 'F' ? 'Dra.' : 'Dr.')
 const parseLocal = (d: string) => { const [y, m, day] = d.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, day) }
 const fechaLarga = (d: string) => parseLocal(d).toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -65,10 +87,10 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 
 const Empty = () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Sin datos en este periodo.</div>
 
-export default function ReportsClient({ report, periodo, selectedDate, rpcMissing }: { report: any; periodo: string | null; selectedDate: string | null; rpcMissing: boolean }) {
+export default function ReportsClient({ report, periodo, selectedDate, rpcMissing }: { report: ClinicReport | null; periodo: string | null; selectedDate: string | null; rpcMissing: boolean }) {
   const supabase = createClient()
   const days = periodo === '30' ? 30 : periodo === '7' ? 7 : 1
-  const [detail, setDetail] = useState<{ tipo: string; label: string; rows: any[] | null } | null>(null)
+  const [detail, setDetail] = useState<{ tipo: string; label: string; rows: DetailRow[] | null } | null>(null)
 
   const openDetail = async (tipo: string, label: string) => {
     setDetail({ tipo, label, rows: null })
@@ -80,14 +102,14 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   const downloadExcel = () => {
     if (!detail?.rows?.length) return
     const c = DETAIL_COLS[detail.tipo] || []
-    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const cell = (r: any, key: string) =>
-      key === 'fecha' ? fmtFecha(r.fecha)
-        : key === 'estado' ? (STATUS_CONFIG[r.estado]?.label || r.estado)
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const cell = (r: DetailRow, key: string) =>
+      key === 'fecha' ? fmtFecha(String(r.fecha ?? ''))
+        : key === 'estado' ? (STATUS_CONFIG[String(r.estado ?? '')]?.label || r.estado)
         : (r[key] ?? '')
     const csv = '﻿' + [
       c.map(x => esc(x.label)).join(','),
-      ...detail.rows.map((r: any) => c.map(x => esc(cell(r, x.key))).join(',')),
+      ...detail.rows.map((r) => c.map(x => esc(cell(r, x.key))).join(',')),
     ].join('\r\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
     const a = document.createElement('a')
@@ -142,11 +164,12 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   }
 
   const kpis = report.kpis || {}
-  const noShowRate = kpis.citas > 0 ? Math.round((kpis.no_show / kpis.citas) * 100) : 0
+  const citasTotal = kpis.citas ?? 0
+  const noShowRate = citasTotal > 0 ? Math.round(((kpis.no_show ?? 0) / citasTotal) * 100) : 0
 
-  const porMedico = (report.por_medico || []).map((d: any) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), total: d.total }))
-  const porEspecialidad = (report.por_especialidad || []).map((d: any) => ({ name: d.especialidad, total: d.total }))
-  const citasEstado = (report.citas_estado || []).map((d: any) => ({
+  const porMedico = (report.por_medico || []).map((d) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), total: d.total }))
+  const porEspecialidad = (report.por_especialidad || []).map((d) => ({ name: d.especialidad, total: d.total }))
+  const citasEstado = (report.citas_estado || []).map((d) => ({
     name: STATUS_CONFIG[d.status]?.label || d.status, total: d.total, color: STATUS_CONFIG[d.status]?.dotColor || '#94a3b8',
   }))
   const gen = report.demografia?.genero || {}
@@ -157,7 +180,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
     { name: 'Pediátricos', total: edad.pediatricos || 0, color: '#14b8a6' },
   ].filter(d => d.total > 0)
 
-  const pieLabel = (e: any) => `${e.value}`
+  const pieLabel = (e: { value?: number | string }) => `${e.value}`
   const cols = detail ? DETAIL_COLS[detail.tipo] || [] : []
 
   return (
@@ -211,7 +234,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
             <ResponsiveContainer width="100%" height={340}>
               <PieChart>
                 <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={115} paddingAngle={2} label={pieLabel} labelLine={false}>
-                  {citasEstado.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
+                  {citasEstado.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
                 <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
@@ -228,7 +251,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
-                      {generoData.map((d: any) => <Cell key={d.k} fill={GENDER_COLORS[d.k]} />)}
+                      {generoData.map((d) => <Cell key={d.k} fill={GENDER_COLORS[d.k]} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
                     <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
@@ -240,7 +263,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
-                      {edadData.map((d: any, i: number) => <Cell key={i} fill={d.color} />)}
+                      {edadData.map((d, i) => <Cell key={i} fill={d.color} />)}
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
                     <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
@@ -283,12 +306,12 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
                     </tr>
                   </thead>
                   <tbody>
-                    {detail.rows.map((r: any, i: number) => (
+                    {detail.rows.map((r, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         {cols.map(c => (
                           <td key={c.key} style={{ padding: '0.5rem 0.6rem' }}>
-                            {c.key === 'fecha' ? fmtFecha(r.fecha)
-                              : c.key === 'estado' ? (STATUS_CONFIG[r.estado]?.label || r.estado)
+                            {c.key === 'fecha' ? fmtFecha(String(r.fecha ?? ''))
+                              : c.key === 'estado' ? (STATUS_CONFIG[String(r.estado ?? '')]?.label || r.estado)
                               : (r[c.key] || '—')}
                           </td>
                         ))}

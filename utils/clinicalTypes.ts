@@ -143,7 +143,9 @@ export interface PreclinicalVitalsRow {
   respiratory_rate?: number | null
   oxygen_saturation?: number | null
   notes?: string | null
-  created_at?: string
+  created_at: string
+  /** Join user_profiles!recorded_by: quién tomó los signos. */
+  recorded_by_profile?: { first_name?: string | null; last_name?: string | null } | null
 }
 
 /**

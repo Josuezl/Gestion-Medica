@@ -1,11 +1,13 @@
 'use server'
 
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { generateVerificationCode } from '@/utils/verification-code'
 import { validateVitals } from '@/utils/validation'
 import { safeErrorMessage } from '@/utils/errors'
+import type { Medicine } from '@/utils/medicines'
 
 interface CatalogStudyItem { section: string; name: string; description?: string | null; indication?: string | null }
 
@@ -14,7 +16,7 @@ interface CatalogStudyItem { section: string; name: string; description?: string
  * marcó para "guardar para la próxima vez". Crea la sección si no existe y evita duplicados por
  * nombre dentro de la sección. Catálogo compartido por toda la clínica (RLS por clinic_id).
  */
-async function saveStudiesToCatalog(supabase: any, clinicId: string, items: CatalogStudyItem[]) {
+async function saveStudiesToCatalog(supabase: SupabaseClient, clinicId: string, items: CatalogStudyItem[]) {
   const bySection = new Map<string, CatalogStudyItem[]>()
   for (const it of items) {
     const sec = (it.section || 'Otros').trim() || 'Otros'
@@ -83,7 +85,7 @@ async function saveStudiesToCatalog(supabase: any, clinicId: string, items: Cata
 export async function createConsultation(
   patientId: string,
   appointmentId: string | null,
-  medicines: any[],
+  medicines: Medicine[],
   formData: FormData,
   preclinicalVitalsId: string | null = null
 ) {

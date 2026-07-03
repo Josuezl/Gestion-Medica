@@ -91,11 +91,11 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
   const labCatalog = (labCats || [])
-    .map((c: any) => ({
-      category: c.name,
-      tests: (labTestRows || []).filter((t: any) => t.category_id === c.id).map((t: any) => t.name),
+    .map((c) => ({
+      category: c.name as string,
+      tests: (labTestRows || []).filter((t) => t.category_id === c.id).map((t) => t.name as string),
     }))
-    .filter((c: any) => c.tests.length > 0)
+    .filter((c) => c.tests.length > 0)
 
   // 7. Órdenes de laboratorio del paciente: historial completo (para la pestaña del expediente)
   //    y la última (para mostrarla como referencia / reusarla en el formulario).
@@ -118,13 +118,13 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
   const studyCatalog = (studySections || [])
-    .map((s: any) => ({
-      section: s.name,
+    .map((s) => ({
+      section: s.name as string,
       studies: (studyCatalogRows || [])
-        .filter((r: any) => r.section_id === s.id)
-        .map((r: any) => ({ name: r.name, description: r.description, indication: r.patient_indication })),
+        .filter((r) => r.section_id === s.id)
+        .map((r) => ({ name: r.name as string, description: r.description as string | null, indication: r.patient_indication as string | null })),
     }))
-    .filter((s: any) => s.studies.length > 0)
+    .filter((s) => s.studies.length > 0)
 
   // 7.c Solicitudes de estudios del paciente: historial y la última (para mostrar/reusar como referencia).
   const { data: studyRequests } = await supabase
