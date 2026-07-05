@@ -212,6 +212,24 @@ docena de patrones repetidos cubre la gran mayoría de los 1,315 usos con el tie
 
 ### P2-3 · Cobertura de pruebas limitada a utils puros
 
+> **Actualización 2026-07-05 · Aislamiento multi-tenant verificado.** Con dos tenants reales de
+> prueba (Centro Médico de Prueba y Clinica Prueba, este último sembrado con paciente + cita +
+> consulta + receta + orden de laboratorio + solicitud de estudios) se ejecutaron **27 comprobaciones
+> en 3 capas, todas en verde**:
+> 1. **API / RLS (16):** login con el anon key como usuario real de cada tenant e intento de leer y
+>    mutar recursos del otro tenant directo contra PostgREST — 0 filas en lecturas cruzadas, escrituras
+>    cruzadas bloqueadas, conteos globales acotados a la propia clínica, y reasignar `clinic_id` a otro
+>    tenant rechazado por RLS.
+> 2. **UI (7):** ni por búsqueda ni por URL directa al expediente se ve un paciente ajeno (HTTP 404);
+>    los conteos de cabecera son los de la clínica propia.
+> 3. **Documentos clínicos por URL (4):** personal de un tenant abriendo las páginas de impresión de
+>    receta/consulta/orden/estudios del otro tenant obtiene 404 o el gate de código — nunca el contenido.
+>
+> Queda versionada la suite reutilizable `scripts/rls-isolation-check.mjs` (dirigida por credenciales
+> de entorno, solo lectura) como test de regresión. **Pendiente:** cobertura de integración de las
+> server actions (crear consulta, aprobar booking, crear paciente).
+
+
 110 tests pasan, pero todos sobre `utils/` (validación, booking, permisos…). Cero cobertura de server
 actions, políticas RLS o flujos (el E2E de puppeteer es manual). La Fase 2 de la auditoría (tests RLS)
 sigue pendiente. Al ritmo actual de features, el E2E manual será el cuello de botella de verificación.
@@ -301,7 +319,8 @@ Los límites que van a tocar primero, en orden probable:
 | P1-3 | ⏳ Pendiente | — | RPC transaccional de guardado de consulta. |
 | P1-4 | ✅ Mitigado | 2026-07-05 | `.github/workflows/ci.yml` (lint + test + build en push/PR). |
 | P1-5 | ⏳ Pendiente | — | Requiere acceso al proyecto de Supabase para `gen types`. |
-| P2-1…P2-4 | ⏳ Pendiente | — | Incremental. |
+| P2-1, P2-2, P2-4 | ⏳ Pendiente | — | Incremental. |
+| P2-3 | 🟡 Parcial | 2026-07-05 | **Aislamiento multi-tenant verificado** en 3 capas (27/27): E2E UI, API/RLS con anon key en ambas direcciones, y URLs directas de documentos clínicos cruzados. Suite reutilizable en `scripts/rls-isolation-check.mjs` (Fase 2 de la auditoría, A5). Falta cobertura de integración de las server actions. |
 | P2-5 | ✅ Mitigado | 2026-07-05 | Charts diferidos con `next/dynamic` (3 sitios cliente). |
 | P3 | 🟡 Parcial | 2026-07-05 | `@types/qrcode` → devDeps; estilos muertos del layout eliminados. Guard de `clinicId` y counts estimados pendientes. |
 
