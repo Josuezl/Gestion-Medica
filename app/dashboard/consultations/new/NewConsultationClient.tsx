@@ -21,6 +21,7 @@ import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
 import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
 import { LastValueRef } from './LastValueRef'
+import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
@@ -149,6 +150,9 @@ export default function NewConsultationClient({
 
   return (
     <div style={styles.container}>
+      {/* Pregunta de resumen del historial (solo si el paciente ya tiene consultas previas) */}
+      <HistorySummaryModals patient={patient} consultations={consultations} />
+
       {/* Modal de orden de laboratorio */}
       {showLabModal && (
         <LabOrderModal
