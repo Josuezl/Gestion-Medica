@@ -50,6 +50,7 @@ import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
+import PrescriptionModal from './PrescriptionModal'
 
 // Convierte 'YYYY-MM-DD' a Date en hora LOCAL para evitar el corrimiento de un día que provoca
 // `new Date('YYYY-MM-DD')` (se interpreta como UTC y, en zonas como Honduras UTC-6, retrocede al
@@ -109,6 +110,7 @@ export default function PatientDetailsClient({
   const [showVitalsModal, setShowVitalsModal] = useState(false)
   // Modal para emitir/corregir la incapacidad de la última consulta (sin editar lo clínico).
   const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
   const [showCreatedBanner, setShowCreatedBanner] = useState(justCreated)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
@@ -901,6 +903,25 @@ export default function PatientDetailsClient({
                 <Plus size={16} />
                 <FileText size={16} />
                 Nueva Incapacidad
+              </button>
+            )}
+            {canClinical && lastConsult && (
+              <button
+                type="button"
+                onClick={() => setShowPrescriptionModal(true)}
+                className="btn"
+                style={{
+                  gap: '0.4rem',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  boxShadow: '0 4px 10px rgba(124, 58, 237, 0.3)',
+                }}
+                title="Emitir una receta sobre la última consulta"
+              >
+                <Plus size={16} />
+                <Pill size={16} />
+                Nueva Receta
               </button>
             )}
             {canClinical && (
@@ -1774,6 +1795,15 @@ export default function PatientDetailsClient({
           consultation={lastConsult}
           patient={patient}
           onClose={() => setShowLeaveModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
+      {showPrescriptionModal && lastConsult && (
+        <PrescriptionModal
+          consultation={lastConsult}
+          patient={patient}
+          onClose={() => setShowPrescriptionModal(false)}
           onSaved={() => router.refresh()}
         />
       )}
