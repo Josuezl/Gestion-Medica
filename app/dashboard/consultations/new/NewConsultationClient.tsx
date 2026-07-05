@@ -25,6 +25,7 @@ import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
+import Link from 'next/link'
 
 interface NewConsultationClientProps {
   patient: PatientRow
@@ -254,10 +255,10 @@ export default function NewConsultationClient({
 
       {/* Header */}
       <div style={styles.headerRow}>
-        <a href={`/dashboard/patients/${patient.id}`} style={styles.backLink}>
+        <Link href={`/dashboard/patients/${patient.id}`} style={styles.backLink}>
           <ChevronLeft size={16} />
           Volver al Expediente del Paciente
-        </a>
+        </Link>
         <h2 style={styles.title}>Nueva Consulta Clínica</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>

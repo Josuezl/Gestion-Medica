@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { requestPasswordReset } from './actions'
 import { Stethoscope, Mail, Loader2, ArrowRight, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
 
 export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +42,7 @@ export default function ForgotPasswordPage() {
               Si ese correo está registrado, te enviamos un enlace para restablecer tu contraseña.
               Revisa también tu carpeta de spam.
             </p>
-            <a href="/login" style={styles.loginLink}>Volver a iniciar sesión</a>
+            <Link href="/login" style={styles.loginLink}>Volver a iniciar sesión</Link>
           </div>
         ) : (
           <>
@@ -80,7 +81,7 @@ export default function ForgotPasswordPage() {
 
             <div style={styles.divider}></div>
             <p style={styles.footerText}>
-              <a href="/login" style={styles.loginLink}>Volver a iniciar sesión</a>
+              <Link href="/login" style={styles.loginLink}>Volver a iniciar sesión</Link>
             </p>
           </>
         )}

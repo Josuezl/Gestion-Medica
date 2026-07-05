@@ -117,9 +117,9 @@ function NewPatientForm() {
                 </>
               )}
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                <a href={`/dashboard/patients/${duplicate.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <Link href={`/dashboard/patients/${duplicate.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
                   Ver ese paciente
-                </a>
+                </Link>
                 {/* "Guardar de todas formas" SOLO para avisos (block=false). En un bloqueo no se ofrece;
                     el servidor además lo rechaza aunque se forzara. */}
                 {!duplicate.block && (

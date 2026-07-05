@@ -22,6 +22,7 @@ import type {
 } from '@/utils/clinicalTypes'
 import StudyUploader from '../../components/StudyUploader'
 import StudyList from '../../components/StudyList'
+import Link from 'next/link'
 import {
   Phone,
   Mail,
@@ -44,7 +45,9 @@ import {
   Baby,
   Stethoscope,
 } from 'lucide-react'
-import PediatricGrowthChart from '../../components/PediatricGrowthChart'
+import nextDynamic from 'next/dynamic'
+// recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
+const PediatricGrowthChart = nextDynamic(() => import('../../components/PediatricGrowthChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import LabOrdersTab from './LabOrdersTab'
@@ -749,9 +752,9 @@ export default function PatientDetailsClient({
               )}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <a href={`/dashboard?patientId=${patient.id}&nuevaCita=1`} className="btn btn-primary" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+              <Link href={`/dashboard?patientId=${patient.id}&nuevaCita=1`} className="btn btn-primary" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
                 <Calendar size={16} /> Sí, agendar cita
-              </a>
+              </Link>
               <button type="button" onClick={() => setShowCreatedBanner(false)} className="btn btn-secondary" style={{ width: '100%' }}>
                 Ahora no
               </button>
@@ -1170,9 +1173,9 @@ export default function PatientDetailsClient({
                 <div style={styles.tabEmptyState}>
                   <Activity size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
                   <p>Este paciente aún no tiene ninguna consulta clínica registrada.</p>
-                  <a href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                  <Link href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
                     Registrar Primer Consulta
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div style={styles.timeline}>

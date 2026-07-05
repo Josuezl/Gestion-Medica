@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { login } from '../auth/actions'
 import { Lock, Mail, Loader2, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -63,9 +64,9 @@ export default function LoginPage() {
               <label className="form-label" htmlFor="password">
                 Contraseña
               </label>
-              <a href="/forgot-password" style={styles.forgotLink}>
+              <Link href="/forgot-password" style={styles.forgotLink}>
                 ¿La olvidaste?
-              </a>
+              </Link>
             </div>
             <div style={styles.inputWrapper}>
               <Lock size={18} style={styles.inputIcon} />
