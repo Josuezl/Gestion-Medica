@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory } from './actions'
+import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import {
   Calendar as CalendarIcon,
@@ -74,6 +74,9 @@ interface Location {
 
 interface AgendaClientProps {
   initialAppointments: Appointment[]
+  /** Ventana [inicio, fin] que cubre initialAppointments; fuera de ella se pide el mes al servidor. */
+  loadedRangeStart: string
+  loadedRangeEnd: string
   doctors: Doctor[]
   locations: Location[]
   defaultLocationId?: string
@@ -98,6 +101,14 @@ const formatDateYMD = (date: Date) => {
   return `${y}-${m}-${d}`
 }
 
+// Clave "YYYY-MM" y rango [inicio de mes, inicio del mes siguiente) para la caché de meses
+// fuera de la ventana inicial (P0-1).
+const monthKeyOf = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+const monthRangeOf = (key: string): [Date, Date] => {
+  const [y, m] = key.split('-').map(Number)
+  return [new Date(y, m - 1, 1), new Date(y, m, 1)]
+}
+
 const getWeekDays = (date: Date) => {
   const current = new Date(date)
   const day = current.getDay()
@@ -113,7 +124,7 @@ const getWeekDays = (date: Date) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export default function AgendaClient({ initialAppointments, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
+export default function AgendaClient({ initialAppointments, loadedRangeStart, loadedRangeEnd, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -170,6 +181,43 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   // Cita que se intentó marcar "Realizada" sin consulta registrada → dispara el modal de bloqueo.
   const [completeBlocked, setCompleteBlocked] = useState<Appointment | null>(null)
 
+  // --- Citas fuera de la ventana inicial (P0-1) ---
+  // La página solo precarga [loadedRangeStart, loadedRangeEnd]. Al navegar a un mes no cubierto
+  // se pide ese mes al servidor y se cachea por clave "YYYY-MM". Tras una mutación se vacía la
+  // caché (los meses dentro de la ventana los refresca el propio RSC vía revalidatePath).
+  const [extraByMonth, setExtraByMonth] = useState<Record<string, Appointment[]>>({})
+  const monthsPendingRef = useRef<Set<string>>(new Set())
+  const invalidateExtra = () => setExtraByMonth({})
+
+  const neededMonths = useMemo(() => {
+    const dates: Date[] = viewMode === 'week' ? getWeekDays(selectedDate) : [selectedDate]
+    return [...new Set(dates.map(monthKeyOf))]
+  }, [viewMode, selectedDate])
+
+  useEffect(() => {
+    const windowStartMs = new Date(loadedRangeStart).getTime()
+    const windowEndMs = new Date(loadedRangeEnd).getTime()
+    neededMonths.forEach(key => {
+      if (extraByMonth[key] || monthsPendingRef.current.has(key)) return
+      const [start, end] = monthRangeOf(key)
+      // Mes totalmente cubierto por la ventana inicial: no hay nada que pedir.
+      if (start.getTime() >= windowStartMs && end.getTime() <= windowEndMs) return
+      monthsPendingRef.current.add(key)
+      getAppointmentsForRange(start.toISOString(), end.toISOString())
+        .then(data => setExtraByMonth(prev => ({ ...prev, [key]: data as unknown as Appointment[] })))
+        .finally(() => monthsPendingRef.current.delete(key))
+    })
+  }, [neededMonths, extraByMonth, loadedRangeStart, loadedRangeEnd])
+
+  // Ventana inicial + meses cargados bajo demanda, sin duplicados (la ventana manda: viene
+  // fresca del servidor tras cada revalidatePath).
+  const allAppointments = useMemo(() => {
+    const extra = Object.values(extraByMonth).flat()
+    if (extra.length === 0) return initialAppointments
+    const seen = new Set(initialAppointments.map(a => a.id))
+    return [...initialAppointments, ...extra.filter(a => !seen.has(a.id))]
+  }, [initialAppointments, extraByMonth])
+
   const goRegisterPatient = (name: string) => {
     window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
   }
@@ -225,7 +273,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
   // Las citas del portal público llegan con patients=null hasta que se aprueban: se sintetiza
   // una ficha de display con el nombre/teléfono enviados para que TODAS las vistas lo muestren.
   // El id vacío desactiva solo expediente/preclínica (requieren ficha real).
-  const normalizedAppointments = useMemo(() => initialAppointments.map(app => {
+  const normalizedAppointments = useMemo(() => allAppointments.map(app => {
     if (app.patients || app.status !== 'PENDING_REVIEW') return app
     const req = app.booking_requests?.[0]
     if (!req) return app
@@ -233,7 +281,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
       ...app,
       patients: { id: '', first_name: req.submitted_first_name, last_name: req.submitted_last_name, phone: req.submitted_phone || '' },
     }
-  }), [initialAppointments])
+  }), [allAppointments])
 
   const filteredAppointments = useMemo(() => {
     return normalizedAppointments.filter(app => {
@@ -301,6 +349,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
     }
     // En modo historial la lista vive en estado propio: recargar para reflejar el cambio.
     if (historyPatient) reloadHistory(historyPatient.id)
+    invalidateExtra()
   }
 
   const handleDeleteAppointment = async (app: Appointment) => {
@@ -309,6 +358,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
     const res = await deleteAppointment(app.id)
     if (res?.error) { alert(res.error); return }
     if (historyPatient) reloadHistory(historyPatient.id)
+    invalidateExtra()
     router.refresh()
   }
 
@@ -830,7 +880,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
         }
       }
 
-      const overlapping = initialAppointments.find(app => {
+      const overlapping = allAppointments.find(app => {
         if (isEdit && app.id === editAppointment?.id) return false
         if (app.status === 'CANCELLED') return false
         if (app.doctor_id !== doctorIdVal) return false
@@ -864,6 +914,7 @@ export default function AgendaClient({ initialAppointments, doctors, locations, 
         setShowForm(false)
         // Si editamos/creamos una cita desde el modo historial, recargar la lista del paciente.
         if (historyPatient) reloadHistory(historyPatient.id)
+        invalidateExtra()
       }
     }
 

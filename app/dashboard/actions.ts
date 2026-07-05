@@ -337,6 +337,63 @@ export async function getPatientAppointmentHistory(patientId: string) {
   return data || []
 }
 
+/** Ventana máxima que puede pedir el cliente de la agenda de una sola vez (~2 meses). */
+const MAX_RANGE_DAYS = 62
+
+/**
+ * Citas de la clínica dentro de un rango de fechas (P0-1: la agenda ya no carga todo el
+ * historial; el dashboard entrega una ventana inicial y AgendaClient pide por mes al
+ * navegar fuera de ella). Mismo shape que la consulta del dashboard.
+ */
+export async function getAppointmentsForRange(startISO: string, endISO: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data: authProfile } = await supabase
+    .from('user_profiles').select('clinic_id').eq('id', user.id).single()
+  if (!authProfile?.clinic_id) return []
+
+  const start = new Date(startISO)
+  const end = new Date(endISO)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return []
+  if (end.getTime() - start.getTime() > MAX_RANGE_DAYS * 24 * 60 * 60 * 1000) return []
+
+  const { data } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      scheduled_at,
+      status,
+      notes,
+      duration_minutes,
+      doctor_id,
+      location_id,
+      patients (
+        id,
+        first_name,
+        last_name,
+        phone,
+        id_card,
+        gender,
+        birth_date
+      ),
+      booking_requests (
+        id,
+        status,
+        submitted_first_name,
+        submitted_last_name,
+        submitted_phone
+      )
+    `)
+    .eq('clinic_id', authProfile.clinic_id)
+    .gte('scheduled_at', start.toISOString())
+    .lt('scheduled_at', end.toISOString())
+    .order('scheduled_at', { ascending: true })
+
+  return data || []
+}
+
 // ============================================================================
 // Links públicos de auto-agendamiento (portal /agendar/[token])
 // ============================================================================
