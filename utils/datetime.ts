@@ -24,6 +24,29 @@ export function formatDateTimeHN(value: string | number | Date): string {
   })
 }
 
+/** "lunes, 15 de junio, 04:36 p. m." — para mensajes al paciente (recordatorios). */
+export function formatDateTimeLongHN(value: string | number | Date): string {
+  return new Date(value).toLocaleString('es-HN', {
+    timeZone: HN_TIME_ZONE,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+/** "04:36 p. m." */
+export function formatTimeHN(value: string | number | Date): string {
+  return new Date(value).toLocaleTimeString('es-HN', {
+    timeZone: HN_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
 /** "15/06/2026" */
 export function formatDateHN(value: string | number | Date): string {
   return new Date(value).toLocaleDateString('es-HN', {
