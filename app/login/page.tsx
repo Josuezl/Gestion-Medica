@@ -29,10 +29,10 @@ export default function LoginPage() {
       <div style={styles.bubble1}></div>
       <div style={styles.bubble2}></div>
 
-      <div className="card-glass animate-fade-in" style={styles.loginCard}>
+      <div className="card-glass" style={styles.loginCard}>
         <div style={styles.logoHeader}>
           <div style={styles.logoIconContainer}>
-            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={64} height={64} priority style={{ objectFit: 'contain' }} />
+            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={64} height={64} priority style={{ objectFit: 'cover' }} />
           </div>
           <h1 style={styles.appName}>CloudMedHN</h1>
           <p style={styles.tagline}>Gestión Médica & Comunicación Automatizada</p>

@@ -103,7 +103,7 @@ export default async function DashboardLayout({
       <aside className="dashboard-sidebar">
         <div style={styles.logoContainer}>
           <div style={styles.logoIcon}>
-            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={40} height={40} style={{ objectFit: 'contain' }} />
+            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={40} height={40} style={{ objectFit: 'cover' }} />
           </div>
           <div>
             <h1 style={styles.logoText}>CloudMedHN</h1>

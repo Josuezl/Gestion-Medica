@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       <div style={styles.bubble1}></div>
       <div style={styles.bubble2}></div>
 
-      <div className="card-glass animate-fade-in" style={styles.card}>
+      <div className="card-glass" style={styles.card}>
         <div style={styles.logoHeader}>
           <div style={styles.logoIconContainer}>
             <Stethoscope size={32} color="var(--primary)" />
