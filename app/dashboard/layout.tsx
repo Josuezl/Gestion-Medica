@@ -1,5 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
+import { getSessionProfile } from '@/utils/session'
+import SidebarLink from './components/SidebarLink'
 import { redirect } from 'next/navigation'
 import { logout } from '../auth/actions'
 import { personShortName } from '@/utils/doctorName'
@@ -17,62 +19,20 @@ import {
   BookOpen
 } from 'lucide-react'
 
-interface SidebarLinkProps {
-  href: string
-  label: string
-  icon: React.ReactNode
-  badge?: number
-}
-
-function SidebarLink({ href, label, icon, badge }: SidebarLinkProps) {
-  return (
-    <a href={href} style={styles.sidebarLink}>
-      {icon}
-      <span>{label}</span>
-      {!!badge && (
-        <span style={{
-          marginLeft: 'auto', backgroundColor: '#a855f7', color: '#fff', fontSize: '0.7rem',
-          fontWeight: 700, borderRadius: '999px', padding: '0.1rem 0.45rem', minWidth: '1.2rem', textAlign: 'center',
-        }}>
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-    </a>
-  )
-}
-
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-
-  // 1. Obtener la sesión del usuario
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  // Sesión + perfil memoizados por request: layout, página y greeting comparten la llamada (P1-2).
+  const session = await getSessionProfile()
+  if (!session) {
     redirect('/login')
   }
+  const { profile } = session
 
-  // 2. Cargar perfil del médico y clínica
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select(`
-      first_name,
-      last_name,
-      role,
-      is_org_admin,
-      specialty,
-      clinics (
-        name
-      )
-    `)
-    .eq('id', user.id)
-    .single()
-
-  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
-  const clinicRef = profile?.clinics as unknown as { name?: string | null } | null
-  const clinicName = clinicRef?.name || 'Mi Consultorio'
+  const supabase = await createClient()
+  const clinicName = profile?.clinic_name || 'Mi Consultorio'
   const doctorName = profile ? personShortName(profile.first_name, profile.last_name) : 'Médico'
   const specialty = profile?.specialty || 'General'
 
@@ -166,25 +126,6 @@ export default async function DashboardLayout({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    display: 'flex',
-    minHeight: '100vh',
-    backgroundColor: 'var(--bg-main)',
-  },
-  sidebar: {
-    width: '280px',
-    backgroundColor: 'var(--bg-sidebar)',
-    borderRight: '1px solid var(--border-color)',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 10,
-    color: '#fff',
-    padding: '1.5rem',
-  },
   logoContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -192,11 +133,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '2.5rem',
     paddingBottom: '1.25rem',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
-  },
-  logoIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   logoText: {
     fontSize: '1.25rem',
@@ -218,18 +154,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.5rem',
     flex: 1,
   },
-  sidebarLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '0.75rem 1rem',
-    color: '#94a3b8',
-    textDecoration: 'none',
-    fontSize: '0.925rem',
-    fontWeight: '500',
-    borderRadius: '8px',
-    transition: 'all var(--transition-fast)',
-  },
   sidebarFooter: {
     marginTop: 'auto',
     borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -244,15 +168,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '10px',
     marginBottom: '1rem',
     border: '1px solid rgba(255, 255, 255, 0.05)',
-  },
-  avatarIcon: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    backgroundColor: 'var(--primary)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   doctorTextDetails: {
     display: 'flex',
@@ -287,55 +202,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '600',
     fontSize: '0.875rem',
     transition: 'all var(--transition-fast)',
-  },
-  mainPanel: {
-    flex: 1,
-    marginLeft: '280px',
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-  },
-  header: {
-    height: '80px',
-    backgroundColor: 'var(--bg-card)',
-    borderBottom: '1px solid var(--border-color)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 2rem',
-    position: 'sticky',
-    top: 0,
-    zIndex: 9,
-  },
-  headerTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    fontSize: '0.8rem',
-    color: 'var(--text-muted)',
-  },
-  headerActions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-  },
-  whatsappBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    border: '1px solid rgba(16, 185, 129, 0.2)',
-    padding: '0.4rem 0.8rem',
-    borderRadius: '20px',
-  },
-  whatsappBadgeText: {
-    fontSize: '0.75rem',
-    color: '#10b981',
-    fontWeight: '700',
-  },
-  content: {
-    flex: 1,
-    padding: '2rem',
   },
 }

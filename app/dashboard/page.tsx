@@ -3,22 +3,23 @@ import { createClient } from '@/utils/supabase/server'
 import AgendaClient, { type Appointment } from './AgendaClient'
 import DashboardGreeting from './DashboardGreeting'
 import { getPendingPreclinicalPatientIds } from './preclinical/actions'
+import { getSessionProfile } from '@/utils/session'
 
 import { cookies } from 'next/headers'
+
+// Ventana inicial de la agenda: cubre el uso diario (hoy ± navegación cercana) sin cargar
+// todo el historial. Fuera de esto, el cliente pide el mes puntual al servidor.
+const AGENDA_PAST_DAYS = 30
+const AGENDA_FUTURE_DAYS = 120
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ patientId?: string; nuevaCita?: string }> }) {
   const supabase = await createClient()
   const sp = await searchParams
 
-  // 1. Validar autenticación
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('id, clinic_id, first_name, last_name, role, is_org_admin')
-    .eq('id', user.id)
-    .single()
+  // 1. Sesión + perfil memoizados por request (compartidos con layout y greeting, P1-2)
+  const session = await getSessionProfile()
+  if (!session) return null
+  const { profile } = session
 
   const clinicId = profile?.clinic_id
 
@@ -38,8 +39,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const cookieStore = await cookies()
   const defaultLocationId = cookieStore.get('current_location_id')?.value || 'all'
 
-  // 2. Obtener lista de citas activas de la clínica
+  // 2. Obtener las citas de la clínica en una ventana acotada (P0-1): el costo del dashboard
+  // ya no crece con el historial. Al navegar fuera de la ventana, AgendaClient pide el mes
+  // que falta con getAppointmentsForRange.
   // (Los pacientes ya no se precargan: el buscador de la agenda usa searchPatientsForAgenda.)
+  const rangeStart = new Date()
+  rangeStart.setDate(rangeStart.getDate() - AGENDA_PAST_DAYS)
+  rangeStart.setHours(0, 0, 0, 0)
+  const rangeEnd = new Date()
+  rangeEnd.setDate(rangeEnd.getDate() + AGENDA_FUTURE_DAYS)
+  rangeEnd.setHours(23, 59, 59, 999)
+
   const { data: appointments } = await supabase
     .from('appointments')
     .select(`
@@ -68,6 +78,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       )
     `)
     .eq('clinic_id', clinicId || '')
+    .gte('scheduled_at', rangeStart.toISOString())
+    .lte('scheduled_at', rangeEnd.toISOString())
     .order('scheduled_at', { ascending: true })
 
   // 4. Obtener doctores de la clínica
@@ -94,6 +106,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <DashboardGreeting />
       <AgendaClient
         initialAppointments={(appointments as unknown as Appointment[]) || []}
+        loadedRangeStart={rangeStart.toISOString()}
+        loadedRangeEnd={rangeEnd.toISOString()}
         doctors={doctors || []}
         locations={locations || []}
         defaultLocationId={defaultLocationId}

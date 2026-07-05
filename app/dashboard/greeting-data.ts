@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { getSessionProfile } from '@/utils/session'
 import { greetingForHonduras, greetingName, isDoctorRole, hondurasDayRangeUTC } from '@/utils/greeting'
 
 /** Datos que alimentan el banner de saludo del dashboard. */
@@ -28,14 +29,10 @@ export interface DashboardGreetingData {
 export async function getDashboardGreetingData(): Promise<DashboardGreetingData | null> {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('id, clinic_id, first_name, last_name, role, gender')
-    .eq('id', user.id)
-    .single()
+  // Sesión + perfil memoizados por request (compartidos con layout y página, P1-2).
+  const session = await getSessionProfile()
+  if (!session) return null
+  const { user, profile } = session
 
   const clinicId = profile?.clinic_id || ''
   const doctor = isDoctorRole(profile?.role)
