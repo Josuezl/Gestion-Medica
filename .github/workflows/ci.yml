@@ -1,0 +1,37 @@
+# CI mínimo (hallazgo P1-4 de revision_tecnica_2026-07-05.md).
+# `main` despliega directo a producción en Vercel: este workflow es la red de seguridad
+# que antes dependía de correr lint/test/build a mano antes de cada push.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # El build solo necesita que las variables existan (los clientes de Supabase se
+      # crean por request, no en build). Si se configuran como secrets del repo, se usan.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Pruebas unitarias
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
