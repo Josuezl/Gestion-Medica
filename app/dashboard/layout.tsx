@@ -1,5 +1,4 @@
 import React from 'react'
-import Image from 'next/image'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { logout } from '../auth/actions'
@@ -102,9 +101,6 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <aside className="dashboard-sidebar">
         <div style={styles.logoContainer}>
-          <div style={styles.logoIcon}>
-            <Image src="/Logo%20de%20Honduras.png" alt="CloudMedHN" width={40} height={40} preload style={{ objectFit: 'cover' }} />
-          </div>
           <div>
             <h1 style={styles.logoText}>CloudMedHN</h1>
             <p style={styles.logoSubtext}>{clinicName}</p>
