@@ -154,3 +154,17 @@ export function classifyNameDobDuplicate(
   }
   return warning
 }
+
+/**
+ * Sanitiza un término de búsqueda antes de interpolarlo en un filtro `.or()` de PostgREST.
+ *
+ * En la sintaxis de `or=`, `,` separa condiciones y `(` `)` `"` agrupan/citan: si llegan en el
+ * texto del usuario rompen la consulta (400) o alteran el filtro. `%` `_` `*` son comodines de
+ * LIKE/PostgREST que el usuario no debe controlar. Se eliminan todos y se colapsan espacios.
+ */
+export function sanitizeSearchTerm(term: string): string {
+  return term
+    .replace(/[,()"'\\%_*]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

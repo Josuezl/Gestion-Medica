@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Inbox } from 'lucide-react'
 import SolicitudesClient, { type RequestRow } from './SolicitudesClient'
+import { sanitizeSearchTerm } from '@/utils/validation'
 
 /**
  * Bandeja de solicitudes del portal público de auto-agendamiento (pendientes de aprobación).
@@ -51,7 +52,8 @@ async function findSuggestions(
   }
 
   // Apellidos parecidos: el apellido es la señal fuerte cuando el nombre vino incompleto.
-  const lastWords = request.submitted_last_name.trim().split(/\s+/).filter(w => w.length >= 3).slice(0, 2)
+  // sanitizeSearchTerm: los nombres llegaron del portal público y se interpolan en el or() (P0-3.1)
+  const lastWords = sanitizeSearchTerm(request.submitted_last_name).split(/\s+/).filter(w => w.length >= 3).slice(0, 2)
   if (lastWords.length > 0 && suggestions.size < 6) {
     let q = supabase.from('patients').select(SELECT).eq('clinic_id', clinicId)
     q = q.or(lastWords.map(w => `last_name.ilike.%${w}%`).join(','))

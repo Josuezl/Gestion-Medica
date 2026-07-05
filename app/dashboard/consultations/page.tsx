@@ -6,6 +6,8 @@ import { canDoClinical } from '@/utils/permissions'
 import Pagination from '@/app/dashboard/components/Pagination'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
+import { sanitizeSearchTerm } from '@/utils/validation'
+import { getSessionProfile } from '@/utils/session'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
@@ -25,15 +27,10 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
 
   const supabase = await createClient()
 
-  // 1. Obtener datos del médico logueado
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id, role')
-    .eq('id', user.id)
-    .single()
+  // 1. Sesión + perfil memoizados por request (compartidos con el layout, P1-2)
+  const session = await getSessionProfile()
+  if (!session) return null
+  const { profile } = session
 
   // El historial clínico es trabajo médico: asistente y enfermera no pueden verlo.
   if (!canDoClinical(profile?.role)) {
@@ -64,7 +61,9 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     .eq('clinic_id', clinicId || '')
 
   if (searchQuery) {
-    const words = searchQuery.trim().split(/\s+/).filter(Boolean)
+    // sanitizeSearchTerm: el texto se interpola en la sintaxis del filtro or() de PostgREST
+    const safeQuery = sanitizeSearchTerm(searchQuery)
+    const words = safeQuery.split(/\s+/).filter(Boolean)
 
     // Paso 1: buscar patient_ids que coincidan con el nombre (igual que la página de Pacientes)
     let patientQuery = supabase
@@ -82,12 +81,12 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     // Paso 2: filtrar consultas — por patient_id O por diagnóstico/motivo
     if (patientIds.length > 0) {
       dbQuery = dbQuery.or(
-        `patient_id.in.(${patientIds.join(',')}),diagnosis.ilike.%${searchQuery}%,reason_for_visit.ilike.%${searchQuery}%`
+        `patient_id.in.(${patientIds.join(',')}),diagnosis.ilike.%${safeQuery}%,reason_for_visit.ilike.%${safeQuery}%`
       )
     } else {
       // No hubo coincidencias de paciente — buscar solo en diagnóstico/motivo
       dbQuery = dbQuery.or(
-        `diagnosis.ilike.%${searchQuery}%,reason_for_visit.ilike.%${searchQuery}%`
+        `diagnosis.ilike.%${safeQuery}%,reason_for_visit.ilike.%${safeQuery}%`
       )
     }
   }
@@ -131,9 +130,9 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
             Buscar
           </button>
           {searchQuery && (
-            <a href="/dashboard/consultations" className="btn btn-secondary" style={{ padding: '0.75rem' }}>
+            <Link href="/dashboard/consultations" className="btn btn-secondary" style={{ padding: '0.75rem' }}>
               Limpiar
-            </a>
+            </Link>
           )}
         </form>
       </div>

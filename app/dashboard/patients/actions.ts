@@ -7,6 +7,7 @@ import { isPediatric } from '@/utils/age'
 import { canDoClinical } from '@/utils/permissions'
 import { safeErrorMessage } from '@/utils/errors'
 import { sanitizePhone } from '@/utils/phone'
+import { sanitizeSearchTerm } from '@/utils/validation'
 import { findDuplicatePatient } from '@/utils/patientDuplicates'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -483,7 +484,8 @@ export async function searchPatientsForAgenda(query: string) {
 
   if (!profile?.clinic_id) return []
 
-  const words = query.trim().split(/\s+/).filter(Boolean)
+  // sanitizeSearchTerm: el texto se interpola en la sintaxis del filtro or() de PostgREST
+  const words = sanitizeSearchTerm(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return []
 
   let dbQuery = supabase

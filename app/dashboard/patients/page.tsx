@@ -2,6 +2,8 @@ import React from 'react'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
+import { sanitizeSearchTerm } from '@/utils/validation'
+import { getSessionProfile } from '@/utils/session'
 import Pagination from '@/app/dashboard/components/Pagination'
 import PatientVitalsButton from './PatientVitalsButton'
 import { Search, Plus, User, Eye, Phone, Clipboard, Edit } from 'lucide-react'
@@ -35,15 +37,10 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   
   const supabase = await createClient()
 
-  // 1. Obtener datos del médico logueado
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('clinic_id, role')
-    .eq('id', user.id)
-    .single()
+  // 1. Sesión + perfil memoizados por request (compartidos con el layout, P1-2)
+  const session = await getSessionProfile()
+  if (!session) return null
+  const { profile } = session
 
   const clinicId = profile?.clinic_id
   // Asistente y enfermera no inician consultas: se oculta el botón por fila.
@@ -60,7 +57,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   if (searchQuery) {
     // Dividir la búsqueda en palabras para soportar nombre completo
     // Ej: "Juan Carlos Vaquedano" → busca cada palabra en todos los campos (AND entre palabras, OR entre campos)
-    const words = searchQuery.trim().split(/\s+/).filter(Boolean)
+    // sanitizeSearchTerm: el texto se interpola en la sintaxis del filtro or() de PostgREST
+    const words = sanitizeSearchTerm(searchQuery).split(/\s+/).filter(Boolean)
     words.forEach(word => {
       dbQuery = dbQuery.or(`first_name.ilike.%${word}%,last_name.ilike.%${word}%,id_card.ilike.%${word}%,phone.ilike.%${word}%,record_number.ilike.%${word}%`)
     })
