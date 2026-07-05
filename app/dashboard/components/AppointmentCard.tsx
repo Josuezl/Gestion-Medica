@@ -39,7 +39,9 @@ export default function AppointmentCard({
   const date = new Date(app.scheduled_at)
 
   // Hora dividida en reloj ("08:00") y meridiano ("a. m.") para apilarlos.
-  const hhmm = date.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  // timeZone fijo a Honduras: sin él, el render del servidor (UTC) mostraba una hora distinta
+  // a la del navegador y "parpadeaba" (p. ej. 12:00 a. m. en vez de 6:00 p. m.).
+  const hhmm = date.toLocaleTimeString('es-HN', { timeZone: 'America/Tegucigalpa', hour: '2-digit', minute: '2-digit', hour12: true })
   const spaceIdx = hhmm.indexOf(' ')
   const clock = spaceIdx === -1 ? hhmm : hhmm.slice(0, spaceIdx)
   const meridiem = spaceIdx === -1 ? '' : hhmm.slice(spaceIdx + 1)
@@ -52,7 +54,7 @@ export default function AppointmentCard({
   const handleWhatsApp = () => {
     const doctor = doctors.find(d => d.id === app.doctor_id)
     const docName = doctorShortName(doctor?.first_name, doctor?.last_name, doctor?.gender)
-    const dateStr = date.toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long' })
+    const dateStr = date.toLocaleDateString('es-HN', { timeZone: 'America/Tegucigalpa', weekday: 'long', day: 'numeric', month: 'long' })
     const text = `Hola ${app.patients?.first_name || ''} ${app.patients?.last_name || ''}, te recordamos tu cita programada:\n\n📅 Fecha: ${dateStr}\n⏰ Hora: ${hhmm}\n🩺 Médico: ${docName}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
     const patientPhoneClean = app.patients?.phone ? app.patients.phone.replace(/\D/g, '') : ''
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`

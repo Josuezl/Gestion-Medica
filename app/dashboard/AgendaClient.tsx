@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { doctorShortName } from '@/utils/doctorName'
+import { ymdHN, hm24HN, minutesOfDayHN } from '@/utils/datetime'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { isCreatableAppointmentStatus } from '@/utils/validation'
 import { STATUS_CONFIG } from './StatusDropdown'
@@ -94,11 +95,22 @@ const DURATIONS = [15, 30, 45, 60]
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
 const getFirstDayOfMonth = (year: number, month: number) => (new Date(year, month, 1).getDay() + 6) % 7
 
+// `formatDateYMD` es SOLO para objetos Date que representan un DÍA CALENDARIO de la UI
+// (selectedDate, celdas del calendario, días de la semana): construidos con `new Date(y, m, d)`
+// locales, hacen round-trip a su propio Y/M/D en cualquier zona horaria. NUNCA pasar aquí un
+// instante `new Date(scheduled_at)`: para eso va `ymdHN` (día de Honduras del instante).
 const formatDateYMD = (date: Date) => {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+// Día de HOY en Honduras como Date calendario local (para usar con formatDateYMD/navegación).
+// Igual en servidor y navegador: evita que "hoy" caiga en distinto día por la zona del runtime.
+const hoyHNCalendario = () => {
+  const [y, m, d] = ymdHN(new Date()).split('-').map(Number)
+  return new Date(y, m - 1, d)
 }
 
 // Clave "YYYY-MM" y rango [inicio de mes, inicio del mes siguiente) para la caché de meses
@@ -127,7 +139,9 @@ const getWeekDays = (date: Date) => {
 export default function AgendaClient({ initialAppointments, loadedRangeStart, loadedRangeEnd, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  // Se inicializa al día de HOY en Honduras (no la fecha local del runtime) para que el render
+  // del servidor y el del navegador coincidan y no "parpadeen" citas en el día equivocado.
+  const [selectedDate, setSelectedDate] = useState<Date>(hoyHNCalendario)
   // Personal clínico (médico/admin) ve su propia agenda por defecto; el de apoyo (asistente/enfermera)
   // ve la de todos. Solo el clínico inicia consultas; el clínico y la enfermera toman signos.
   const isClinician = canDoClinical(currentDoctor.role)
@@ -296,7 +310,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   const appointmentsByDate = useMemo(() => {
     const map: Record<string, Appointment[]> = {}
     filteredAppointments.forEach(app => {
-      const dateStr = formatDateYMD(new Date(app.scheduled_at))
+      const dateStr = ymdHN(app.scheduled_at) // día de Honduras del instante (estable server/cliente)
       if (!map[dateStr]) map[dateStr] = []
       map[dateStr].push(app)
     })
@@ -311,8 +325,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       
       const checkApps = (apps: Appointment[]) => {
         apps.forEach(app => {
-          const d = new Date(app.scheduled_at)
-          const m = d.getHours() * 60 + d.getMinutes()
+          const m = minutesOfDayHN(app.scheduled_at) // minutos desde medianoche en hora de Honduras
           if (m < earliestMinutes) earliestMinutes = m
         })
       }
@@ -408,7 +421,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     const firstDay = getFirstDayOfMonth(year, month)
     
     const days = []
-    const todayStr = formatDateYMD(new Date())
+    const todayStr = ymdHN(new Date()) // "hoy" en Honduras, estable server/cliente
     const selectedStr = formatDateYMD(selectedDate)
     
     const weekDays = viewMode === 'week' ? getWeekDays(selectedDate).map(formatDateYMD) : []
@@ -504,17 +517,13 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
               ))}
               
               {apps.map(app => {
-                const date = new Date(app.scheduled_at)
-                const h = date.getHours()
-                const m = date.getMinutes()
-                
-                const top = (h * 60 + m) * 4
+                const top = minutesOfDayHN(app.scheduled_at) * 4 // posición en hora de Honduras
                 const height = (app.duration_minutes || 15) * 4
                 const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.PENDING
 
                 return (
-                  <div 
-                    key={app.id} 
+                  <div
+                    key={app.id}
                     className={`appointment-block ${cfg.class}`}
                     style={{ top: `${top}px`, height: `${height}px` }}
                     onClick={(e) => { e.stopPropagation(); handleOpenForm(selectedDate, undefined, app) }}
@@ -552,7 +561,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
         <div className="time-grid-header">
           <div className="time-grid-header-label">HGMT-6</div>
           {weekDays.map(d => {
-            const isToday = formatDateYMD(d) === formatDateYMD(new Date())
+            const isToday = formatDateYMD(d) === ymdHN(new Date())
             return (
               <div key={d.toISOString()} className={`time-grid-day-header ${isToday ? 'is-today' : ''}`}>
                 <div style={{ fontSize: '0.6rem', opacity: 0.8 }}>{d.toLocaleDateString('es-HN', { weekday: 'short' })}</div>
@@ -588,11 +597,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
                   ))}
                   
                   {apps.map(app => {
-                    const date = new Date(app.scheduled_at)
-                    const h = date.getHours()
-                    const m = date.getMinutes()
-                    
-                    const top = (h * 60 + m) * 4
+                    const top = minutesOfDayHN(app.scheduled_at) * 4 // posición en hora de Honduras
                     const height = (app.duration_minutes || 15) * 4
                     const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.PENDING
 
@@ -634,7 +639,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     const month = selectedDate.getMonth()
     const daysInMonth = getDaysInMonth(year, month)
     const firstDay = getFirstDayOfMonth(year, month)
-    const todayStr = formatDateYMD(new Date())
+    const todayStr = ymdHN(new Date()) // "hoy" en Honduras, estable server/cliente
 
     const cells = []
     
@@ -654,7 +659,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {apps.slice(0, 3).map(app => {
               const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.PENDING
-              const time = new Date(app.scheduled_at).toLocaleTimeString('es-HN', { hour: '2-digit', minute:'2-digit' })
+              const time = hm24HN(app.scheduled_at) // hora de Honduras, estable server/cliente
               return (
                 <div key={app.id} className={`month-appointment-bar ${cfg.class}`} title={`${time} - ${app.patients?.first_name} ${app.patients?.last_name}`}>
                   {time} {app.patients?.first_name?.split(' ')[0]} {app.patients?.last_name?.split(' ')[0]}
@@ -751,10 +756,10 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       const groups: { key: string; label: string; items: Appointment[] }[] = []
       apps.forEach(app => {
         const d = new Date(app.scheduled_at)
-        const key = formatDateYMD(d)
+        const key = ymdHN(app.scheduled_at) // día de Honduras del instante
         let g = groups.find(x => x.key === key)
         if (!g) {
-          g = { key, label: d.toLocaleDateString('es-HN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), items: [] }
+          g = { key, label: d.toLocaleDateString('es-HN', { timeZone: 'America/Tegucigalpa', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), items: [] }
           groups.push(g)
         }
         g.items.push(app)
@@ -834,8 +839,10 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     if (!showForm) return null
     
     const isEdit = !!editAppointment
-    const defaultDate = editAppointment ? formatDateYMD(new Date(editAppointment.scheduled_at)) : formatDateYMD(selectedDate)
-    const defaultTime = editAppointment ? new Date(editAppointment.scheduled_at).toTimeString().slice(0,5) : selectedHourForForm
+    // Los inputs del formulario son hora de pared de Honduras (la acción guarda con `-06:00`),
+    // así que los defaults de edición se derivan en hora de Honduras, no la local del runtime.
+    const defaultDate = editAppointment ? ymdHN(editAppointment.scheduled_at) : formatDateYMD(selectedDate)
+    const defaultTime = editAppointment ? hm24HN(editAppointment.scheduled_at) : selectedHourForForm
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
@@ -872,7 +879,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
 
       // Validation: Rescheduling a cancelled/no-show appointment
       if (isEdit && editAppointment && ['CANCELLED', 'NO_SHOW'].includes(editAppointment.status)) {
-        const oldDateStr = formatDateYMD(new Date(editAppointment.scheduled_at))
+        const oldDateStr = ymdHN(editAppointment.scheduled_at) // día de Honduras (vs dateVal del form)
         if (dateVal > oldDateStr && ['CANCELLED', 'NO_SHOW'].includes(statusVal)) {
           setFormError('Al reprogramar una cita cancelada o no asistida para un día posterior, debes cambiar el estado a "Pendiente" o "Confirmada".')
           setIsSubmitting(false)
@@ -885,10 +892,10 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
         if (app.status === 'CANCELLED') return false
         if (app.doctor_id !== doctorIdVal) return false
         
-        const d = new Date(app.scheduled_at)
-        const appDate = formatDateYMD(d)
-        const appTime = d.toTimeString().slice(0,5)
-        
+        // Comparar en hora de Honduras contra los valores del formulario (que también lo son).
+        const appDate = ymdHN(app.scheduled_at)
+        const appTime = hm24HN(app.scheduled_at)
+
         return appDate === dateVal && appTime === timeVal
       })
 

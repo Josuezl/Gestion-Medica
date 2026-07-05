@@ -56,3 +56,36 @@ export function formatDateHN(value: string | number | Date): string {
     year: 'numeric',
   })
 }
+
+/**
+ * Día CALENDARIO de Honduras de un instante, como `YYYY-MM-DD`.
+ *
+ * Estable en servidor y navegador: fija la zona horaria, así que un timestamp UTC se agrupa
+ * en el día correcto sin importar dónde se ejecute. Úsalo para agrupar/comparar citas por día
+ * (evita el desfase SSR-UTC vs navegador-HN que hacía "parpadear" citas nocturnas al día
+ * siguiente). `en-CA` produce el formato ISO `YYYY-MM-DD`.
+ */
+export function ymdHN(value: string | number | Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: HN_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
+}
+
+/** Hora de reloj de Honduras en 24h (`"18:00"`, medianoche = `"00:00"`). Estable server/cliente. */
+export function hm24HN(value: string | number | Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: HN_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(value))
+}
+
+/** Minutos desde medianoche (hora de Honduras) de un instante. Para posicionar en la rejilla horaria. */
+export function minutesOfDayHN(value: string | number | Date): number {
+  const [h, m] = hm24HN(value).split(':').map(Number)
+  return h * 60 + m
+}
