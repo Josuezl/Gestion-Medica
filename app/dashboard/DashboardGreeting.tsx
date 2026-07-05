@@ -27,9 +27,12 @@ export default async function DashboardGreeting() {
       </div>
 
       <div style={styles.stats}>
-        {/* Médicos: sus consultas + las del centro. Personal: solo las del centro. */}
+        {/* Médicos: sus consultas (completadas + pendientes) + las del centro. Personal: solo el centro. */}
         {isDoctor && stats.completedPersonal !== null && (
           <Stat value={stats.completedPersonal} label="Consultas completadas" />
+        )}
+        {isDoctor && stats.pendingPersonal !== null && (
+          <Stat value={stats.pendingPersonal} label="Consultas pendientes" divider />
         )}
         <Stat
           value={stats.completedCenter}
@@ -46,7 +49,7 @@ export default async function DashboardGreeting() {
 function Stat({ value, label, divider }: { value: number; label: string; divider?: boolean }) {
   return (
     <div style={{ ...styles.stat, ...(divider ? styles.statDivider : null) }}>
-      <div style={styles.statValue}>{value}</div>
+      <div style={styles.statValue}>{value.toLocaleString('en-US')}</div>
       <div style={styles.statLabel}>{label}</div>
     </div>
   )
@@ -88,9 +91,9 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
   },
   stat: {
-    padding: '0 1.35rem',
+    padding: '0 1.1rem',
     textAlign: 'center',
-    minWidth: '92px',
+    minWidth: '84px',
   },
   statDivider: {
     borderLeft: '1px solid rgba(255,255,255,0.25)',

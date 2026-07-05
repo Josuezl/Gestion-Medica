@@ -11,6 +11,8 @@ export interface DashboardGreetingData {
   stats: {
     /** Consultas completadas hoy por el propio médico. `null` para personal (asistente/enfermería). */
     completedPersonal: number | null
+    /** Citas de hoy del propio médico aún sin completar. `null` para personal. */
+    pendingPersonal: number | null
     /** Consultas completadas hoy en todo el centro (todos los médicos). */
     completedCenter: number
     newPatients: number
@@ -74,6 +76,19 @@ export async function getDashboardGreetingData(): Promise<DashboardGreetingData 
         .lt('created_at', endISO)
     : Promise.resolve({ count: null as number | null })
 
+  // Citas de hoy del propio médico aún sin completar (agendadas − ya realizadas).
+  // Es "citas de hoy" menos las COMPLETED; canceladas/no-show tampoco cuentan.
+  const pendingPersonalPromise = doctor
+    ? supabase
+        .from('appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('clinic_id', clinicId)
+        .eq('doctor_id', user.id)
+        .gte('scheduled_at', startISO)
+        .lt('scheduled_at', endISO)
+        .not('status', 'in', '(CANCELLED,NO_SHOW,COMPLETED)')
+    : Promise.resolve({ count: null as number | null })
+
   const newPatientsPromise = supabase
     .from('patients')
     .select('id', { count: 'exact', head: true })
@@ -86,14 +101,21 @@ export async function getDashboardGreetingData(): Promise<DashboardGreetingData 
     .select('id', { count: 'exact', head: true })
     .eq('clinic_id', clinicId)
 
-  const [todayCountRes, completedCenterRes, completedPersonalRes, newPatientsRes, totalPatientsRes] =
-    await Promise.all([
-      todayCountPromise,
-      completedCenterPromise,
-      completedPersonalPromise,
-      newPatientsPromise,
-      totalPatientsPromise,
-    ])
+  const [
+    todayCountRes,
+    completedCenterRes,
+    completedPersonalRes,
+    pendingPersonalRes,
+    newPatientsRes,
+    totalPatientsRes,
+  ] = await Promise.all([
+    todayCountPromise,
+    completedCenterPromise,
+    completedPersonalPromise,
+    pendingPersonalPromise,
+    newPatientsPromise,
+    totalPatientsPromise,
+  ])
 
   return {
     greeting: greetingForHonduras(now),
@@ -102,6 +124,7 @@ export async function getDashboardGreetingData(): Promise<DashboardGreetingData 
     todayCount: todayCountRes.count ?? 0,
     stats: {
       completedPersonal: doctor ? (completedPersonalRes.count ?? 0) : null,
+      pendingPersonal: doctor ? (pendingPersonalRes.count ?? 0) : null,
       completedCenter: completedCenterRes.count ?? 0,
       newPatients: newPatientsRes.count ?? 0,
       totalPatients: totalPatientsRes.count ?? 0,
