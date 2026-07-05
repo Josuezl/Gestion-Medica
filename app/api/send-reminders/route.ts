@@ -8,8 +8,15 @@ import { formatDateTimeLongHN, formatTimeHN } from '@/utils/datetime'
 /**
  * Cron de recordatorios de citas por WhatsApp (P0-2 de revision_tecnica_2026-07-05.md).
  *
- * Corre CADA HORA (vercel.json). Las ventanas son más anchas que el intervalo del cron para
- * que ninguna cita quede sin cubrir, y el solape entre corridas no duplica envíos porque cada
+ * Diseñado para correr CADA HORA. OJO: el plan Hobby de Vercel solo permite crons DIARIOS
+ * (rechaza el deploy con "0 * * * *"), así que vercel.json lo programa 1 vez al día a las
+ * 13:00 UTC (07:00 HN). Al activar recordatorios automáticos, para cobertura completa hace
+ * falta invocarlo cada hora: plan Pro de Vercel, o un scheduler externo gratuito (p. ej. un
+ * workflow de GitHub Actions con `schedule: cron('0 * * * *')` que haga GET con el
+ * Authorization: Bearer CRON_SECRET).
+ *
+ * Las ventanas son más anchas que el intervalo horario para que ninguna cita quede sin
+ * cubrir, y el solape entre corridas no duplica envíos porque cada
  * recordatorio se marca en la cita (reminder_24h_sent_at / reminder_2h_sent_at) y la consulta
  * filtra por `is null`. Si un envío falla, NO se marca: la siguiente corrida lo reintenta
  * mientras la cita siga dentro de la ventana.
