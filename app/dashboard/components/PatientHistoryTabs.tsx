@@ -13,7 +13,9 @@ import {
   Baby,
   Printer,
 } from 'lucide-react'
-import PediatricGrowthChart from './PediatricGrowthChart'
+import nextDynamic from 'next/dynamic'
+// recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
+const PediatricGrowthChart = nextDynamic(() => import('./PediatricGrowthChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 import StudyUploader from './StudyUploader'
 import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'

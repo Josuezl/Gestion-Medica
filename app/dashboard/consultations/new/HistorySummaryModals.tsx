@@ -5,7 +5,9 @@ import { ClipboardList, BarChart3, ArrowRight } from 'lucide-react'
 import { calculateAge } from '@/utils/age'
 import { summaryHeadline, aggregateDiagnoses, summarizeRecentConsultations } from '@/utils/historySummary'
 import type { ConsultationRow, PatientRow } from '@/utils/clinicalTypes'
-import DiagnosesBarChart from './DiagnosesBarChart'
+import nextDynamic from 'next/dynamic'
+// recharts pesa ~100 KB gz y el gráfico vive dentro de un modal: se difiere (P2-5)
+const DiagnosesBarChart = nextDynamic(() => import('./DiagnosesBarChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 
 const RECENT_LIMIT = 5
 
