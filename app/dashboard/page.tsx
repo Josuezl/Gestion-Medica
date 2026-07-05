@@ -1,6 +1,7 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import AgendaClient, { type Appointment } from './AgendaClient'
+import DashboardGreeting from './DashboardGreeting'
 import { getPendingPreclinicalPatientIds } from './preclinical/actions'
 
 import { cookies } from 'next/headers'
@@ -89,19 +90,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const preclinicalPatientIds = await getPendingPreclinicalPatientIds()
 
   return (
-    <AgendaClient
-      initialAppointments={(appointments as unknown as Appointment[]) || []}
-      doctors={doctors || []}
-      locations={locations || []}
-      defaultLocationId={defaultLocationId}
-      preclinicalPatientIds={preclinicalPatientIds}
-      preSelectedPatient={preSelectedPatient}
-      autoOpenAppointment={sp.nuevaCita === '1'}
-      currentDoctor={{
-        id: profile?.id || '',
-        role: profile?.role || 'DOCTOR',
-        isOrgAdmin: !!profile?.is_org_admin
-      }}
-    />
+    <>
+      <DashboardGreeting />
+      <AgendaClient
+        initialAppointments={(appointments as unknown as Appointment[]) || []}
+        doctors={doctors || []}
+        locations={locations || []}
+        defaultLocationId={defaultLocationId}
+        preclinicalPatientIds={preclinicalPatientIds}
+        preSelectedPatient={preSelectedPatient}
+        autoOpenAppointment={sp.nuevaCita === '1'}
+        currentDoctor={{
+          id: profile?.id || '',
+          role: profile?.role || 'DOCTOR',
+          isOrgAdmin: !!profile?.is_org_admin
+        }}
+      />
+    </>
   )
 }
