@@ -294,7 +294,7 @@ Los límites que van a tocar primero, en orden probable:
 | ID | Estado | Fecha | Notas |
 |----|--------|-------|-------|
 | P0-1 | ✅ Mitigado | 2026-07-05 | Ventana [−30, +120] días + `getAppointmentsForRange` bajo demanda por mes. Índice compuesto en `20260705010000_performance_indexes.sql` (**DDL pendiente de correr**). |
-| P0-2 | ✅ Mitigado (apagado) | 2026-07-05 | Cron horario + idempotencia (`reminder_*_sent_at`) + hora de Honduras. **Gateado con `AUTO_REMINDERS_ENABLED`** (hoy los recordatorios son manuales, decisión del usuario). Migración `20260705000000_...` solo se necesita al encenderlo. |
+| P0-2 | ✅ Mitigado (apagado) | 2026-07-05 | Lógica idempotente (`reminder_*_sent_at`) + hora de Honduras, **gateado con `AUTO_REMINDERS_ENABLED`** (hoy los recordatorios son manuales, decisión del usuario). ⚠️ El plan **Hobby de Vercel rechaza crons no diarios** (bloqueó el deploy): el cron quedó diario 13:00 UTC; al activar el envío automático se necesita Vercel Pro o un scheduler externo (GitHub Actions cron → GET con `CRON_SECRET`). Migración `20260705000000_...` solo se necesita al encenderlo. |
 | P0-3 | ✅ Mitigado | 2026-07-05 | `sanitizeSearchTerm` (5 sitios `.or()`, con tests). Índices trigram en `20260705010000_performance_indexes.sql` (**DDL pendiente de correr**). |
 | P1-1 | ✅ Mitigado | 2026-07-05 | `SidebarLink` client con `next/link` (cierra menú móvil); 0 `<a href>` internos restantes. |
 | P1-2 | ✅ Mitigado | 2026-07-05 | `utils/session.ts` (`getSessionProfile` con `React.cache()`) aplicado a layout, dashboard, pacientes, consultas y greeting. |
