@@ -2,12 +2,14 @@
 
 import React, { useState } from 'react'
 import {
-  BarChart, Bar, PieChart, Pie, Cell, LabelList,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { STATUS_CONFIG } from '../StatusDropdown'
 import { createClient } from '@/utils/supabase/client'
-import { BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle, X, Loader2, Download } from 'lucide-react'
+import {
+  BarChart3, Users, CalendarCheck, UserPlus, AlertTriangle, X, Loader2, Download,
+} from 'lucide-react'
 
 const PERIODS = [
   { key: 'hoy', label: 'Hoy' },
@@ -15,8 +17,17 @@ const PERIODS = [
   { key: '30', label: 'Últimos 30 días' },
 ]
 const PERIOD_LABELS: Record<string, string> = { hoy: 'Hoy', '7': 'Últimos 7 días', '30': 'Últimos 30 días' }
-const GENDER_COLORS: Record<string, string> = { M: '#3b82f6', F: '#ec4899', ND: '#9ca3af' }
-const GENDER_LABELS: Record<string, string> = { M: 'Masculino', F: 'Femenino', ND: 'Sin definir' }
+
+// Series de datos (validadas con el validador de paletas: contraste ≥3:1 y separación CVD).
+const C_TEAL = '#0d9488'
+const C_INDIGO = '#4f46e5'
+const GENDER_SEGS: { k: string; label: string; color: string }[] = [
+  { k: 'M', label: 'Masculino', color: '#3b82f6' },
+  { k: 'F', label: 'Femenino', color: '#db2777' },
+  { k: 'ND', label: 'Sin definir', color: '#94a3b8' },
+]
+// Orden fijo del desglose de estados: de "atendida" hacia "perdida".
+const STATUS_ORDER = ['COMPLETED', 'IN_PROGRESS', 'WAITING', 'CONFIRMED', 'PENDING', 'PENDING_REVIEW', 'CANCELLED', 'NO_SHOW']
 
 const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
   consultas: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'medico', label: 'Médico' }, { key: 'especialidad', label: 'Especialidad' }],
@@ -25,9 +36,10 @@ const DETAIL_COLS: Record<string, { key: string; label: string }[]> = {
   pacientes_nuevos: [{ key: 'fecha', label: 'Fecha' }, { key: 'paciente', label: 'Paciente' }, { key: 'expediente', label: 'N° Expediente' }, { key: 'creado_por', label: 'Creado por' }],
 }
 
-/** Forma del JSON que devuelve el RPC clinic_report. */
+/** Forma del JSON que devuelve el RPC clinic_report (v2: serie_diaria, citas_hora y kpis_prev son opcionales). */
 export interface ClinicReport {
   error?: string
+  rango?: { desde?: string; hasta?: string }
   kpis?: {
     consultas?: number
     citas?: number
@@ -35,9 +47,17 @@ export interface ClinicReport {
     pacientes_nuevos?: number
     pacientes_total?: number
   }
+  kpis_prev?: {
+    consultas?: number
+    citas?: number
+    no_show?: number
+    pacientes_nuevos?: number
+  }
   por_medico?: { nombre: string; genero?: string | null; total: number }[]
   por_especialidad?: { especialidad: string; total: number }[]
   citas_estado?: { status: string; total: number }[]
+  serie_diaria?: { fecha: string; consultas: number; citas: number; nuevos?: number; no_show?: number }[]
+  citas_hora?: { hora: number; total: number }[]
   demografia?: {
     genero?: Record<string, number>
     edad?: { adultos?: number; pediatricos?: number }
@@ -59,33 +79,147 @@ const fmtFecha = (s: string) => {
   const hm = (t || '').slice(0, 5)
   return day ? `${day}/${m}/${y}${hm ? ' ' + hm : ''}` : String(s)
 }
+const fmtHora = (h: number) => (h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`)
+const pct = (v: number, total: number) => (total > 0 ? Math.round((v / total) * 100) : 0)
 
-function Metric({ title, value, icon, accent, onClick }: { title: string; value: string | number; icon: React.ReactNode; accent: string; onClick?: () => void }) {
+/* ------------------------------------------------------------------ */
+/* Piezas visuales                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Mini-tendencia del periodo: área con relleno suave anclada al borde inferior de la caja.
+ *  baseline 'min' es para métricas acumuladas (p.ej. pacientes totales), donde interesa la forma. */
+function Sparkline({ points, accent, baseline = 'zero' }: { points: number[]; accent: string; baseline?: 'zero' | 'min' }) {
+  if (points.length < 2) return null
+  const w = 100, h = 34
+  const min = baseline === 'min' ? Math.min(...points) : 0
+  const max = Math.max(...points)
+  const x = (i: number) => (i * w) / (points.length - 1)
+  const y = (v: number) => (max === min ? h / 2 : 3 + (h - 6) * (1 - (v - min) / (max - min)))
+  const line = points.map((v, i) => `${x(i)},${y(v)}`).join(' ')
   return (
-    <div className="card" onClick={onClick} title={onClick ? 'Ver detalle' : undefined}
-      style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', padding: '1.1rem 1.25rem', cursor: onClick ? 'pointer' : 'default', transition: 'box-shadow .15s, transform .15s' }}
-      onMouseEnter={onClick ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 18px rgba(15,23,42,0.12)'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' } : undefined}
-      onMouseLeave={onClick ? (e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = ''; (e.currentTarget as HTMLDivElement).style.transform = '' } : undefined}>
-      <div style={{ width: 42, height: 42, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${accent}1a`, color: accent, flexShrink: 0 }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{title}</div>
-        <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{value}</div>
-        {onClick && <div style={{ fontSize: '0.7rem', color: accent, fontWeight: 700, marginTop: '0.2rem' }}>Click para ver detalle →</div>}
-      </div>
-    </div>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true" style={{ width: '100%', height: 34, display: 'block' }}>
+      <polygon points={`0,${h} ${line} ${w},${h}`} fill={accent} fillOpacity={0.12} stroke="none" />
+      <polyline points={line} fill="none" stroke={accent} strokeWidth={1.75} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
   )
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function StatTile({ label, value, icon, accent, spark, sparkBaseline, onClick }: {
+  label: string; value: string | number; icon: React.ReactNode; accent: string
+  spark?: number[]; sparkBaseline?: 'zero' | 'min'; onClick?: () => void
+}) {
   return (
-    <div className="card" style={{ padding: '1.5rem' }}>
-      <h3 style={{ margin: '0 0 1.25rem', fontSize: '1.1rem' }}>{title}</h3>
+    <button type="button" className="card rpt-tile" onClick={onClick} title="Ver detalle" style={{ padding: '1.05rem 1.15rem', overflow: 'hidden' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <span style={{ width: 30, height: 30, borderRadius: 9, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: `${accent}1a`, color: accent, flexShrink: 0 }}>{icon}</span>
+        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1e293b' }}>{label}</span>
+      </span>
+      <span style={{ fontSize: '1.7rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.05, fontFamily: 'var(--font-display)' }}>{value}</span>
+      {spark && spark.length > 1 ? (
+        // Sangra hasta los bordes de la tarjeta para que el área quede al ras, como fondo del pie.
+        <span style={{ display: 'block', margin: 'auto -1.15rem -1.05rem', paddingTop: '0.35rem' }}>
+          <Sparkline points={spark} accent={accent} baseline={sparkBaseline} />
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
+function ChartCard({ title, kicker, span, children }: { title: string; kicker?: string; span?: boolean; children: React.ReactNode }) {
+  return (
+    <section className={`card${span ? ' rpt-span' : ''}`} style={{ padding: '1.35rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1.1rem', flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: '1rem' }}>{title}</h3>
+        {kicker && <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>{kicker}</span>}
+      </header>
       {children}
+    </section>
+  )
+}
+
+const Empty = ({ h = 200 }: { h?: number }) => (
+  <div style={{ height: h, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#94a3b8', fontSize: '0.85rem' }}>
+    <BarChart3 size={22} style={{ opacity: 0.5 }} />
+    Sin datos en este periodo.
+  </div>
+)
+
+/** Ranking horizontal: barras finas con la etiqueta y el valor directamente legibles. */
+function RankBars({ data, color }: { data: { name: string; value: number }[]; color: string }) {
+  const max = Math.max(...data.map(d => d.value), 1)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      {data.map(d => (
+        <div key={d.name}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', marginBottom: 4 }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>{d.value}</span>
+          </div>
+          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ width: `${(d.value / max) * 100}%`, height: '100%', background: color, borderRadius: '0 4px 4px 0' }} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-const Empty = () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>Sin datos en este periodo.</div>
+/** Barra de proporción (parte-del-todo) con leyenda de conteos y porcentajes. */
+function PropBar({ label, segments, legend = 'wrap' }: {
+  label?: string
+  segments: { label: string; value: number; color: string }[]
+  legend?: 'wrap' | 'rows'
+}) {
+  const total = segments.reduce((s, x) => s + x.value, 0)
+  const vis = segments.filter(s => s.value > 0)
+  if (total === 0 || vis.length === 0) return <Empty h={120} />
+  return (
+    <div>
+      {label && <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{label}</p>}
+      <div role="img" aria-label={`${label || 'Distribución'}: ${vis.map(s => `${s.label} ${s.value} (${pct(s.value, total)}%)`).join(', ')}`}
+           style={{ display: 'flex', gap: 2, height: 14, borderRadius: 7, overflow: 'hidden' }}>
+        {vis.map(s => (
+          <div key={s.label} title={`${s.label}: ${s.value} (${pct(s.value, total)}%)`}
+               style={{ width: `${(s.value / total) * 100}%`, minWidth: 4, background: s.color }} />
+        ))}
+      </div>
+      {legend === 'wrap' ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem 1.1rem', marginTop: '0.65rem' }}>
+          {vis.map(s => (
+            <span key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#475569' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+              {s.label} <strong style={{ color: '#0f172a' }}>{s.value.toLocaleString('es-HN')}</strong>
+              <span style={{ color: '#94a3b8' }}>({pct(s.value, total)}%)</span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: '0.75rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+          {vis.map(s => (
+            <li key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem', color: '#334155' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
+              <strong style={{ color: '#0f172a' }}>{s.value.toLocaleString('es-HN')}</strong>
+              <span style={{ color: '#94a3b8', width: 42, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{pct(s.value, total)}%</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+const TOOLTIP_STYLE: React.CSSProperties = {
+  borderRadius: 10,
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 8px 24px rgba(15,23,42,0.10)',
+  fontSize: '0.8rem',
+  background: '#ffffff',
+}
+
+/* ------------------------------------------------------------------ */
+/* Página                                                              */
+/* ------------------------------------------------------------------ */
 
 export default function ReportsClient({ report, periodo, selectedDate, rpcMissing }: { report: ClinicReport | null; periodo: string | null; selectedDate: string | null; rpcMissing: boolean }) {
   const supabase = createClient()
@@ -127,25 +261,24 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   const Header = (
     <div>
       <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Reportes</h2>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.1rem 0 0.7rem' }}>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.1rem 0 0.8rem' }}>
         Estadística operativa — {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {PERIODS.map(p => {
-          const active = !selectedDate && periodo === p.key
-          return (
-            <a key={p.key} href={`/dashboard/reports?periodo=${p.key}`}
-               style={{ padding: '0.4rem 0.9rem', borderRadius: 999, fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none',
-                 background: active ? 'var(--primary)' : '#f1f5f9', color: active ? '#fff' : '#475569', border: '1px solid', borderColor: active ? 'var(--primary)' : '#e2e8f0' }}>
-              {p.label}
-            </a>
-          )
-        })}
-        <span style={{ color: '#cbd5e1', margin: '0 0.15rem' }}>|</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <nav className="rpt-period-group" aria-label="Periodo del reporte">
+          {PERIODS.map(p => {
+            const active = !selectedDate && periodo === p.key
+            return (
+              <a key={p.key} href={`/dashboard/reports?periodo=${p.key}`} className={`rpt-period${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
+                {p.label}
+              </a>
+            )
+          })}
+        </nav>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem', color: '#475569' }}>
           Día específico:
           <input type="date" value={selectedDate || ''} max={todayStr} onChange={onPickDate}
-                 style={{ padding: '0.35rem 0.6rem', borderRadius: 999, border: '1px solid', borderColor: selectedDate ? 'var(--primary)' : '#e2e8f0', fontSize: '0.82rem', color: selectedDate ? 'var(--primary)' : '#475569', fontWeight: 600 }} />
+                 style={{ padding: '0.35rem 0.6rem', borderRadius: 999, border: '1px solid', borderColor: selectedDate ? 'var(--primary)' : '#e2e8f0', fontSize: '0.82rem', color: selectedDate ? 'var(--primary)' : '#475569', fontWeight: 600, background: '#fff' }} />
         </label>
       </div>
     </div>
@@ -167,20 +300,67 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
   const citasTotal = kpis.citas ?? 0
   const noShowRate = citasTotal > 0 ? Math.round(((kpis.no_show ?? 0) / citasTotal) * 100) : 0
 
-  const porMedico = (report.por_medico || []).map((d) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), total: d.total }))
-  const porEspecialidad = (report.por_especialidad || []).map((d) => ({ name: d.especialidad, total: d.total }))
-  const citasEstado = (report.citas_estado || []).map((d) => ({
-    name: STATUS_CONFIG[d.status]?.label || d.status, total: d.total, color: STATUS_CONFIG[d.status]?.dotColor || '#94a3b8',
-  }))
-  const gen = report.demografia?.genero || {}
-  const generoData = ['M', 'F', 'ND'].map(k => ({ k, name: GENDER_LABELS[k], total: gen[k] || 0 })).filter(d => d.total > 0)
-  const edad = report.demografia?.edad || {}
-  const edadData = [
-    { name: 'Adultos', total: edad.adultos || 0, color: '#4f46e5' },
-    { name: 'Pediátricos', total: edad.pediatricos || 0, color: '#14b8a6' },
-  ].filter(d => d.total > 0)
+  // Serie diaria (tendencia + sparklines). Desde el RPC v3 cubre al menos 7 días
+  // aunque el periodo sea "Hoy", para que los KPIs siempre muestren su mini-tendencia.
+  const serie = report.serie_diaria || []
+  const hasSerie = serie.length > 1
+  const sparkConsultas = hasSerie ? serie.map(d => d.consultas) : undefined
+  const sparkCitas = hasSerie ? serie.map(d => d.citas) : undefined
+  // 'nuevos' y 'no_show' por día existen desde el RPC v3; si faltan, esos KPIs van sin mini-tendencia.
+  const hasSerieV3 = hasSerie && serie.some(d => typeof d.nuevos === 'number')
+  const sparkNuevos = hasSerieV3 ? serie.map(d => d.nuevos ?? 0) : undefined
+  const sparkNoShow = hasSerieV3 ? serie.map(d => d.no_show ?? 0) : undefined
+  // Pacientes totales: acumulado reconstruido hacia atrás desde el total actual.
+  let sparkTotal: number[] | undefined
+  if (hasSerieV3) {
+    const acc: number[] = new Array(serie.length)
+    let t = kpis.pacientes_total ?? 0
+    for (let i = serie.length - 1; i >= 0; i--) { acc[i] = t; t -= serie[i].nuevos ?? 0 }
+    sparkTotal = acc
+  }
 
-  const pieLabel = (e: { value?: number | string }) => `${e.value}`
+  // Citas por hora del día (horas pico) — huecos rellenados con 0 para una escala continua.
+  const horas = report.citas_hora || []
+  const horasData: { hora: string; Citas: number }[] = []
+  let horaPico: string | undefined
+  if (horas.length > 0) {
+    const hMin = Math.min(...horas.map(h => h.hora))
+    const hMax = Math.max(...horas.map(h => h.hora))
+    const byHour = new Map(horas.map(h => [h.hora, h.total]))
+    for (let h = hMin; h <= hMax; h++) horasData.push({ hora: fmtHora(h), Citas: byHour.get(h) ?? 0 })
+    const peak = horas.reduce((a, b) => (b.total > a.total ? b : a))
+    horaPico = `Hora pico: ${fmtHora(peak.hora)}`
+  }
+
+  const porMedico = (report.por_medico || []).map((d) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), value: d.total }))
+  const porEspecialidad = (report.por_especialidad || []).map((d) => ({ name: d.especialidad, value: d.total }))
+
+  // Desglose de citas por estado, en orden fijo "atendida → perdida".
+  const estadoSegs = (report.citas_estado || [])
+    .slice()
+    .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))
+    .map(d => ({ label: STATUS_CONFIG[d.status]?.label || d.status, value: d.total, color: STATUS_CONFIG[d.status]?.dotColor || '#94a3b8' }))
+  const realizadas = (report.citas_estado || []).find(d => d.status === 'COMPLETED')?.total ?? 0
+  const kickerEstado = citasTotal > 0 ? `${pct(realizadas, citasTotal)}% realizadas` : undefined
+
+  const gen = report.demografia?.genero || {}
+  const generoSegs = GENDER_SEGS.map(g => ({ label: g.label, value: gen[g.k] || 0, color: g.color }))
+  const edad = report.demografia?.edad || {}
+  const edadSegs = [
+    { label: 'Adultos', value: edad.adultos || 0, color: C_INDIGO },
+    { label: 'Pediátricos', value: edad.pediatricos || 0, color: C_TEAL },
+  ]
+  const totalPacientes = (kpis.pacientes_total ?? 0).toLocaleString('es-HN')
+  // Kicker con el grupo dominante (p.ej. "52% femenino").
+  const dominante = (segs: { label: string; value: number }[]) => {
+    const total = segs.reduce((s, x) => s + x.value, 0)
+    if (total === 0) return undefined
+    const top = segs.reduce((a, b) => (b.value > a.value ? b : a))
+    return `${pct(top.value, total)}% ${top.label.toLowerCase()}`
+  }
+  const kickerGenero = dominante(generoSegs)
+  const kickerEdad = dominante(edadSegs)
+
   const cols = detail ? DETAIL_COLS[detail.tipo] || [] : []
 
   return (
@@ -188,90 +368,48 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
       {Header}
 
       {/* KPIs — clickeables: abren el detalle de lo que cuentan */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-        <Metric title="Consultas" value={kpis.consultas ?? 0} icon={<BarChart3 size={20} />} accent="#0d9488" onClick={() => openDetail('consultas', 'Consultas')} />
-        <Metric title="Citas" value={kpis.citas ?? 0} icon={<CalendarCheck size={20} />} accent="#4f46e5" onClick={() => openDetail('citas', 'Citas')} />
-        <Metric title="Pacientes nuevos" value={kpis.pacientes_nuevos ?? 0} icon={<UserPlus size={20} />} accent="#0ea5e9" onClick={() => openDetail('pacientes_nuevos', 'Pacientes nuevos')} />
-        <Metric title="No-asistencia" value={`${noShowRate}%`} icon={<AlertTriangle size={20} />} accent="#f59e0b" onClick={() => openDetail('no_show', 'Citas no asistidas')} />
-        <Metric title="Pacientes totales" value={(kpis.pacientes_total ?? 0).toLocaleString('es-HN')} icon={<Users size={20} />} accent="#64748b" onClick={() => { window.location.href = '/dashboard/patients' }} />
+      <div className="rpt-kpi-grid">
+        <StatTile label="Consultas" value={kpis.consultas ?? 0} icon={<BarChart3 size={17} />} accent={C_TEAL} spark={sparkConsultas} onClick={() => openDetail('consultas', 'Consultas')} />
+        <StatTile label="Citas" value={kpis.citas ?? 0} icon={<CalendarCheck size={17} />} accent={C_INDIGO} spark={sparkCitas} onClick={() => openDetail('citas', 'Citas')} />
+        <StatTile label="Pacientes nuevos" value={(kpis.pacientes_nuevos ?? 0).toLocaleString('es-HN')} icon={<UserPlus size={17} />} accent="#0ea5e9" spark={sparkNuevos} onClick={() => openDetail('pacientes_nuevos', 'Pacientes nuevos')} />
+        <StatTile label="No-asistencia" value={`${noShowRate}%`} icon={<AlertTriangle size={17} />} accent="#d97706" spark={sparkNoShow} onClick={() => openDetail('no_show', 'Citas no asistidas')} />
+        <StatTile label="Pacientes totales" value={totalPacientes} icon={<Users size={17} />} accent="#64748b" spark={sparkTotal} sparkBaseline="min" onClick={() => { window.location.href = '/dashboard/patients' }} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '1.5rem' }}>
-        <ChartCard title="Consultas por médico">
-          {porMedico.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={porMedico} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
-                <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
-                <YAxis allowDecimals={false} fontSize={12} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Bar dataKey="total" name="Consultas" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={90}>
-                  <LabelList dataKey="total" position="top" style={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+      <div className="rpt-grid">
+        <ChartCard title="Consultas por médico" kicker={porMedico.length > 0 ? `${porMedico.length} ${porMedico.length === 1 ? 'médico' : 'médicos'}` : undefined}>
+          {porMedico.length === 0 ? <Empty /> : <RankBars data={porMedico} color={C_TEAL} />}
         </ChartCard>
 
-        <ChartCard title="Pacientes atendidos por especialidad">
-          {porEspecialidad.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={porEspecialidad} margin={{ top: 24, right: 24, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
-                <XAxis dataKey="name" fontSize={12} interval={0} angle={-12} textAnchor="end" height={56} />
-                <YAxis allowDecimals={false} fontSize={12} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Bar dataKey="total" name="Pacientes" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={90}>
-                  <LabelList dataKey="total" position="top" style={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+        <ChartCard title="Pacientes atendidos por especialidad" kicker={porEspecialidad.length > 0 ? `${porEspecialidad.length} ${porEspecialidad.length === 1 ? 'especialidad' : 'especialidades'}` : undefined}>
+          {porEspecialidad.length === 0 ? <Empty /> : <RankBars data={porEspecialidad} color={C_INDIGO} />}
         </ChartCard>
 
-        <ChartCard title="Citas por estado">
-          {citasEstado.length === 0 ? <Empty /> : (
-            <ResponsiveContainer width="100%" height={340}>
-              <PieChart>
-                <Pie data={citasEstado} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={115} paddingAngle={2} label={pieLabel} labelLine={false}>
-                  {citasEstado.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
-              </PieChart>
+        {/* Horas pico (requiere RPC v2+) */}
+        {horasData.length > 0 && (
+          <ChartCard title="Citas por hora" kicker={horaPico}>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={horasData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="hora" fontSize={11} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} interval="preserveStartEnd" minTickGap={10} />
+                <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={28} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Line type="monotone" dataKey="Citas" stroke={C_INDIGO} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false} />
+              </LineChart>
             </ResponsiveContainer>
-          )}
+          </ChartCard>
+        )}
+
+        <ChartCard title="Citas por estado" kicker={kickerEstado}>
+          {estadoSegs.length === 0 ? <Empty /> : <PropBar segments={estadoSegs} legend="rows" />}
         </ChartCard>
 
-        <ChartCard title="Pacientes: demografía">
-          {generoData.length === 0 && edadData.length === 0 ? <Empty /> : (
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Por género</p>
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie data={generoData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
-                      {generoData.map((d) => <Cell key={d.k} fill={GENDER_COLORS[d.k]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                    <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 600 }}>Adultos vs pediátricos</p>
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie data={edadData} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={pieLabel} labelLine={false}>
-                      {edadData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.8rem' }} />
-                    <Legend wrapperStyle={{ fontSize: '0.78rem' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
+        <ChartCard title="Pacientes por género" kicker={kickerGenero}>
+          <PropBar segments={generoSegs} legend="rows" />
+        </ChartCard>
+
+        <ChartCard title="Adultos vs. pediátricos" kicker={kickerEdad}>
+          <PropBar segments={edadSegs} legend="rows" />
         </ChartCard>
       </div>
 
@@ -279,7 +417,7 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
       {detail && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
              onClick={() => setDetail(null)}>
-          <div className="card" style={{ maxWidth: 640, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '1.25rem' }} onClick={e => e.stopPropagation()}>
+          <div className="card" style={{ maxWidth: 720, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '1.25rem', borderRadius: 'var(--radius-lg)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
                 {detail.label} <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.85rem' }}>· {selectedDate ? fechaLarga(selectedDate) : PERIOD_LABELS[periodo || 'hoy']}</span>
@@ -301,15 +439,17 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
               <div style={{ overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                   <thead>
-                    <tr style={{ textAlign: 'left', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
-                      {cols.map(c => <th key={c.key} style={{ padding: '0.5rem 0.6rem', position: 'sticky', top: 0, background: '#fff' }}>{c.label}</th>)}
+                    <tr style={{ textAlign: 'left', color: '#64748b' }}>
+                      {cols.map(c => (
+                        <th key={c.key} style={{ padding: '0.55rem 0.6rem', position: 'sticky', top: 0, background: '#f8fafc', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.03em', borderBottom: '1px solid #e2e8f0' }}>{c.label}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {detail.rows.map((r, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         {cols.map(c => (
-                          <td key={c.key} style={{ padding: '0.5rem 0.6rem' }}>
+                          <td key={c.key} style={{ padding: '0.55rem 0.6rem' }}>
                             {c.key === 'fecha' ? fmtFecha(String(r.fecha ?? ''))
                               : c.key === 'estado' ? (STATUS_CONFIG[String(r.estado ?? '')]?.label || r.estado)
                               : (r[c.key] || '—')}
