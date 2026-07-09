@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { approveBookingRequest, rejectBookingRequest, type ApproveDecision, type WhatsAppPrompt } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import type { PatientSuggestion } from './page'
-import { formatDateTimeHN, formatDateHN } from '@/utils/datetime'
+import { formatDateTimeLongHN, formatDateHN } from '@/utils/datetime'
 import { doctorShortName } from '@/utils/doctorName'
 import type { PatientRow } from '@/utils/clinicalTypes'
 import { CheckCircle2, XCircle, Search, Loader2, UserPlus, UserCheck, Inbox, Globe } from 'lucide-react'
@@ -42,6 +42,20 @@ const isoToHNTime = (iso: string) => isoToHN(iso).slice(11, 16)
 const openWhatsApp = (wa: WhatsAppPrompt) => {
   window.open(`https://api.whatsapp.com/send?phone=${wa.phone}&text=${encodeURIComponent(wa.message)}`, '_blank', 'noreferrer')
 }
+
+/** Cuadro etiquetado: etiqueta pequeña en mayúsculas + valor grande. Para que la asistente lea
+ *  de un vistazo los datos clave de la cita antes de aprobar (tema claro/oscuro vía CSS vars). */
+function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.75rem', minWidth: 0 }}>
+      <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{label}</div>
+      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.35, wordBreak: 'break-word', fontFamily: mono ? 'monospace' : undefined }}>{value}</div>
+    </div>
+  )
+}
+
+/** Rejilla responsiva de cuadros que se adapta al ancho (tarjeta ancha o modal angosto). */
+const fieldGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.6rem' }
 
 export default function SolicitudesClient({ requests }: { requests: RequestRow[] }) {
   const router = useRouter()
@@ -179,29 +193,18 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
         return (
           <div key={req.id} className="card" style={{ borderLeft: '4px solid #a855f7' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Globe size={15} color="#a855f7" />
-                  <strong style={{ fontSize: '1rem' }}>{req.submitted_first_name} {req.submitted_last_name}</strong>
-                  {req.matched_patient ? (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#dcfce7', color: '#15803d' }}>
-                      Paciente existente
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#fae8ff', color: '#a855f7' }}>
-                      Paciente nuevo (sin ficha)
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <span>📅 {req.appointments ? formatDateTimeHN(req.appointments.scheduled_at) : '—'} · 🩺 {docName}{req.locations?.name ? ` · 📍 ${req.locations.name}` : ''}</span>
-                  <span>
-                    {req.submitted_birth_date ? `Nacimiento: ${formatDateHN(`${req.submitted_birth_date}T12:00:00Z`)} · ` : ''}
-                    {req.submitted_id_card ? `Identidad: ${req.submitted_id_card} · ` : ''}
-                    {req.submitted_phone ? `Tel: ${req.submitted_phone}` : 'Sin teléfono'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', minWidth: 0 }}>
+                <Globe size={16} color="#a855f7" />
+                <strong style={{ fontSize: '1.15rem' }}>{req.submitted_first_name} {req.submitted_last_name}</strong>
+                {req.matched_patient ? (
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#dcfce7', color: '#15803d' }}>
+                    Paciente existente
                   </span>
-                  <span style={{ fontSize: '0.78rem' }}>Recibida: {formatDateTimeHN(req.created_at)} · Código: <span style={{ fontFamily: 'monospace' }}>{req.tracking_code}</span></span>
-                </div>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '999px', background: '#fae8ff', color: '#a855f7' }}>
+                    Paciente nuevo (sin ficha)
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button className="btn btn-primary" style={{ gap: '0.35rem' }} disabled={busy} onClick={() => openApprove(req)}>
@@ -211,6 +214,19 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                   <XCircle size={16} /> Rechazar
                 </button>
               </div>
+            </div>
+
+            <div style={{ ...fieldGrid, marginTop: '0.9rem' }}>
+              <Field label="Fecha y hora" value={req.appointments ? formatDateTimeLongHN(req.appointments.scheduled_at) : '—'} />
+              <Field label="Médico" value={docName} />
+              {req.locations?.name && <Field label="Lugar" value={req.locations.name} />}
+              <Field label="Teléfono" value={req.submitted_phone || 'Sin teléfono'} />
+              {req.submitted_birth_date && <Field label="Nacimiento" value={formatDateHN(`${req.submitted_birth_date}T12:00:00Z`)} />}
+              {req.submitted_id_card && <Field label="Identidad" value={req.submitted_id_card} />}
+            </div>
+
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+              Recibida: {formatDateTimeLongHN(req.created_at)} · Código: <span style={{ fontFamily: 'monospace' }}>{req.tracking_code}</span>
             </div>
 
             {req.suggestions.length > 0 && (
@@ -288,6 +304,18 @@ export default function SolicitudesClient({ requests }: { requests: RequestRow[]
                 )}
               </div>
             )}
+
+            {/* Resumen de la cita — grande y bajo cuadros, lo que lee la asistente antes de decidir.
+                «Fecha y hora» refleja en vivo lo que se ajuste en los campos editables de abajo. */}
+            <div style={{ ...fieldGrid, marginBottom: '1.25rem' }}>
+              <Field label="Paciente (solicitud)" value={`${approving.submitted_first_name} ${approving.submitted_last_name}`} />
+              <Field label="Fecha y hora" value={apptDate && apptTime ? formatDateTimeLongHN(`${apptDate}T${apptTime}:00-06:00`) : '—'} />
+              <Field label="Médico" value={doctorShortName(approving.doctor?.first_name, approving.doctor?.last_name, approving.doctor?.gender)} />
+              {approving.locations?.name && <Field label="Lugar" value={approving.locations.name} />}
+              {approving.submitted_phone && <Field label="Teléfono" value={approving.submitted_phone} />}
+              {approving.submitted_birth_date && <Field label="Nacimiento" value={formatDateHN(`${approving.submitted_birth_date}T12:00:00Z`)} />}
+              {approving.submitted_id_card && <Field label="Identidad" value={approving.submitted_id_card} mono />}
+            </div>
 
             {/* Paciente ya identificado por el matching (nombre exacto o identidad): la cita es
                 suya — no aplica crear ficha nueva ni reasignar; solo se muestra su ficha. */}

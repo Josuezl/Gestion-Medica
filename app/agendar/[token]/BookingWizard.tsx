@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { identifyPatient, getAvailability, submitBooking } from './actions'
 import { weekdayOfYMD, splitFullName } from '@/utils/booking'
 
@@ -69,6 +69,9 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
 
   // Caja única del paso 1: se divide en nombres/apellidos solo para el registro y la ficha.
   const [fullName, setFullName] = useState('')
+  // Compuerta al detectar EXACTAMENTE 3 palabras: confirmar que su nombre solo tiene 3 antes de seguir.
+  const [threeWordPrompt, setThreeWordPrompt] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [isExisting, setIsExisting] = useState(false)
@@ -102,14 +105,9 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
     return true
   }
 
-  const handleIdentify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    const split = splitFullName(fullName)
-    if (split.words < 4) {
-      setError('Escribe tus dos nombres y tus dos apellidos (4 palabras), tal como aparecen en tu identidad.')
-      return
-    }
+  // Ejecuta la identificación (paso 1 → calendario/registro) una vez validado el nombre.
+  const runIdentify = async (split: ReturnType<typeof splitFullName>) => {
+    setThreeWordPrompt(false)
     setBusy(true)
     const res = await identifyPatient(token, fullName, idCard || undefined)
     if ('error' in res) { setError(res.error); setBusy(false); return }
@@ -124,6 +122,23 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
       setStep('register')
     }
     setBusy(false)
+  }
+
+  const handleIdentify = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    const split = splitFullName(fullName)
+    if (split.words < 3) {
+      setError('Escribe al menos tu nombre y tus dos apellidos (o tus dos nombres y un apellido), tal como aparecen en tu identidad.')
+      return
+    }
+    // Exactamente 3 palabras: puede ser correcto (un solo nombre o un solo apellido) o faltarle uno.
+    // Preguntamos antes de continuar; si confirma que solo tiene 3, procede.
+    if (split.words === 3 && !threeWordPrompt) {
+      setThreeWordPrompt(true)
+      return
+    }
+    runIdentify(split)
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -262,11 +277,11 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
         {step === 'name' && (
           <form onSubmit={handleIdentify} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b', lineHeight: 1.5, textAlign: 'center' }}>
-              Escribe tus <strong>4 nombres</strong> (dos nombres y dos apellidos) tal como aparecen en tu identidad.
+              Escribe tu <strong>nombre completo</strong> (idealmente tus dos nombres y dos apellidos) tal como aparece en tu identidad.
             </p>
             <div>
               <label style={labelStyle}>Nombre completo</label>
-              <input style={inputStyle} type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Ej. María José López García" required maxLength={80} autoFocus />
+              <input ref={nameInputRef} style={inputStyle} type="text" value={fullName} onChange={e => { setFullName(e.target.value); if (threeWordPrompt) setThreeWordPrompt(false) }} placeholder="Ej. María José López García" required maxLength={80} autoFocus />
             </div>
             <div>
               <label style={labelStyle}>Número de identidad (opcional)</label>
@@ -275,9 +290,25 @@ export default function BookingWizard({ token, doctorName, clinicName, locationN
                 Si ya eres paciente, tu identidad nos ayuda a encontrar tu expediente.
               </p>
             </div>
-            <button type="submit" style={{ ...primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy}>
-              {busy ? 'Buscando…' : 'Continuar'}
-            </button>
+            {threeWordPrompt ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px 14px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: 1.5, textAlign: 'left' }}>
+                  Escribiste <strong>3 nombres</strong>. ¿Tu nombre completo tiene solo 3 (un solo nombre o un solo apellido)?
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" style={{ ...primaryBtn, flex: 1, opacity: busy ? 0.7 : 1 }} disabled={busy} onClick={() => runIdentify(splitFullName(fullName))}>
+                    {busy ? 'Buscando…' : 'Sí, continuar'}
+                  </button>
+                  <button type="button" style={{ ...secondaryBtn, flex: 1, width: 'auto', color: TEAL, fontWeight: 700 }} disabled={busy} onClick={() => { setThreeWordPrompt(false); setTimeout(() => nameInputRef.current?.focus(), 0) }}>
+                    No, me falta uno
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="submit" style={{ ...primaryBtn, opacity: busy ? 0.7 : 1 }} disabled={busy}>
+                {busy ? 'Buscando…' : 'Continuar'}
+              </button>
+            )}
           </form>
         )}
 

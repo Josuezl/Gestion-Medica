@@ -24,17 +24,33 @@ export function formatDateTimeHN(value: string | number | Date): string {
   })
 }
 
-/** "lunes, 15 de junio, 04:36 p. m." — para mensajes al paciente (recordatorios). */
+/** Partes de fecha/hora ya fijadas a Honduras, para armar formatos a mano (Intl mete una coma
+ * tras el día de la semana; armándolo por partes controlamos el texto exacto). */
+function partsHN(value: string | number | Date, opts: Intl.DateTimeFormatOptions): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const p of new Intl.DateTimeFormat('es-HN', { timeZone: HN_TIME_ZONE, ...opts }).formatToParts(new Date(value))) {
+    out[p.type] = p.value
+  }
+  return out
+}
+
+/** "8:00 a. m." — hora 12h sin cero inicial (instante, zona HN). */
+function timeShortHN(value: string | number | Date): string {
+  const p = partsHN(value, { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${p.hour}:${p.minute} ${p.dayPeriod}`
+}
+
+/** "jueves 9 de julio de 2026" — fecha larga en palabras (instante, zona HN). Sin la coma que
+ * mete Intl tras el día de la semana, para igualar el formato del portal público. */
+export function formatDateLongHN(value: string | number | Date): string {
+  const p = partsHN(value, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return `${p.weekday} ${p.day} de ${p.month} de ${p.year}`
+}
+
+/** "jueves 9 de julio de 2026, 8:00 a. m." — fecha larga + hora, para fechas de CITA
+ * (mensajes al paciente, tarjetas de solicitud, recordatorios, página de estado). */
 export function formatDateTimeLongHN(value: string | number | Date): string {
-  return new Date(value).toLocaleString('es-HN', {
-    timeZone: HN_TIME_ZONE,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  })
+  return `${formatDateLongHN(value)}, ${timeShortHN(value)}`
 }
 
 /** "04:36 p. m." */

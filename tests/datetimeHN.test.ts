@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ymdHN, hm24HN, minutesOfDayHN } from '../utils/datetime'
+import { ymdHN, hm24HN, minutesOfDayHN, formatDateLongHN, formatDateTimeLongHN } from '../utils/datetime'
 
 /**
  * Estos helpers deben dar el mismo resultado sin importar la zona horaria del proceso
@@ -34,5 +34,32 @@ describe('helpers de fecha/hora fijados a Honduras (UTC-6)', () => {
     const d = new Date(citaNocturna)
     expect(ymdHN(d)).toBe('2026-07-04')
     expect(ymdHN(d.getTime())).toBe('2026-07-04')
+  })
+})
+
+describe('fechas de cita escritas en palabras (zona HN)', () => {
+  // 14:00Z del 9-jul == 8:00 a. m. en Honduras (UTC-6).
+  const cita8am = '2026-07-09T14:00:00Z'
+
+  it('formatDateLongHN da "jueves 9 de julio de 2026" (sin coma tras el día de la semana)', () => {
+    expect(formatDateLongHN(cita8am)).toBe('jueves 9 de julio de 2026')
+  })
+
+  it('usa el día CALENDARIO de Honduras, no el UTC, para citas nocturnas', () => {
+    // 00:00Z del 5-jul == 6:00 p. m. del 4-jul en Honduras (sábado).
+    expect(formatDateLongHN('2026-07-05T00:00:00Z')).toBe('sábado 4 de julio de 2026')
+  })
+
+  it('formatDateTimeLongHN antepone la fecha larga y agrega la hora 12h sin cero inicial', () => {
+    const out = formatDateTimeLongHN(cita8am)
+    expect(out.startsWith('jueves 9 de julio de 2026, ')).toBe(true)
+    expect(out).toMatch(/8:00/)
+    expect(out).toMatch(/m\./) // meridiano a. m./p. m. (el texto exacto lo fija ICU)
+  })
+
+  it('acepta string, number y Date', () => {
+    const d = new Date(cita8am)
+    expect(formatDateLongHN(d)).toBe('jueves 9 de julio de 2026')
+    expect(formatDateLongHN(d.getTime())).toBe('jueves 9 de julio de 2026')
   })
 })

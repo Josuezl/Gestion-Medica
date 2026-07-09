@@ -1,7 +1,7 @@
 import React from 'react'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { doctorShortName } from '@/utils/doctorName'
-import { formatDateTimeHN } from '@/utils/datetime'
+import { formatDateTimeLongHN } from '@/utils/datetime'
 
 /**
  * Página PÚBLICA de estado de una solicitud de cita del portal de auto-agendamiento.
@@ -109,7 +109,7 @@ export default async function BookingStatusPage({ params }: { params: Promise<{ 
         <div><strong>Paciente:</strong> {request.submitted_first_name} {request.submitted_last_name}</div>
         <div><strong>Médico:</strong> {doctorName}</div>
         <div><strong>Lugar:</strong> {request.clinics?.name || 'Clínica'}{request.locations?.name ? ` · ${request.locations.name}` : ''}</div>
-        {scheduledAt && <div><strong>Fecha y hora:</strong> {formatDateTimeHN(scheduledAt)}</div>}
+        {scheduledAt && <div><strong>Fecha y hora:</strong> {formatDateTimeLongHN(scheduledAt)}</div>}
         {request.status === 'REJECTED' && request.rejection_reason && (
           <div><strong>Motivo:</strong> {request.rejection_reason}</div>
         )}

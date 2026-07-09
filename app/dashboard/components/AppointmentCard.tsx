@@ -5,6 +5,7 @@ import { Clipboard, FileText, Stethoscope, Edit2, Trash2, Clock } from 'lucide-r
 import StatusDropdown, { STATUS_CONFIG } from '../StatusDropdown'
 import { doctorShortName } from '@/utils/doctorName'
 import { calculateAge } from '@/utils/age'
+import { formatDateLongHN } from '@/utils/datetime'
 import type { Appointment, Doctor } from '../AgendaClient'
 
 interface AppointmentCardProps {
@@ -54,7 +55,7 @@ export default function AppointmentCard({
   const handleWhatsApp = () => {
     const doctor = doctors.find(d => d.id === app.doctor_id)
     const docName = doctorShortName(doctor?.first_name, doctor?.last_name, doctor?.gender)
-    const dateStr = date.toLocaleDateString('es-HN', { timeZone: 'America/Tegucigalpa', weekday: 'long', day: 'numeric', month: 'long' })
+    const dateStr = formatDateLongHN(date)
     const text = `Hola ${app.patients?.first_name || ''} ${app.patients?.last_name || ''}, te recordamos tu cita programada:\n\n📅 Fecha: ${dateStr}\n⏰ Hora: ${hhmm}\n🩺 Médico: ${docName}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
     const patientPhoneClean = app.patients?.phone ? app.patients.phone.replace(/\D/g, '') : ''
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${patientPhoneClean}&text=${encodeURIComponent(text)}`

@@ -177,7 +177,7 @@ export async function getAvailability(
 }
 
 export interface SubmitBookingPayload {
-  fullName: string // caja única del portal (≥4 palabras; se divide con splitFullName)
+  fullName: string // caja única del portal (≥2 palabras; el portal pide 3+; se divide con splitFullName)
   date: string // YYYY-MM-DD (slot elegido)
   time: string // HH:MM
   idCard?: string // identidad opcional (ayuda al matching y va a la solicitud)

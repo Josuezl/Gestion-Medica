@@ -14,7 +14,7 @@ import { sanitizePhone } from '@/utils/phone'
 import { findDuplicatePatient } from '@/utils/patientDuplicates'
 import { isPediatric } from '@/utils/age'
 import { doctorShortName } from '@/utils/doctorName'
-import { formatDateTimeHN } from '@/utils/datetime'
+import { formatDateTimeLongHN } from '@/utils/datetime'
 import { isBlockingStatus, PORTAL_SLOT_MINUTES } from '@/utils/booking'
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -267,7 +267,7 @@ export async function approveBookingRequest(requestId: string, decision: Approve
 
   const docName = doctorShortName(request.doctor?.first_name, request.doctor?.last_name, request.doctor?.gender)
   const place = request.locations?.name ? `\n📍 Lugar: ${request.locations.name}` : ''
-  const message = `Hola {nombre}, tu cita fue APROBADA ✅\n\n📅 Fecha y hora: ${formatDateTimeHN(updatedAppt.scheduled_at)}\n🩺 Médico: ${docName}${place}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
+  const message = `Hola {nombre}, tu cita fue APROBADA ✅\n\n📅 Fecha y hora: ${formatDateTimeLongHN(updatedAppt.scheduled_at)}\n🩺 Médico: ${docName}${place}\n\nPor favor, confírmanos tu asistencia respondiendo a este mensaje. ¡Te esperamos!`
   return { success: true, whatsapp: buildWhatsAppPrompt(patientPhone, patientFirstName, message) }
 }
 
@@ -321,7 +321,7 @@ export async function rejectBookingRequest(requestId: string, reason?: string): 
 
   const docName = doctorShortName(request.doctor?.first_name, request.doctor?.last_name, request.doctor?.gender)
   const motivo = cleanReason ? `\n\nMotivo: ${cleanReason}` : ''
-  const message = `Hola {nombre}, lamentamos informarte que tu solicitud de cita con ${docName} del ${formatDateTimeHN(request.appointments?.scheduled_at || new Date())} no fue aprobada.${motivo}\n\nPor favor comunícate con nosotros para reagendarla. Gracias por tu comprensión.`
+  const message = `Hola {nombre}, lamentamos informarte que tu solicitud de cita con ${docName} del ${formatDateTimeLongHN(request.appointments?.scheduled_at || new Date())} no fue aprobada.${motivo}\n\nPor favor comunícate con nosotros para reagendarla. Gracias por tu comprensión.`
   const phone = request.matched_patient_id
     ? (await supabase.from('patients').select('phone').eq('id', request.matched_patient_id).maybeSingle()).data?.phone || request.submitted_phone
     : request.submitted_phone
