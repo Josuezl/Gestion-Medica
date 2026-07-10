@@ -24,7 +24,12 @@ Aplica a todos los tenants (como toda feature).
 
 ### 1. Arreglo del bug del botón colgado
 
-- Envolver `await createConsultation(...)` en `try/catch` + timeout de 30 s (`Promise.race`).
+- Envolver `await createConsultation(...)` en `try/catch` + timeout de 15 s (`Promise.race`).
+  (Ajustado de 30 s → 15 s a pedido del usuario: el guardado normal toma 1-2 s, así que 15 s
+  sigue siendo ~10× de colchón sin desesperar al médico.)
+- Si el guardado tarda >5 s, mostrar junto al botón: "Esto está tardando más de lo normal…"
+  para que el médico nunca espere sin señal (en el caso típico de red caída el fetch falla en ~1 s;
+  el timeout solo aplica al caso de petición colgada, p. ej. wifi conectado sin internet real).
 - Al fallar: `loading = false` (botón reactivado), datos intactos en el formulario, y error visible:
   - Si `navigator.onLine === false`: "Sin conexión a internet. La consulta NO se guardó, pero tus
     datos están respaldados en este dispositivo. Revisa tu conexión e inténtalo de nuevo."

@@ -47,10 +47,13 @@ interface NewConsultationClientProps {
   lastStudyRequest?: { studies: RequestStudy[]; other_studies: string | null; created_at: string } | null
 }
 
-// Tiempo máximo de espera del guardado antes de liberar el botón. Si la petición sí llegó al
-// servidor pero la respuesta se perdió, el mensaje de error le pide al médico verificar el
-// expediente antes de reintentar (trade-off aceptado en el spec: sin clave de idempotencia).
-const SAVE_TIMEOUT_MS = 30_000
+// Tiempo máximo de espera del guardado antes de liberar el botón (~10× el guardado normal de
+// 1-2 s). Si la petición sí llegó al servidor pero la respuesta se perdió, el mensaje de error
+// le pide al médico verificar el expediente antes de reintentar (trade-off aceptado en el spec:
+// sin clave de idempotencia). A los 5 s se muestra un aviso de "tardando más de lo normal" para
+// que el médico nunca espere sin señal.
+const SAVE_TIMEOUT_MS = 15_000
+const SLOW_SAVE_HINT_MS = 5_000
 
 // Campos que se restauran vía estado de React (controlados u ocultos); el resto se escribe
 // directo en los inputs no controlados del formulario por su atributo name.
@@ -81,9 +84,11 @@ export default function NewConsultationClient({
   lastStudyRequest = null
 }: NewConsultationClientProps) {
   const [error, setError] = useState<string | null>(null)
-  
+
   const patientAge = calculateAge(patient.birth_date)
   const [loading, setLoading] = useState(false)
+  // Guardado lento (>5 s): muestra un aviso junto al botón para que el médico sepa que sigue vivo.
+  const [slowSave, setSlowSave] = useState(false)
   const [isUpdatingGender, startGenderTransition] = React.useTransition()
   // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
   const [printModal, setPrintModal] = useState<{
@@ -209,6 +214,10 @@ export default function NewConsultationClient({
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
 
+    // Si el guardado tarda más de lo normal (petición colgada, servidor lento), avisar al médico
+    // en vez de dejarlo mirando el spinner sin señal.
+    const slowTimer = setTimeout(() => setSlowSave(true), SLOW_SAVE_HINT_MS)
+
     let result: Awaited<ReturnType<typeof createConsultation>>
     try {
       // Promise.race: si la red se cayó a media petición el fetch puede quedarse colgado sin
@@ -230,6 +239,10 @@ export default function NewConsultationClient({
           : 'No se pudo guardar la consulta. Revisa tu conexión e inténtalo de nuevo. Si el problema persiste, verifica en el expediente si la consulta ya quedó registrada antes de volver a guardar.'
       )
       return
+    } finally {
+      // Corre en todos los caminos (éxito, error o timeout): apaga el aviso de guardado lento.
+      clearTimeout(slowTimer)
+      setSlowSave(false)
     }
 
     if (result && 'error' in result && result.error) {
@@ -868,7 +881,7 @@ export default function NewConsultationClient({
             </div>
 
               {/* Botón de Enviar */}
-              <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap', marginTop: '1.5rem' }}>
                 <button
                   type="submit"
                   className="btn btn-primary"
@@ -887,6 +900,11 @@ export default function NewConsultationClient({
                     </>
                   )}
                 </button>
+                {loading && slowSave && (
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Esto está tardando más de lo normal…
+                  </span>
+                )}
               </div>
       </form>
 
