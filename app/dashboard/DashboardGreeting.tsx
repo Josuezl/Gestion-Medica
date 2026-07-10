@@ -17,7 +17,7 @@ export default async function DashboardGreeting() {
     : `${todayCount} ${citaWord} por aprobar`
 
   return (
-    <section style={styles.banner}>
+    <section style={styles.banner} className="dash-greeting">
       <div style={styles.left}>
         {/* <div> en vez de <h2>/<p>: el dashboard fuerza color oscuro !important en h1–h6/p. */}
         <div style={styles.greeting}>
@@ -26,7 +26,7 @@ export default async function DashboardGreeting() {
         <div style={styles.subtitle}>· {subtitle}</div>
       </div>
 
-      <div style={styles.stats}>
+      <div style={styles.stats} className="dash-greeting-stats">
         {/* Médicos: sus consultas (completadas + pendientes) + las del centro. Personal: solo el centro. */}
         {isDoctor && stats.completedPersonal !== null && (
           <Stat value={stats.completedPersonal} label="Consultas completadas" />
@@ -48,9 +48,14 @@ export default async function DashboardGreeting() {
 
 function Stat({ value, label, divider }: { value: number; label: string; divider?: boolean }) {
   return (
-    <div style={{ ...styles.stat, ...(divider ? styles.statDivider : null) }}>
+    <div
+      style={{ ...styles.stat, ...(divider ? styles.statDivider : null) }}
+      className="dash-greeting-stat"
+    >
       <div style={styles.statValue}>{value.toLocaleString('en-US')}</div>
-      <div style={styles.statLabel}>{label}</div>
+      <div style={styles.statLabel} className="dash-greeting-stat-label">
+        {label}
+      </div>
     </div>
   )
 }

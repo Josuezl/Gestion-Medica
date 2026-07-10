@@ -1726,3 +1726,38 @@ h1, h2, h3, h4, h5, h6 {
     gap: 1rem;
   }
 }
+
+/*
+ * Banner de saludo del dashboard (DashboardGreeting).
+ * Desktop usa flex en fila con divisores verticales (estilos inline del componente).
+ * En móvil esa fila hace wrap centrado y los divisores quedan sueltos: se "descuadra".
+ * Aquí lo pasamos a una grilla de 2 columnas alineada a la izquierda, sin divisores
+ * verticales y con etiquetas que envuelven. Los inline styles ganan por especificidad,
+ * así que estos overrides usan !important (igual que el resto del layout responsive).
+ */
+@media (max-width: 640px) {
+  .dash-greeting {
+    padding: 1.25rem !important;
+    gap: 1rem !important;
+  }
+
+  .dash-greeting-stats {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.9rem 1rem !important;
+    width: 100% !important;
+    padding-top: 1rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.22) !important;
+  }
+
+  .dash-greeting-stat {
+    padding: 0 !important;
+    min-width: 0 !important;
+    text-align: left !important;
+    border-left: none !important; /* quita los divisores verticales que quedaban sueltos */
+  }
+
+  .dash-greeting-stat-label {
+    white-space: normal !important; /* deja envolver etiquetas largas como "Consultas completadas" */
+  }
+}
