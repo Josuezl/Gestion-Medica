@@ -26,17 +26,26 @@ export function useFormDraft(storageKey: string, getSnapshot: () => Record<strin
   const pendingRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const snapshotRef = useRef(getSnapshot)
-  snapshotRef.current = getSnapshot
+
+  // El snapshot captura estado del componente: se refresca en cada render, pero fuera del
+  // cuerpo del render (regla react-hooks/refs).
+  useEffect(() => {
+    snapshotRef.current = getSnapshot
+  })
 
   useEffect(() => {
     const storage = getLocalStorage()
     purgeExpiredDrafts(storage)
     const draft = loadDraft(storage, storageKey)
+    let restoreTimer: ReturnType<typeof setTimeout> | null = null
     if (draft) {
       pendingRef.current = true
-      setPendingDraft(draft)
+      // setState diferido: la lectura de localStorage es síncrona, pero el update se agenda
+      // fuera del cuerpo del efecto (regla react-hooks/set-state-in-effect).
+      restoreTimer = setTimeout(() => setPendingDraft(draft), 0)
     }
     return () => {
+      if (restoreTimer) clearTimeout(restoreTimer)
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [storageKey])

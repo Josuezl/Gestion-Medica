@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createConsultation } from '../actions'
 import { updatePatientGender } from '../../patients/actions'
 import {
@@ -25,6 +25,9 @@ import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
+import { draftKey, formDataToFields } from '@/utils/formDraft'
+import { useFormDraft } from '@/utils/useFormDraft'
+import ConnectionBanner from '../../components/ConnectionBanner'
 import Link from 'next/link'
 
 interface NewConsultationClientProps {
@@ -43,6 +46,23 @@ interface NewConsultationClientProps {
   studyCatalog?: CatalogSection[]
   lastStudyRequest?: { studies: RequestStudy[]; other_studies: string | null; created_at: string } | null
 }
+
+// Tiempo máximo de espera del guardado antes de liberar el botón. Si la petición sí llegó al
+// servidor pero la respuesta se perdió, el mensaje de error le pide al médico verificar el
+// expediente antes de reintentar (trade-off aceptado en el spec: sin clave de idempotencia).
+const SAVE_TIMEOUT_MS = 30_000
+
+// Campos que se restauran vía estado de React (controlados u ocultos); el resto se escribe
+// directo en los inputs no controlados del formulario por su atributo name.
+const DRAFT_STATE_FIELDS = new Set([
+  'medicines_text',
+  'include_diagnosis',
+  'prescription_notes',
+  'diagnosis',
+  'treatment_plan',
+  'lab_order',
+  'study_request',
+])
 
 export default function NewConsultationClient({
   patient,
@@ -98,6 +118,81 @@ export default function NewConsultationClient({
   const [diagnosisText, setDiagnosisText] = useState('')
   const [treatmentText, setTreatmentText] = useState('')
 
+  const formRef = useRef<HTMLFormElement | null>(null)
+  const errorRef = useRef<HTMLDivElement | null>(null)
+
+  // ── Borrador local (autosave + restauración) ─────────────────────────────
+  // Snapshot del formulario completo: FormData cubre inputs con name (incluidos los hidden de
+  // laboratorio/estudios); se agregan a mano el textarea de medicamentos (sin name) y el
+  // checkbox (FormData omite checkboxes desmarcados).
+  function getDraftSnapshot(): Record<string, string> {
+    const form = formRef.current
+    const fields = form ? formDataToFields(new FormData(form)) : {}
+    fields.medicines_text = medicinesText
+    fields.include_diagnosis = includeDiagnosis ? 'on' : ''
+    return fields
+  }
+
+  const { pendingDraft, scheduleSave, discardDraft, resolvePendingDraft, clearSavedDraft } =
+    useFormDraft(draftKey(currentUserId, patient.id), getDraftSnapshot)
+
+  // Los cambios programáticos (modales de lab/estudios, botones de importar, "usar último")
+  // no disparan onInput del form; este efecto los cubre. Se salta el primer render para no
+  // guardar un borrador del formulario recién abierto sin tocar.
+  const draftMountedRef = useRef(false)
+  useEffect(() => {
+    if (!draftMountedRef.current) {
+      draftMountedRef.current = true
+      return
+    }
+    scheduleSave()
+  }, [medicinesText, prescriptionNotes, includeDiagnosis, diagnosisText, treatmentText, labOrder, studyRequest, scheduleSave])
+
+  // El error puede aparecer lejos del botón Guardar (el alert vive arriba del formulario):
+  // llevarlo a la vista para que el médico sí lo vea.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
+
+  // Aplica un borrador restaurado: estado de React para los campos controlados/ocultos y
+  // escritura directa por name para los no controlados.
+  function applyDraft(fields: Record<string, string>) {
+    setDiagnosisText(fields.diagnosis ?? '')
+    setTreatmentText(fields.treatment_plan ?? '')
+    setMedicinesText(fields.medicines_text ?? '')
+    setPrescriptionNotes(fields.prescription_notes ?? '')
+    setIncludeDiagnosis(fields.include_diagnosis === 'on')
+    try {
+      if (fields.lab_order) {
+        const parsed = JSON.parse(fields.lab_order) as { tests?: { category: string; name: string }[]; otherTests?: string }
+        setLabOrder({ tests: Array.isArray(parsed?.tests) ? parsed.tests : [], otherTests: parsed?.otherTests || '' })
+      }
+    } catch {
+      // parte corrupta del borrador: se ignora, el resto se restaura igual
+    }
+    try {
+      if (fields.study_request) {
+        const parsed = JSON.parse(fields.study_request) as StudyRequestValue
+        setStudyRequest({
+          studies: Array.isArray(parsed?.studies) ? parsed.studies : [],
+          otherStudies: parsed?.otherStudies || '',
+          manualToCatalog: Array.isArray(parsed?.manualToCatalog) ? parsed.manualToCatalog : [],
+        })
+      }
+    } catch {
+      // idem
+    }
+    const form = formRef.current
+    if (form) {
+      for (const [name, value] of Object.entries(fields)) {
+        if (DRAFT_STATE_FIELDS.has(name)) continue
+        const el = form.elements.namedItem(name)
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.value = value
+      }
+    }
+    resolvePendingDraft()
+  }
+
   // Cargar los medicamentos (y notas) de la última receta del paciente al textarea.
   function loadLastPrescription() {
     if (!lastPrescription) return
@@ -113,7 +208,29 @@ export default function NewConsultationClient({
 
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
-    const result = await createConsultation(patient.id, appointmentId, medicines, formData, preclinical?.id ?? null)
+
+    let result: Awaited<ReturnType<typeof createConsultation>>
+    try {
+      // Promise.race: si la red se cayó a media petición el fetch puede quedarse colgado sin
+      // rechazar nunca; el timeout libera el botón para que el médico pueda reintentar.
+      result = await Promise.race([
+        createConsultation(patient.id, appointmentId, medicines, formData, preclinical?.id ?? null),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)
+        }),
+      ])
+    } catch {
+      // Fallo de red o timeout: la consulta NO se guardó (desde el punto de vista del cliente).
+      // Los datos siguen en el formulario y el borrador local sigue vivo; reintentar es volver
+      // a presionar el mismo botón.
+      setLoading(false)
+      setError(
+        typeof navigator !== 'undefined' && navigator.onLine === false
+          ? 'Sin conexión a internet. La consulta NO se guardó, pero tus datos están respaldados en este dispositivo. Revisa tu conexión e inténtalo de nuevo.'
+          : 'No se pudo guardar la consulta. Revisa tu conexión e inténtalo de nuevo. Si el problema persiste, verifica en el expediente si la consulta ya quedó registrada antes de volver a guardar.'
+      )
+      return
+    }
 
     if (result && 'error' in result && result.error) {
       setError(result.error)
@@ -122,6 +239,9 @@ export default function NewConsultationClient({
     }
 
     const r = result && 'success' in result ? result : null
+
+    // Guardado exitoso: el borrador local ya no hace falta (política: borrar al guardar).
+    clearSavedDraft()
 
     // Avisos de pasos secundarios que fallaron (la consulta sí se guardó). No bloquean el flujo,
     // pero el médico debe enterarse en vez de recibir un "éxito" silencioso con estado parcial.
@@ -151,6 +271,9 @@ export default function NewConsultationClient({
 
   return (
     <div style={styles.container}>
+      {/* Aviso en vivo si se pierde la conexión (el fetch del guardado es la señal definitiva) */}
+      <ConnectionBanner />
+
       {/* Pregunta de resumen del historial (solo si el paciente ya tiene consultas previas) */}
       <HistorySummaryModals patient={patient} consultations={consultations} />
 
@@ -333,9 +456,30 @@ export default function NewConsultationClient({
         </div>
       </div>
 
-      {error && <div style={styles.errorAlert}>{error}</div>}
+      {error && <div ref={errorRef} style={styles.errorAlert}>{error}</div>}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
+      {/* Borrador local encontrado: ofrecer recuperarlo antes de que el médico escriba de nuevo.
+          Mientras este banner espera decisión, el autosave está pausado. */}
+      {pendingDraft && (
+        <div style={styles.draftBanner}>
+          <div>
+            <strong style={{ display: 'block', fontSize: '0.9rem' }}>Encontramos una consulta sin guardar</strong>
+            <span style={{ fontSize: '0.8rem' }}>
+              Respaldada en este dispositivo el {formatDateTimeHN(new Date(pendingDraft.savedAt).toISOString())}. ¿Quieres recuperarla?
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button type="button" className="btn btn-primary" onClick={() => applyDraft(pendingDraft.fields)}>
+              Restaurar
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={discardDraft}>
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <form ref={formRef} onSubmit={handleSubmit} onInput={scheduleSave} style={styles.form}>
             
             {/* 1. Signos Vitales */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -810,6 +954,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: '#f87171',
     fontSize: '0.85rem',
+  },
+  draftBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    padding: '0.85rem 1rem',
+    backgroundColor: '#fffbeb',
+    border: '1px solid #fcd34d',
+    borderRadius: '10px',
+    color: '#92400e',
   },
   form: {
     display: 'flex',

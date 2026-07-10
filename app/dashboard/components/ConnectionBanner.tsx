@@ -13,12 +13,17 @@ export default function ConnectionBanner() {
   const [status, setStatus] = useState<'online' | 'offline' | 'restored'>('online')
 
   useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) setStatus('offline')
     const goOffline = () => setStatus('offline')
     const goOnline = () => setStatus('restored')
+    // Estado inicial: diferido para no hacer setState síncrono en el cuerpo del efecto
+    // (regla react-hooks/set-state-in-effect); también evita mismatch de hidratación.
+    const initial = setTimeout(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) goOffline()
+    }, 0)
     window.addEventListener('offline', goOffline)
     window.addEventListener('online', goOnline)
     return () => {
+      clearTimeout(initial)
       window.removeEventListener('offline', goOffline)
       window.removeEventListener('online', goOnline)
     }
