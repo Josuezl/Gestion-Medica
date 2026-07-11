@@ -57,3 +57,7 @@ scripts/migracion-access/*.local.*
 
 # Scripts/archivos one-off locales (no commitear): convención *.local.*
 *.local.*
+
+# Backups locales del script de backup casero (datos clínicos SIN cifrar: jamás al repo)
+backup-out/
+*.tar.gz.enc

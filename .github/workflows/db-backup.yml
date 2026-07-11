@@ -1,0 +1,55 @@
+# Backup diario cifrado de la base de Supabase (el plan Free NO incluye backups automáticos).
+# Spec: docs/superpowers/specs/2026-07-11-backup-casero-supabase-design.md
+# Restauración: docs/backup-restore.md
+#
+# ⚠️ El repo es PÚBLICO: los artifacts los puede descargar cualquiera, por eso NADA sale del
+# runner sin cifrar (AES-256 con BACKUP_PASSPHRASE). Secrets requeridos (Settings → Secrets →
+# Actions): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BACKUP_PASSPHRASE.
+# Si este workflow falla, GitHub notifica por correo al dueño del repo.
+name: DB Backup
+
+on:
+  schedule:
+    - cron: '15 7 * * *' # 07:15 UTC = 01:15 en Honduras, fuera de horario de clínica
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Exportar tablas (solo lectura, paginado)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/backup-export.mjs
+
+      - name: Verificar backup (conteos + tablas núcleo)
+        run: node scripts/backup-verify.mjs backup-out
+
+      - name: Cifrar (AES-256; nada sube sin cifrar)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "Falta el secret BACKUP_PASSPHRASE"; exit 1; }
+          tar -czf backup.tar.gz backup-out
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in backup.tar.gz -out backup.tar.gz.enc -pass env:BACKUP_PASSPHRASE
+          rm -rf backup.tar.gz backup-out
+
+      - name: Subir artifact cifrado (retención 30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.tar.gz.enc
+          retention-days: 30
+          if-no-files-found: error
