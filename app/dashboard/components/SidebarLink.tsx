@@ -23,7 +23,11 @@ export default function SidebarLink({ href, label, icon, badge }: SidebarLinkPro
   }
 
   return (
-    <Link href={href} style={styles.sidebarLink} onClick={closeMobileSidebar}>
+    // prefetch={false}: sin esto, cada vista de página pre-carga en el servidor TODAS las rutas
+    // del menú (~9 invocaciones fantasma por vista) y consume la cuota de Active CPU del plan
+    // Hobby (hallazgo 2026-07-11: ~870 prefetches por ruta del menú en 12 h). La navegación
+    // sigue siendo client-side; la data se pide al hacer clic (~decenas de ms por página).
+    <Link href={href} prefetch={false} style={styles.sidebarLink} onClick={closeMobileSidebar}>
       {icon}
       <span>{label}</span>
       {!!badge && (
