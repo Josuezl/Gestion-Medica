@@ -90,6 +90,9 @@ export default function NewConsultationClient({
   const [loading, setLoading] = useState(false)
   // Guardado lento (>5 s): muestra un aviso junto al botón para que el médico sepa que sigue vivo.
   const [slowSave, setSlowSave] = useState(false)
+  // Al volver el internet tras un guardado fallido por conexión, guía explícita de reintento.
+  const [retryHint, setRetryHint] = useState(false)
+  const offlineSaveFailedRef = useRef(false)
   const [isUpdatingGender, startGenderTransition] = React.useTransition()
   // Modal para ofrecer imprimir la incapacidad médica al finalizar la consulta
   const [printModal, setPrintModal] = useState<{
@@ -155,10 +158,23 @@ export default function NewConsultationClient({
   }, [medicinesText, prescriptionNotes, includeDiagnosis, diagnosisText, treatmentText, labOrder, studyRequest, scheduleSave])
 
   // El error puede aparecer lejos del botón Guardar (el alert vive arriba del formulario):
-  // llevarlo a la vista para que el médico sí lo vea.
+  // llevarlo a la vista para que el médico sí lo vea. Aplica igual a la guía de reintento.
   useEffect(() => {
-    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [error])
+    if (error || retryHint) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error, retryHint])
+
+  // Si un guardado falló por falta de internet y la conexión regresa, cambiar el error rojo por
+  // una guía verde: "presiona Guardar de nuevo". (setState en callback de evento: permitido.)
+  useEffect(() => {
+    const onBackOnline = () => {
+      if (!offlineSaveFailedRef.current) return
+      offlineSaveFailedRef.current = false
+      setError(null)
+      setRetryHint(true)
+    }
+    window.addEventListener('online', onBackOnline)
+    return () => window.removeEventListener('online', onBackOnline)
+  }, [])
 
   // Aplica un borrador restaurado: estado de React para los campos controlados/ocultos y
   // escritura directa por name para los no controlados.
@@ -210,6 +226,8 @@ export default function NewConsultationClient({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setRetryHint(false)
+    offlineSaveFailedRef.current = false
     setLoading(true)
 
     const formData = new FormData(event.currentTarget)
@@ -236,6 +254,7 @@ export default function NewConsultationClient({
       // a presionar el mismo botón.
       setLoading(false)
       const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+      offlineSaveFailedRef.current = offline
       setError(
         offline
           ? 'Sin conexión a internet. La consulta NO se guardó, pero tus datos están respaldados en este dispositivo. Revisa tu conexión e inténtalo de nuevo.'
@@ -480,6 +499,13 @@ export default function NewConsultationClient({
       </div>
 
       {error && <div ref={errorRef} style={styles.errorAlert}>{error}</div>}
+
+      {/* Volvió el internet tras un guardado fallido: guía explícita de reintento */}
+      {retryHint && !error && (
+        <div ref={errorRef} style={styles.retryAlert}>
+          ✅ Ya hay conexión — presiona «Finalizar Consulta &amp; Recetar» de nuevo para guardar la consulta. Tus datos siguen en el formulario.
+        </div>
+      )}
 
       {/* Borrador local encontrado: ofrecer recuperarlo antes de que el médico escriba de nuevo.
           Mientras este banner espera decisión, el autosave está pausado. */}
@@ -982,6 +1008,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '8px',
     color: '#f87171',
     fontSize: '0.85rem',
+  },
+  retryAlert: {
+    padding: '0.75rem 1rem',
+    backgroundColor: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    borderRadius: '8px',
+    color: '#065f46',
+    fontSize: '0.9rem',
+    fontWeight: 600,
   },
   draftBanner: {
     display: 'flex',
