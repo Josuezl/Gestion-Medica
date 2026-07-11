@@ -596,6 +596,38 @@ export async function sendDocumentLinkEmail(data: DocumentLinkEmailData): Promis
   }
 }
 
+/**
+ * Envía al equipo técnico el reporte de un error de cliente (fallo de guardado con internet).
+ * El HTML ya viene armado y escapado por utils/clientErrorReport.ts. Sin PHI del paciente.
+ */
+export async function sendClientErrorReportEmail(subject: string, html: string): Promise<SendEmailResult> {
+  const to = process.env.ERROR_REPORT_EMAIL || 'Josuez@outlook.com'
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY no configurada. Simulación de envío de reporte de error de cliente.')
+    return { success: true, id: 'mock_send_id' }
+  }
+
+  try {
+    const { data: sent, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      html,
+    })
+
+    if (error) {
+      console.error('Error Resend (reporte de error de cliente):', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, id: sent?.id }
+  } catch (err) {
+    console.error('Error de red Resend (reporte de error de cliente):', err)
+    return { success: false, error: errorMessage(err, 'Error de red al enviar correo') }
+  }
+}
+
 function calculateAge(birthDateString: string): number {
   const today = new Date()
   const birthDate = new Date(birthDateString)

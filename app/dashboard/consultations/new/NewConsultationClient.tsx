@@ -27,6 +27,7 @@ import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyReq
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { useFormDraft } from '@/utils/useFormDraft'
+import { reportClientError } from '@/utils/reportClientError'
 import ConnectionBanner from '../../components/ConnectionBanner'
 import Link from 'next/link'
 
@@ -217,6 +218,7 @@ export default function NewConsultationClient({
     // Si el guardado tarda más de lo normal (petición colgada, servidor lento), avisar al médico
     // en vez de dejarlo mirando el spinner sin señal.
     const slowTimer = setTimeout(() => setSlowSave(true), SLOW_SAVE_HINT_MS)
+    const saveStartedAt = Date.now()
 
     let result: Awaited<ReturnType<typeof createConsultation>>
     try {
@@ -228,16 +230,24 @@ export default function NewConsultationClient({
           setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)
         }),
       ])
-    } catch {
+    } catch (err) {
       // Fallo de red o timeout: la consulta NO se guardó (desde el punto de vista del cliente).
       // Los datos siguen en el formulario y el borrador local sigue vivo; reintentar es volver
       // a presionar el mismo botón.
       setLoading(false)
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false
       setError(
-        typeof navigator !== 'undefined' && navigator.onLine === false
+        offline
           ? 'Sin conexión a internet. La consulta NO se guardó, pero tus datos están respaldados en este dispositivo. Revisa tu conexión e inténtalo de nuevo.'
           : 'No se pudo guardar la consulta. Revisa tu conexión e inténtalo de nuevo. Si el problema persiste, verifica en el expediente si la consulta ya quedó registrada antes de volver a guardar.'
       )
+      // Fallo CON internet = probable problema de servidor o de versión (deploy con la pestaña
+      // abierta): avisar al equipo técnico por correo. Sin internet el reporte no puede salir.
+      if (!offline) {
+        const isTimeout = err instanceof Error && err.message === 'SAVE_TIMEOUT'
+        const message = err instanceof Error ? err.message : String(err)
+        reportClientError(isTimeout ? 'save_timeout' : 'save_failed', message, Date.now() - saveStartedAt)
+      }
       return
     } finally {
       // Corre en todos los caminos (éxito, error o timeout): apaga el aviso de guardado lento.
