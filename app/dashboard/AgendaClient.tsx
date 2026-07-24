@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange } from './actions'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange, getAppointmentById } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import {
   Calendar as CalendarIcon,
@@ -23,6 +23,8 @@ import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 import AppointmentCard from './components/AppointmentCard'
 import { useRealtimePreclinical } from '@/utils/useRealtimePreclinical'
 import { PRECLINICAL_FALLBACK_MS } from '@/utils/preclinicalMerge'
+import { useRealtimeAppointments } from '@/utils/useRealtimeAppointments'
+import { classifyEvent, patchAppointment, mergeLiveAppointments, isWithinLoadedWindow, type AppointmentEventRow } from '@/utils/appointmentSync'
 
 // ============================================================================
 // TYPES
@@ -237,6 +239,14 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   // Cita que se intentó marcar "Realizada" sin consulta registrada → dispara el modal de bloqueo.
   const [completeBlocked, setCompleteBlocked] = useState<Appointment | null>(null)
 
+  // --- Sincronización en vivo de citas (Realtime) ---
+  // Overlay de citas en vivo (Realtime): nuevas/cambiadas sobrescriben por id; canceladas se excluyen.
+  const [liveAppointments, setLiveAppointments] = useState<Map<string, Appointment>>(new Map())
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
+  // Ids con resaltado temporal (recién llegadas/cambiadas) y en desvanecido (por cancelar).
+  const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set())
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
+
   // --- Citas fuera de la ventana inicial (P0-1) ---
   // La página solo precarga [loadedRangeStart, loadedRangeEnd]. Al navegar a un mes no cubierto
   // se pide ese mes al servidor y se cachea por clave "YYYY-MM". Tras una mutación se vacía la
@@ -269,10 +279,74 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   // fresca del servidor tras cada revalidatePath).
   const allAppointments = useMemo(() => {
     const extra = Object.values(extraByMonth).flat()
-    if (extra.length === 0) return initialAppointments
     const seen = new Set(initialAppointments.map(a => a.id))
-    return [...initialAppointments, ...extra.filter(a => !seen.has(a.id))]
-  }, [initialAppointments, extraByMonth])
+    const base = extra.length === 0
+      ? initialAppointments
+      : [...initialAppointments, ...extra.filter(a => !seen.has(a.id))]
+    return mergeLiveAppointments(base, liveAppointments, removedIds)
+  }, [initialAppointments, extraByMonth, liveAppointments, removedIds])
+
+  // Ids de citas actualmente en memoria (base + live), para decidir patch vs fetch sin red.
+  const knownIdsRef = useRef<Set<string>>(new Set())
+  useEffect(() => { knownIdsRef.current = new Set(allAppointments.map(a => a.id)) }, [allAppointments])
+
+  // Meses cargados bajo demanda (para la relevancia por ventana).
+  const loadedMonthKeys = useMemo(() => Object.keys(extraByMonth), [extraByMonth])
+
+  // Cola de ids a traer del servidor, agrupados ~400 ms para no disparar N fetches en una ráfaga.
+  const fetchQueueRef = useRef<Set<string>>(new Set())
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flashHighlight = useCallback((id: string) => {
+    setHighlightIds(prev => new Set(prev).add(id))
+    setTimeout(() => setHighlightIds(prev => { const n = new Set(prev); n.delete(id); return n }), 3000)
+  }, [])
+
+  const drainFetchQueue = useCallback(() => {
+    const ids = Array.from(fetchQueueRef.current)
+    fetchQueueRef.current = new Set()
+    ids.forEach(async (id) => {
+      const appt = await getAppointmentById(id)
+      if (!appt) return
+      const a = appt as unknown as Appointment
+      setRemovedIds(prev => { if (!prev.has(a.id)) return prev; const n = new Set(prev); n.delete(a.id); return n })
+      setLiveAppointments(prev => new Map(prev).set(a.id, a))
+      flashHighlight(a.id)
+    })
+  }, [flashHighlight])
+
+  const queueFetch = useCallback((id: string) => {
+    fetchQueueRef.current.add(id)
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    fetchTimerRef.current = setTimeout(drainFetchQueue, 400)
+  }, [drainFetchQueue])
+
+  useRealtimeAppointments({
+    onEvent: (eventType, row: AppointmentEventRow) => {
+      const action = classifyEvent(eventType, row, {
+        knownIds: knownIdsRef.current,
+        isRelevant: (at) => isWithinLoadedWindow(at, loadedRangeStart, loadedRangeEnd, loadedMonthKeys),
+      })
+      if (action.type === 'ignore') return
+      if (action.type === 'fetch') { queueFetch(action.id); return }
+      if (action.type === 'patch') {
+        const existing = allAppointments.find(a => a.id === action.id)
+        if (!existing) { queueFetch(action.id); return }
+        setLiveAppointments(prev => new Map(prev).set(action.id, patchAppointment(existing, action.row)))
+        flashHighlight(action.id)
+        return
+      }
+      if (action.type === 'remove') {
+        // Desvanecer y luego quitar (600 ms coincide con la animación CSS).
+        setFadingIds(prev => new Set(prev).add(action.id))
+        setTimeout(() => {
+          setFadingIds(prev => { const n = new Set(prev); n.delete(action.id); return n })
+          setRemovedIds(prev => new Set(prev).add(action.id))
+          setLiveAppointments(prev => { if (!prev.has(action.id)) return prev; const n = new Map(prev); n.delete(action.id); return n })
+        }, 600)
+      }
+    },
+  })
 
   const goRegisterPatient = (name: string) => {
     window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
@@ -356,6 +430,12 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       if (!map[dateStr]) map[dateStr] = []
       map[dateStr].push(app)
     })
+    // El overlay en vivo (mergeLiveAppointments) preserva el orden de inserción, no la hora: una
+    // cita nueva o reprogramada por Realtime puede llegar al final de su día. Se reordena aquí,
+    // en la única salida que consumen las vistas, para que todas queden por scheduled_at asc.
+    for (const dateStr of Object.keys(map)) {
+      map[dateStr].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+    }
     return map
   }, [filteredAppointments])
 
