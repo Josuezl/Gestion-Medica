@@ -296,10 +296,28 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   // Cola de ids a traer del servidor, agrupados ~400 ms para no disparar N fetches en una ráfaga.
   const fetchQueueRef = useRef<Set<string>>(new Set())
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Timers de resaltado (3s) y desvanecido (600ms) por id: un evento posterior para el mismo id
+  // debe poder cancelar/reiniciar el timer previo (si no, una carrera puede pisar un dato fresco
+  // con un timeout viejo, o cortar el resaltado antes de tiempo ante cambios seguidos).
+  const highlightTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const fadeTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  const cancelFade = useCallback((id: string) => {
+    const t = fadeTimersRef.current.get(id)
+    if (!t) return
+    clearTimeout(t)
+    fadeTimersRef.current.delete(id)
+  }, [])
 
   const flashHighlight = useCallback((id: string) => {
+    const prevTimer = highlightTimersRef.current.get(id)
+    if (prevTimer) clearTimeout(prevTimer)
     setHighlightIds(prev => new Set(prev).add(id))
-    setTimeout(() => setHighlightIds(prev => { const n = new Set(prev); n.delete(id); return n }), 3000)
+    const timer = setTimeout(() => {
+      highlightTimersRef.current.delete(id)
+      setHighlightIds(prev => { const n = new Set(prev); n.delete(id); return n })
+    }, 3000)
+    highlightTimersRef.current.set(id, timer)
   }, [])
 
   const drainFetchQueue = useCallback(() => {
@@ -309,17 +327,37 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       const appt = await getAppointmentById(id)
       if (!appt) return
       const a = appt as unknown as Appointment
+      // Un fetch resuelve la cita como vigente: si había un remove/fade pendiente para este id
+      // (p. ej. salió y volvió a entrar a la ventana), se cancela para que no la oculte después.
+      cancelFade(a.id)
+      setFadingIds(prev => { if (!prev.has(a.id)) return prev; const n = new Set(prev); n.delete(a.id); return n })
       setRemovedIds(prev => { if (!prev.has(a.id)) return prev; const n = new Set(prev); n.delete(a.id); return n })
       setLiveAppointments(prev => new Map(prev).set(a.id, a))
       flashHighlight(a.id)
     })
-  }, [flashHighlight])
+  }, [flashHighlight, cancelFade])
 
   const queueFetch = useCallback((id: string) => {
     fetchQueueRef.current.add(id)
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
     fetchTimerRef.current = setTimeout(drainFetchQueue, 400)
   }, [drainFetchQueue])
+
+  // Limpieza de timers locales al desmontar (la suscripción Realtime ya se limpia en el hook).
+  // Los Maps de timers se capturan en variables locales al montar: son el mismo objeto durante
+  // toda la vida del componente (solo se mutan, nunca se reasignan), así que leerlos aquí en vez
+  // de vía `.current` en el cleanup evita la advertencia de "ref value may have changed".
+  useEffect(() => {
+    const highlightTimers = highlightTimersRef.current
+    const fadeTimers = fadeTimersRef.current
+    return () => {
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+      highlightTimers.forEach(t => clearTimeout(t))
+      highlightTimers.clear()
+      fadeTimers.forEach(t => clearTimeout(t))
+      fadeTimers.clear()
+    }
+  }, [])
 
   useRealtimeAppointments({
     onEvent: (eventType, row: AppointmentEventRow) => {
@@ -332,18 +370,26 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       if (action.type === 'patch') {
         const existing = allAppointments.find(a => a.id === action.id)
         if (!existing) { queueFetch(action.id); return }
+        // Un patch también resuelve la cita como vigente: cancela un remove/fade pendiente del
+        // mismo id (reprogramada de vuelta a la ventana antes de que el fade viejo disparara).
+        cancelFade(action.id)
+        setFadingIds(prev => { if (!prev.has(action.id)) return prev; const n = new Set(prev); n.delete(action.id); return n })
         setLiveAppointments(prev => new Map(prev).set(action.id, patchAppointment(existing, action.row)))
         flashHighlight(action.id)
         return
       }
       if (action.type === 'remove') {
-        // Desvanecer y luego quitar (600 ms coincide con la animación CSS).
+        // Desvanecer y luego quitar (600 ms coincide con la animación CSS). Timer por id: si ya
+        // había uno pendiente para este id se cancela antes de programar el nuevo.
+        cancelFade(action.id)
         setFadingIds(prev => new Set(prev).add(action.id))
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+          fadeTimersRef.current.delete(action.id)
           setFadingIds(prev => { const n = new Set(prev); n.delete(action.id); return n })
           setRemovedIds(prev => new Set(prev).add(action.id))
           setLiveAppointments(prev => { if (!prev.has(action.id)) return prev; const n = new Map(prev); n.delete(action.id); return n })
         }, 600)
+        fadeTimersRef.current.set(action.id, timer)
       }
     },
   })
@@ -434,7 +480,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     // cita nueva o reprogramada por Realtime puede llegar al final de su día. Se reordena aquí,
     // en la única salida que consumen las vistas, para que todas queden por scheduled_at asc.
     for (const dateStr of Object.keys(map)) {
-      map[dateStr].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
+      map[dateStr].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
     }
     return map
   }, [filteredAppointments])
