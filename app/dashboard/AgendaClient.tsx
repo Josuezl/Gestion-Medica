@@ -176,24 +176,6 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     },
   })
 
-  // Respaldo: si el canal está caído, al volver a la pestaña se recarga una vez. Con el canal
-  // sano no se hace nada, para no gastar una invocación en algo que Realtime ya entregó.
-  useEffect(() => {
-    let lastCheck = 0
-    const onBack = () => {
-      if (document.visibilityState !== 'visible') return
-      if (isPreclinicalLive()) return
-      if (Date.now() - lastCheck < PRECLINICAL_FALLBACK_MS) return
-      lastCheck = Date.now()
-      router.refresh()
-    }
-    document.addEventListener('visibilitychange', onBack)
-    window.addEventListener('focus', onBack)
-    return () => {
-      document.removeEventListener('visibilitychange', onBack)
-      window.removeEventListener('focus', onBack)
-    }
-  }, [isPreclinicalLive, router])
   const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: Patient; appointmentId: string | null } | null>(null)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).
@@ -359,7 +341,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
     }
   }, [])
 
-  useRealtimeAppointments({
+  const { isLive: isAppointmentsLive } = useRealtimeAppointments({
     onEvent: (eventType, row: AppointmentEventRow) => {
       const action = classifyEvent(eventType, row, {
         knownIds: knownIdsRef.current,
@@ -393,6 +375,25 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
       }
     },
   })
+
+  // Respaldo unificado: si algún canal está caído, al volver a la pestaña se recarga una vez.
+  // Con ambos canales sanos no se hace nada, para no gastar una invocación en algo que Realtime ya entregó.
+  useEffect(() => {
+    let lastCheck = 0
+    const onBack = () => {
+      if (document.visibilityState !== 'visible') return
+      if (isPreclinicalLive() && isAppointmentsLive()) return
+      if (Date.now() - lastCheck < PRECLINICAL_FALLBACK_MS) return
+      lastCheck = Date.now()
+      router.refresh()
+    }
+    document.addEventListener('visibilitychange', onBack)
+    window.addEventListener('focus', onBack)
+    return () => {
+      document.removeEventListener('visibilitychange', onBack)
+      window.removeEventListener('focus', onBack)
+    }
+  }, [isPreclinicalLive, isAppointmentsLive, router])
 
   const goRegisterPatient = (name: string) => {
     window.location.href = `/dashboard/patients/new?nombre=${encodeURIComponent(name.trim())}`
