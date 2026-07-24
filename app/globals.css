@@ -1689,6 +1689,19 @@ h1, h2, h3, h4, h5, h6 {
   to { transform: rotate(360deg); }
 }
 
+@keyframes apptFlash {
+  0%   { background-color: #ecfdf5; box-shadow: 0 0 0 2px #6ee7b7 inset; }
+  100% { background-color: transparent; box-shadow: none; }
+}
+
+@keyframes apptFade {
+  to { opacity: 0; transform: translateX(8px); }
+}
+
+.appt-card-flash { animation: apptFlash 3s ease-out; }
+
+.appt-card-fading { animation: apptFade 0.6s ease-in forwards; pointer-events: none; }
+
 /* =====================================================
    RESPONSIVE: SMALL PHONES
    ===================================================== */

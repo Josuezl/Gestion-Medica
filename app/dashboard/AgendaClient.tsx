@@ -892,6 +892,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
               onEdit={() => handleOpenForm(selectedDate, undefined, app)}
               onDelete={() => handleDeleteAppointment(app)}
               onTakeVitals={() => { if (app.patients) setVitalsModalPatient({ patient: app.patients, appointmentId: app.id }) }}
+              highlightClass={highlightIds.has(app.id) ? 'appt-card-flash' : fadingIds.has(app.id) ? 'appt-card-fading' : ''}
             />
           ))}
         </div>

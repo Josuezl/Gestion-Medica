@@ -18,6 +18,7 @@ interface AppointmentCardProps {
   onEdit: () => void
   onDelete: () => void
   onTakeVitals: () => void
+  highlightClass?: string
 }
 
 /**
@@ -35,6 +36,7 @@ export default function AppointmentCard({
   onEdit,
   onDelete,
   onTakeVitals,
+  highlightClass = '',
 }: AppointmentCardProps) {
   const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.PENDING
   const date = new Date(app.scheduled_at)
@@ -71,7 +73,7 @@ export default function AppointmentCard({
   const isPendingReview = app.status === 'PENDING_REVIEW'
 
   return (
-    <div className="appt-card-v2" style={{ borderLeftColor: cfg.dotColor }}>
+    <div className={`appt-card-v2 ${highlightClass}`} style={{ borderLeftColor: cfg.dotColor }}>
       {/* Columna de hora: centrada, sin fondo; la hora en negro como el nombre. */}
       <div className="appt-card-v2-time">
         <Clock size={14} className="appt-time-icon" />
