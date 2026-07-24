@@ -394,6 +394,53 @@ export async function getAppointmentsForRange(startISO: string, endISO: string) 
   return data || []
 }
 
+/**
+ * Una cita puntual con el mismo shape (joins) que el dashboard. La usa la sincronización en
+ * vivo: cuando llega un INSERT por Realtime, la fila del evento no trae el nombre del paciente,
+ * así que se pide solo esa cita para pintar la tarjeta. Acotada por clínica (RLS + defensa).
+ */
+export async function getAppointmentById(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: authProfile } = await supabase
+    .from('user_profiles').select('clinic_id').eq('id', user.id).single()
+  if (!authProfile?.clinic_id) return null
+
+  const { data } = await supabase
+    .from('appointments')
+    .select(`
+      id,
+      scheduled_at,
+      status,
+      notes,
+      duration_minutes,
+      doctor_id,
+      location_id,
+      patients (
+        id,
+        first_name,
+        last_name,
+        phone,
+        id_card,
+        gender,
+        birth_date
+      ),
+      booking_requests (
+        id,
+        status,
+        submitted_first_name,
+        submitted_last_name,
+        submitted_phone
+      )
+    `)
+    .eq('clinic_id', authProfile.clinic_id)
+    .eq('id', id)
+    .maybeSingle()
+
+  return data ?? null
+}
+
 // ============================================================================
 // Links públicos de auto-agendamiento (portal /agendar/[token])
 // ============================================================================
