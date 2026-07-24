@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { subscribeWithAuth } from '@/utils/realtimeChannel'
 import type { PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 
 /**
@@ -49,52 +49,19 @@ export function useRealtimePreclinical({
 
   useEffect(() => {
     if (!enabled) return
-    const supabase = createClient()
-    const filter = patientId ? { filter: `patient_id=eq.${patientId}` } : {}
-    const source = { schema: 'public', table: 'preclinical_vitals', ...filter }
-    const handle = (row: PreclinicalEventRow | null) => {
+    const filter = patientId ? `patient_id=eq.${patientId}` : undefined
+    const handler = (newRow: Record<string, unknown>) => {
+      const row = newRow as unknown as PreclinicalEventRow
       if (row?.id) onChangeRef.current(row)
     }
-
-    // Un `phx_reply: ok` NO garantiza que los bindings se hayan aceptado: si la tabla no está
-    // publicada en Realtime, el rechazo llega DESPUÉS en un mensaje `system` con status error,
-    // cuando subscribe() ya reportó SUBSCRIBED. Sin esta bandera el canal se reportaba sano, no
-    // entregaba nada, y el respaldo nunca despertaba (bug encontrado en E2E, 2026-07-24).
-    let bindingsRejected = false
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    let cancelled = false
-
-    async function setup() {
-      // El cliente de navegador de @supabase/ssr arranca la sesión desde cookies y NO le pasa el
-      // JWT al socket de Realtime: se conecta anónimo y la RLS (auth.uid() = null) filtra TODOS
-      // los eventos, dejando el canal "suscrito" pero mudo. Hay que autenticarlo con el token de
-      // la sesión ANTES de suscribir (causa raíz confirmada en E2E: phx_join sin access_token).
-      const { data } = await supabase.auth.getSession()
-      if (cancelled) return
-      const token = data.session?.access_token
-      if (token) await supabase.realtime.setAuth(token)
-      if (cancelled) return
-
-      channel = supabase
-        .channel(`preclinical:${patientId ?? 'clinic'}`)
-        .on<PreclinicalEventRow>('postgres_changes', { event: 'INSERT', ...source }, (p) => handle(p.new))
-        .on<PreclinicalEventRow>('postgres_changes', { event: 'UPDATE', ...source }, (p) => handle(p.new))
-        .on('system', {}, (payload: { status?: string } | null) => {
-          if (payload?.status !== 'error') return
-          bindingsRejected = true
-          liveRef.current = false
-        })
-        .subscribe((status) => {
-          liveRef.current = status === 'SUBSCRIBED' && !bindingsRejected
-        })
-    }
-    void setup()
-
-    return () => {
-      cancelled = true
-      liveRef.current = false
-      if (channel) supabase.removeChannel(channel)
-    }
+    const sub = subscribeWithAuth(`preclinical:${patientId ?? 'clinic'}`, [
+      { event: 'INSERT', schema: 'public', table: 'preclinical_vitals', filter, handler },
+      { event: 'UPDATE', schema: 'public', table: 'preclinical_vitals', filter, handler },
+    ])
+    // subscribeWithAuth guarda `live` internamente; se refleja aquí con un poll de 1s (el
+    // respaldo solo lee isLive() al volver a la pestaña, no necesita precisión sub-segundo).
+    const poll = setInterval(() => { liveRef.current = sub.isLive() }, 1000)
+    return () => { clearInterval(poll); liveRef.current = false; sub.teardown() }
   }, [patientId, enabled])
 
   /** ¿El canal está entregando eventos? Se lee en manejadores, nunca durante el render. */
