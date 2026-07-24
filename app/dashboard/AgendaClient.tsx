@@ -21,6 +21,8 @@ import { isCreatableAppointmentStatus } from '@/utils/validation'
 import { STATUS_CONFIG } from './StatusDropdown'
 import PreclinicalVitalsModal from './components/PreclinicalVitalsModal'
 import AppointmentCard from './components/AppointmentCard'
+import { useRealtimePreclinical } from '@/utils/useRealtimePreclinical'
+import { PRECLINICAL_FALLBACK_MS } from '@/utils/preclinicalMerge'
 
 // ============================================================================
 // TYPES
@@ -149,7 +151,47 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isClinician ? currentDoctor.id : 'all')
   // Pacientes con pre-clínica pendiente de hoy (badge "Signos listos") y paciente del modal de signos.
   const router = useRouter()
-  const preclinicalSet = useMemo(() => new Set(preclinicalPatientIds), [preclinicalPatientIds])
+  // Los ids del servidor son la foto al cargar; Realtime los corrige en vivo (true = signos
+  // listos, false = ya consumidos por una consulta). Se mantienen aparte de los props para que
+  // un router.refresh() posterior siga mandando sobre su propia lista.
+  const [livePreclinical, setLivePreclinical] = useState<Map<string, boolean>>(new Map())
+  const preclinicalSet = useMemo(() => {
+    const ids = new Set(preclinicalPatientIds)
+    for (const [patientId, isReady] of livePreclinical) {
+      if (isReady) ids.add(patientId)
+      else ids.delete(patientId)
+    }
+    return ids
+  }, [preclinicalPatientIds, livePreclinical])
+
+  // Los signos que registra la asistente llegan por WebSocket directo a Supabase (sin pasar por
+  // Vercel) y el badge se actualiza con el propio payload: cero llamadas al servidor.
+  const { isLive: isPreclinicalLive } = useRealtimePreclinical({
+    onChange: (row) => {
+      if (!row.patient_id) return
+      const patientId = row.patient_id
+      setLivePreclinical((prev) => new Map(prev).set(patientId, !row.consumed_at))
+    },
+  })
+
+  // Respaldo: si el canal está caído, al volver a la pestaña se recarga una vez. Con el canal
+  // sano no se hace nada, para no gastar una invocación en algo que Realtime ya entregó.
+  useEffect(() => {
+    let lastCheck = 0
+    const onBack = () => {
+      if (document.visibilityState !== 'visible') return
+      if (isPreclinicalLive()) return
+      if (Date.now() - lastCheck < PRECLINICAL_FALLBACK_MS) return
+      lastCheck = Date.now()
+      router.refresh()
+    }
+    document.addEventListener('visibilitychange', onBack)
+    window.addEventListener('focus', onBack)
+    return () => {
+      document.removeEventListener('visibilitychange', onBack)
+      window.removeEventListener('focus', onBack)
+    }
+  }, [isPreclinicalLive, router])
   const [vitalsModalPatient, setVitalsModalPatient] = useState<{ patient: Patient; appointmentId: string | null } | null>(null)
   // Si la cookie apunta a una clínica que ya no está en las opciones activas, caer a 'all'
   // (si no, el <select> muestra "Todas las clínicas" pero filtra por un id fantasma y oculta todo).

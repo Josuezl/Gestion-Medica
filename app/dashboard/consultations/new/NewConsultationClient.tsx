@@ -27,6 +27,15 @@ import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyReq
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { useFormDraft } from '@/utils/useFormDraft'
+import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
+import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
+import {
+  VITALS_FIELDS,
+  PRECLINICAL_FALLBACK_MS,
+  decidePreclinicalUpdate,
+  vitalsFromPreclinical,
+  type VitalsValues,
+} from '@/utils/preclinicalMerge'
 import { reportClientError } from '@/utils/reportClientError'
 import ConnectionBanner from '../../components/ConnectionBanner'
 import Link from 'next/link'
@@ -145,6 +154,106 @@ export default function NewConsultationClient({
   const { pendingDraft, scheduleSave, discardDraft, resolvePendingDraft, clearSavedDraft } =
     useFormDraft(draftKey(currentUserId, patient.id), getDraftSnapshot)
 
+  // ── Pre-clínica en vivo ──────────────────────────────────────────────────
+  // La fila de signos que respalda esta consulta. Empieza siendo la del servidor y se actualiza
+  // si la asistente registra (o corrige) mientras el médico tiene la pantalla abierta.
+  const [preclinicalRow, setPreclinicalRow] = useState<PreclinicalEventRow | null>(preclinical)
+  // Signos que llegaron pero NO se escribieron porque el médico ya había escrito los suyos.
+  const [offeredPreclinical, setOfferedPreclinical] = useState<PreclinicalEventRow | null>(null)
+  const [manualCheck, setManualCheck] = useState<'idle' | 'checking' | 'empty'>('idle')
+  // Lo último que ESTE componente escribió en los campos. Sirve para distinguir "el médico lo
+  // tecleó" de "lo pusimos nosotros": lo segundo sí se puede reemplazar. Se siembra con lo que
+  // el servidor pintó al abrir, porque eso tampoco lo escribió el médico.
+  const lastAppliedVitalsRef = useRef<VitalsValues | null>(preclinical ? vitalsFromPreclinical(preclinical) : null)
+
+  /** Lo que hay ahora mismo en los inputs de signos. */
+  function readCurrentVitals(): VitalsValues {
+    const form = formRef.current
+    const out = {} as VitalsValues
+    for (const field of VITALS_FIELDS) {
+      const el = form?.elements.namedItem(field)
+      out[field] = el instanceof HTMLInputElement ? el.value : ''
+    }
+    return out
+  }
+
+  /** Escribe los signos en el formulario (mismo idiom que applyDraft para campos no controlados). */
+  function applyPreclinical(row: PreclinicalEventRow, values: VitalsValues) {
+    const form = formRef.current
+    if (form) {
+      for (const field of VITALS_FIELDS) {
+        // El perímetro cefálico solo existe si el paciente es pediátrico: si no está, se omite.
+        const el = form.elements.namedItem(field)
+        if (el instanceof HTMLInputElement) el.value = values[field]
+      }
+    }
+    // Se relee del DOM (y no se guarda `values` tal cual) para que la comparación posterior no
+    // cuente como "tocado por el médico" un campo que ni siquiera existe en esta pantalla.
+    lastAppliedVitalsRef.current = readCurrentVitals()
+    setPreclinicalRow(row)
+    setOfferedPreclinical(null)
+    setManualCheck('idle')
+    scheduleSave()
+  }
+
+  /** Regla única: nunca pisar lo que escribió el médico. Devuelve qué se hizo. */
+  function handleIncomingPreclinical(row: PreclinicalEventRow): 'autofill' | 'offer' | 'none' {
+    // Una fila ya consumida por una consulta pertenece al pasado: no debe reaparecer.
+    if (row.consumed_at) return 'none'
+    const decision = decidePreclinicalUpdate({
+      current: readCurrentVitals(),
+      incoming: row,
+      lastApplied: lastAppliedVitalsRef.current,
+    })
+    if (decision.action === 'autofill') applyPreclinical(row, decision.values)
+    if (decision.action === 'offer') setOfferedPreclinical(row)
+    return decision.action
+  }
+
+  // Los signos de la asistente llegan por WebSocket directo a Supabase (sin pasar por Vercel) y
+  // el payload trae la fila completa: llenar los campos no cuesta ni una llamada al servidor.
+  const { isLive: isPreclinicalLive } = useRealtimePreclinical({
+    patientId: patient.id,
+    onChange: handleIncomingPreclinical,
+  })
+
+  /** Consulta puntual al servidor (respaldo y botón manual). */
+  async function checkPreclinicalNow(manual = false) {
+    if (manual) setManualCheck('checking')
+    const row = await getPendingPreclinical(patient.id)
+    if (!row) {
+      if (manual) setManualCheck('empty')
+      return
+    }
+    const action = handleIncomingPreclinical(row)
+    if (manual && action === 'none') setManualCheck('empty')
+  }
+
+  // Ref para que el listener de abajo no se vuelva a montar en cada render (patrón de useFormDraft).
+  const checkPreclinicalRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    checkPreclinicalRef.current = () => { void checkPreclinicalNow() }
+  })
+
+  // Respaldo: al volver a la pestaña se reconsulta UNA vez, y solo si el canal está caído. Con
+  // el canal sano no se gasta nada, porque Realtime ya entregó lo que hubiera.
+  useEffect(() => {
+    let lastCheck = 0
+    const onBack = () => {
+      if (document.visibilityState !== 'visible') return
+      if (isPreclinicalLive()) return
+      if (Date.now() - lastCheck < PRECLINICAL_FALLBACK_MS) return
+      lastCheck = Date.now()
+      checkPreclinicalRef.current()
+    }
+    document.addEventListener('visibilitychange', onBack)
+    window.addEventListener('focus', onBack)
+    return () => {
+      document.removeEventListener('visibilitychange', onBack)
+      window.removeEventListener('focus', onBack)
+    }
+  }, [isPreclinicalLive])
+
   // Los cambios programáticos (modales de lab/estudios, botones de importar, "usar último")
   // no disparan onInput del form; este efecto los cubre. Se salta el primer render para no
   // guardar un borrador del formulario recién abierto sin tocar.
@@ -243,7 +352,9 @@ export default function NewConsultationClient({
       // Promise.race: si la red se cayó a media petición el fetch puede quedarse colgado sin
       // rechazar nunca; el timeout libera el botón para que el médico pueda reintentar.
       result = await Promise.race([
-        createConsultation(patient.id, appointmentId, medicines, formData, preclinical?.id ?? null),
+        // Del estado y no del prop: si los signos llegaron en vivo, es ESA fila la que hay que
+        // marcar como consumida (si no, se pierde la bitácora de quién los tomó).
+        createConsultation(patient.id, appointmentId, medicines, formData, preclinicalRow?.id ?? null),
         new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)
         }),
@@ -532,20 +643,67 @@ export default function NewConsultationClient({
             
             {/* 1. Signos Vitales */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
-              <h3 style={styles.sectionTitle}>
-                <Heart size={18} color="var(--primary)" />
-                Signos Vitales
-              </h3>
-              {preclinical && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.85rem', marginBottom: '1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', fontSize: '0.85rem', color: '#065f46' }}>
+              <div style={styles.vitalsHeader}>
+                <h3 style={{ ...styles.sectionTitle, margin: 0, border: 'none', paddingBottom: 0 }}>
+                  <Heart size={18} color="var(--primary)" />
+                  Signos Vitales
+                </h3>
+                {/* Escape manual: si por lo que sea los signos no llegaron solos, el médico no
+                    depende de recargar la página para traerlos. */}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { void checkPreclinicalNow(true) }}
+                  disabled={manualCheck === 'checking'}
+                  style={styles.vitalsCheckBtn}
+                >
+                  {manualCheck === 'checking'
+                    ? <><Loader2 size={14} className="animate-spin" /> Buscando…</>
+                    : <><Stethoscope size={14} /> Buscar signos</>}
+                </button>
+              </div>
+              {manualCheck === 'empty' && (
+                <div style={styles.preclinicalNeutral}>
+                  Todavía no hay signos de pre-clínica registrados hoy para este paciente.
+                </div>
+              )}
+              {/* Con una oferta pendiente, los campos son los del médico y no los de pre-clínica:
+                  mostrar "importados" ahí se contradiría con la banda de abajo. */}
+              {preclinicalRow && !offeredPreclinical && (
+                <div style={styles.preclinicalOk}>
                   <Stethoscope size={16} color="#059669" style={{ flexShrink: 0 }} />
                   <span>
                     🩺 Signos tomados en pre-clínica
-                    {(preclinical.recorded_by_profile?.first_name || preclinical.recorded_by_profile?.last_name)
-                      ? ` por ${[preclinical.recorded_by_profile?.first_name, preclinical.recorded_by_profile?.last_name].filter(Boolean).join(' ')}`
+                    {(preclinicalRow.recorded_by_profile?.first_name || preclinicalRow.recorded_by_profile?.last_name)
+                      ? ` por ${[preclinicalRow.recorded_by_profile?.first_name, preclinicalRow.recorded_by_profile?.last_name].filter(Boolean).join(' ')}`
                       : ''}
-                    {' · '}{formatDateTimeHN(preclinical.created_at)} — importados; ajústalos si es necesario.
+                    {' · '}{formatDateTimeHN(preclinicalRow.created_at)} — importados; ajústalos si es necesario.
                   </span>
+                </div>
+              )}
+              {/* Llegaron signos pero el médico ya había escrito los suyos: se ofrecen, no se
+                  pisan. Cargarlos reemplaza TODA la sección, así que la decisión es de él. */}
+              {offeredPreclinical && (
+                <div style={styles.preclinicalOffer}>
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.9rem' }}>Llegaron signos de pre-clínica</strong>
+                    <span style={{ fontSize: '0.8rem' }}>
+                      Registrados el {formatDateTimeHN(offeredPreclinical.created_at)} — no se cargaron solos porque
+                      ya habías escrito signos en esta consulta; si los cargas, se reemplazan por los de pre-clínica.
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => applyPreclinical(offeredPreclinical, vitalsFromPreclinical(offeredPreclinical))}
+                    >
+                      Cargar signos
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setOfferedPreclinical(null)}>
+                      Conservar los míos
+                    </button>
+                  </div>
                 </div>
               )}
               <div style={styles.vitalsGrid}>
@@ -1057,6 +1215,59 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '1.25rem',
     borderBottom: '1px solid var(--border-color)',
     paddingBottom: '0.5rem',
+  },
+  // Encabezado de Signos Vitales: título + botón manual. El borde inferior vive aquí (y no en
+  // el h3) para que cruce toda la tarjeta como en las demás secciones.
+  vitalsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    marginBottom: '1.25rem',
+    borderBottom: '1px solid var(--border-color)',
+    paddingBottom: '0.5rem',
+  },
+  vitalsCheckBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    fontSize: '0.75rem',
+    padding: '0.35rem 0.7rem',
+  },
+  preclinicalOk: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.6rem 0.85rem',
+    marginBottom: '1rem',
+    background: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    borderRadius: '8px',
+    fontSize: '0.85rem',
+    color: '#065f46',
+  },
+  preclinicalNeutral: {
+    padding: '0.6rem 0.85rem',
+    marginBottom: '1rem',
+    background: 'var(--bg-subtle, #f8fafc)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '8px',
+    fontSize: '0.82rem',
+    color: 'var(--text-muted)',
+  },
+  preclinicalOffer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    padding: '0.85rem 1rem',
+    marginBottom: '1rem',
+    backgroundColor: '#fffbeb',
+    border: '1px solid #fcd34d',
+    borderRadius: '10px',
+    color: '#92400e',
   },
   vitalsGrid: {
     display: 'grid',
