@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import {
-  LineChart, Line,
+  LineChart, Line, BarChart, Bar, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { STATUS_CONFIG } from '../StatusDropdown'
@@ -161,6 +161,29 @@ function RankBars({ data, color }: { data: { name: string; value: number }[]; co
         </div>
       ))}
     </div>
+  )
+}
+
+/** Columnas verticales con etiqueta de valor arriba y nombres rotados (estilo pedido por los
+ *  médicos para "Consultas por médico"). Serie única → sin leyenda; el título nombra la métrica.
+ *  isAnimationActive={false}: sin esto, recharts + React 19 no pinta las barras. */
+function ColumnChart({ data, color }: { data: { name: string; value: number }[]; color: string }) {
+  const sorted = data.slice().sort((a, b) => b.value - a.value)
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart data={sorted} margin={{ top: 24, right: 8, left: 0, bottom: 4 }} barCategoryGap="22%">
+        <CartesianGrid stroke="#f1f5f9" vertical={false} />
+        <XAxis
+          dataKey="name" interval={0} height={92} tickLine={false} axisLine={{ stroke: '#e2e8f0' }}
+          angle={-35} textAnchor="end" tick={{ fontSize: 11, fill: '#475569' }}
+        />
+        <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={30} tick={{ fill: '#94a3b8' }} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: `${color}14` }} formatter={(v: number) => [v, 'Consultas']} />
+        <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={70} isAnimationActive={false}>
+          <LabelList dataKey="value" position="top" style={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   )
 }
 
@@ -376,11 +399,13 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
         <StatTile label="Pacientes totales" value={totalPacientes} icon={<Users size={17} />} accent="#64748b" spark={sparkTotal} sparkBaseline="min" onClick={() => { window.location.href = '/dashboard/patients' }} />
       </div>
 
-      <div className="rpt-grid">
-        <ChartCard title="Consultas por médico" kicker={porMedico.length > 0 ? `${porMedico.length} ${porMedico.length === 1 ? 'médico' : 'médicos'}` : undefined}>
-          {porMedico.length === 0 ? <Empty /> : <RankBars data={porMedico} color={C_TEAL} />}
-        </ChartCard>
+      {/* Principal: "Consultas por médico" a lo ancho, justo bajo los KPIs. */}
+      <ChartCard title="Consultas por médico" kicker={porMedico.length > 0 ? `${porMedico.length} ${porMedico.length === 1 ? 'médico' : 'médicos'}` : undefined}>
+        {porMedico.length === 0 ? <Empty /> : <ColumnChart data={porMedico} color={C_TEAL} />}
+      </ChartCard>
 
+      {/* Analíticos secundarios: ranking por especialidad + tendencia horaria (2 columnas). */}
+      <div className="rpt-grid">
         <ChartCard title="Pacientes atendidos por especialidad" kicker={porEspecialidad.length > 0 ? `${porEspecialidad.length} ${porEspecialidad.length === 1 ? 'especialidad' : 'especialidades'}` : undefined}>
           {porEspecialidad.length === 0 ? <Empty /> : <RankBars data={porEspecialidad} color={C_INDIGO} />}
         </ChartCard>
@@ -399,7 +424,10 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
             </ResponsiveContainer>
           </ChartCard>
         )}
+      </div>
 
+      {/* Desgloses de proporción (3 columnas, simétrico). */}
+      <div className="rpt-grid-3">
         <ChartCard title="Citas por estado" kicker={kickerEstado}>
           {estadoSegs.length === 0 ? <Empty /> : <PropBar segments={estadoSegs} legend="rows" />}
         </ChartCard>

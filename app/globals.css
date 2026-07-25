@@ -1632,6 +1632,14 @@ h1, h2, h3, h4, h5, h6 {
   grid-column: 1 / -1;
 }
 
+/* Desgloses de proporción del reporte: 3 por fila en pantallas anchas, apilados en móvil. */
+.rpt-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
 /* KPI clickeable: un <button> con aspecto de card. */
 .rpt-tile {
   appearance: none;
