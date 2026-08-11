@@ -37,15 +37,19 @@ describe('constantes del portal', () => {
   })
 })
 
-describe('bookingWindowEndYMD (ventana de 3 meses calendario)', () => {
-  it('desde julio se ofrece hasta el último día de septiembre', () => {
-    expect(bookingWindowEndYMD('2026-07-08')).toBe('2026-09-30')
-    expect(bookingWindowEndYMD('2026-07-31')).toBe('2026-09-30')
+describe('bookingWindowEndYMD (ventana de 12 meses calendario)', () => {
+  it('desde julio de 2026 se ofrece hasta el último día de junio de 2027', () => {
+    expect(bookingWindowEndYMD('2026-07-08')).toBe('2027-06-30')
+    expect(bookingWindowEndYMD('2026-07-31')).toBe('2027-06-30')
   })
 
-  it('cruza el año: desde diciembre se ofrece hasta fin de febrero', () => {
-    expect(bookingWindowEndYMD('2026-12-15')).toBe('2027-02-28')
-    expect(bookingWindowEndYMD('2027-12-01')).toBe('2028-02-29') // 2028 bisiesto
+  it('cruza el año: desde diciembre de 2026 se ofrece hasta fin de noviembre de 2027', () => {
+    expect(bookingWindowEndYMD('2026-12-15')).toBe('2027-11-30')
+  })
+
+  it('respeta los años bisiestos al cerrar en febrero', () => {
+    expect(bookingWindowEndYMD('2026-03-10')).toBe('2027-02-28')
+    expect(bookingWindowEndYMD('2027-03-15')).toBe('2028-02-29') // 2028 bisiesto
   })
 })
 
@@ -146,13 +150,13 @@ describe('generateDaySlots', () => {
 })
 
 describe('buildAvailability', () => {
-  it('solo incluye días con al menos un slot, dentro de la ventana de 3 meses', () => {
-    // Solo lunes 08:00-09:00. Desde el miércoles 2026-07-08: todos los lunes hasta fin de septiembre.
+  it('solo incluye días con al menos un slot, dentro de la ventana de 12 meses', () => {
+    // Solo lunes 08:00-09:00. Desde el miércoles 2026-07-08: todos los lunes hasta fin de junio de 2027.
     const days = buildAvailability([{ weekday: 1, start_time: '08:00', end_time: '09:00' }], [], earlyNow)
     const keys = Object.keys(days)
     expect(keys[0]).toBe('2026-07-13')
-    expect(keys[keys.length - 1]).toBe('2026-09-28')
-    expect(keys).toHaveLength(12) // 3 lunes de julio + 5 de agosto + 4 de septiembre
+    expect(keys[keys.length - 1]).toBe('2027-06-28')
+    expect(keys).toHaveLength(51) // lunes entre 2026-07-13 y 2027-06-28
     expect(days['2026-07-13']).toEqual(['08:00'])
   })
 
@@ -164,12 +168,12 @@ describe('buildAvailability', () => {
     expect(night[WED]).toBeUndefined()
   })
 
-  it('la ventana va de hoy al último día del mes actual + 2 (Julio → fin de Septiembre)', () => {
+  it('la ventana va de hoy al último día del mes actual + 11 (Julio 2026 → fin de Junio 2027)', () => {
     const all = [0, 1, 2, 3, 4, 5, 6].map(w => ({ weekday: w, start_time: '08:00', end_time: '09:00' }))
     const days = Object.keys(buildAvailability(all, [], earlyNow))
     expect(days[0]).toBe('2026-07-08')
-    expect(days[days.length - 1]).toBe('2026-09-30')
-    expect(days).toHaveLength(24 + 31 + 30) // resto de julio + agosto + septiembre
+    expect(days[days.length - 1]).toBe('2027-06-30')
+    expect(days).toHaveLength(358) // del 8 de julio de 2026 al 30 de junio de 2027, inclusive
   })
 
   it('descuenta las citas ocupadas del día correspondiente', () => {

@@ -58,27 +58,35 @@ function minutesToHHMM(total: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
-/**
- * Slots de 1 hora disponibles para un día concreto: dentro de los rangos del médico para ese
- * weekday, que quepan completos, futuros respecto a `now`, y sin solapar ninguna cita viva
- * (usa la duración real de cada cita; sin duration_minutes cuenta el default del sistema, 15).
- */
-export function generateDaySlots(
-  ranges: ScheduleRange[],
-  dateYMD: string,
-  appointments: BlockingAppointment[],
-  now: Date,
-): string[] {
-  const weekday = weekdayOfYMD(dateYMD)
-  const dayRanges = ranges.filter(r => r.weekday === weekday)
-  if (dayRanges.length === 0) return []
+/** Intervalo [start, end) en milisegundos que una cita viva ocupa en la agenda. */
+interface BusyInterval {
+  start: number
+  end: number
+}
 
-  const busy = appointments
+/**
+ * Citas → intervalos ocupados. Se calcula UNA vez por request: la ventana del portal es de 12
+ * meses, así que hacerlo dentro del bucle por día serían cientos de miles de `new Date()`
+ * (una vez por cita y por día de la ventana).
+ */
+function toBusyIntervals(appointments: BlockingAppointment[]): BusyInterval[] {
+  return appointments
     .filter(a => isBlockingStatus(a.status))
     .map(a => {
       const start = new Date(a.scheduled_at).getTime()
       return { start, end: start + (a.duration_minutes ?? 15) * 60_000 }
     })
+}
+
+function daySlotsFromBusy(
+  ranges: ScheduleRange[],
+  dateYMD: string,
+  busy: BusyInterval[],
+  now: Date,
+): string[] {
+  const weekday = weekdayOfYMD(dateYMD)
+  const dayRanges = ranges.filter(r => r.weekday === weekday)
+  if (dayRanges.length === 0) return []
 
   const slots = new Set<string>()
   for (const range of dayRanges) {
@@ -99,13 +107,27 @@ export function generateDaySlots(
 }
 
 /**
- * Última fecha ofrecida por el portal: el último día del mes actual + 2 — una ventana de
- * 3 meses calendario (en julio se ofrece julio, agosto y septiembre completos).
+ * Slots de 1 hora disponibles para un día concreto: dentro de los rangos del médico para ese
+ * weekday, que quepan completos, futuros respecto a `now`, y sin solapar ninguna cita viva
+ * (usa la duración real de cada cita; sin duration_minutes cuenta el default del sistema, 15).
+ */
+export function generateDaySlots(
+  ranges: ScheduleRange[],
+  dateYMD: string,
+  appointments: BlockingAppointment[],
+  now: Date,
+): string[] {
+  return daySlotsFromBusy(ranges, dateYMD, toBusyIntervals(appointments), now)
+}
+
+/**
+ * Última fecha ofrecida por el portal: el último día del mes actual + 11 — una ventana de
+ * 12 meses calendario (en agosto de 2026 se ofrece hasta el 31 de julio de 2027).
  */
 export function bookingWindowEndYMD(todayYMD: string): string {
   const [y, m] = todayYMD.split('-').map(Number)
-  // Día 0 del mes m+3 = último día del mes m+2 (Date.UTC normaliza el cruce de año).
-  return new Date(Date.UTC(y, m - 1 + 3, 0)).toISOString().slice(0, 10)
+  // Día 0 del mes m+12 = último día del mes m+11 (Date.UTC normaliza el cruce de año).
+  return new Date(Date.UTC(y, m - 1 + 12, 0)).toISOString().slice(0, 10)
 }
 
 /** Rango de días bloqueados de un médico (vacaciones, congresos, permisos). Bordes inclusivos. */
@@ -121,7 +143,7 @@ export function isDateBlocked(ymd: string, blocks: DoctorBlock[]): boolean {
 
 /**
  * Disponibilidad completa para el portal: mapa YYYY-MM-DD → horas, solo con los días que tienen
- * al menos un slot, desde hoy (Honduras) hasta el fin de la ventana de 3 meses, excluyendo los
+ * al menos un slot, desde hoy (Honduras) hasta el fin de la ventana de 12 meses, excluyendo los
  * días bloqueados del médico (vacaciones/congresos).
  */
 export function buildAvailability(
@@ -133,12 +155,13 @@ export function buildAvailability(
   const days: Record<string, string[]> = {}
   const todayYMD = hondurasTodayYMD(now)
   const endYMD = bookingWindowEndYMD(todayYMD)
+  const busy = toBusyIntervals(appointments)
   const [y, m, d] = todayYMD.split('-').map(Number)
   for (let i = 0; ; i++) {
     const ymd = new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10)
     if (ymd > endYMD) break
     if (isDateBlocked(ymd, blocks)) continue
-    const slots = generateDaySlots(ranges, ymd, appointments, now)
+    const slots = daySlotsFromBusy(ranges, ymd, busy, now)
     if (slots.length > 0) days[ymd] = slots
   }
   return days

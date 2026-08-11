@@ -73,7 +73,7 @@ async function loadClinicPatients(admin: ReturnType<typeof createAdminClient>, c
 }
 
 /**
- * Disponibilidad real del médico: horario semanal menos citas vivas de los próximos 30 días.
+ * Disponibilidad real del médico: horario semanal menos citas vivas de la ventana del portal.
  * El horario se resuelve por SEDE del link: si el médico tiene rangos propios de esa sede se
  * usan solo esos; si no, su horario general (schedulesForLocation).
  */
@@ -90,7 +90,7 @@ async function loadAvailability(admin: ReturnType<typeof createAdminClient>, lin
   const now = new Date()
   const todayYMD = hondurasTodayYMD(now)
   const fromIso = new Date(now.getTime() - 24 * 60 * 60_000).toISOString()
-  // Hasta el fin de la ventana de 3 meses (+1 día de margen por el desfase UTC/Honduras).
+  // Hasta el fin de la ventana de 12 meses (+1 día de margen por el desfase UTC/Honduras).
   const endYMD = bookingWindowEndYMD(todayYMD)
   const toIso = new Date(`${endYMD}T23:59:59-06:00`).toISOString()
   // Citas vivas y días bloqueados (vacaciones/congresos) del médico, de cualquier sede:
@@ -155,7 +155,7 @@ export async function identifyPatient(
   }
 }
 
-/** Paso 2 del portal: días y horas disponibles (slots de 1 hora, ventana de 3 meses). */
+/** Paso 2 del portal: días y horas disponibles (slots de 1 hora, ventana de 12 meses). */
 export async function getAvailability(
   token: string,
 ): Promise<{ days: Record<string, string[]> } | { error: string }> {
