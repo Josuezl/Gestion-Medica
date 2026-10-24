@@ -9,6 +9,7 @@
  *   npm run db:local   # una vez: levanta Supabase en Docker
  *   npm run dev        # este script
  *   npm run dev:nube   # el modo anterior (base REAL); solo a propósito
+ *   node scripts/dev-local.mjs --start --port 3100   # build de producción contra la base local
  */
 import { execFileSync, spawn } from 'node:child_process'
 import { PUERTO_DEV, variablesDevLocal } from '../utils/entornoLocal.ts'
@@ -43,13 +44,18 @@ try {
 
 console.log('Usando Supabase LOCAL (127.0.0.1:54321). Correos y WhatsApp desactivados.')
 
-// Puerto propio salvo que se pase otro (`npm run dev -- --port 3100`).
+// `--start`: `next start` sobre el build ya hecho, con las mismas variables locales
+// (.env.production.local trae la URL de la nube).
 const args = process.argv.slice(2)
-if (!args.some((a) => a === '--port' || a === '-p' || a.startsWith('--port='))) {
-  args.push('--port', String(PUERTO_DEV))
+const modo = args.includes('--start') ? 'start' : 'dev'
+const resto = args.filter((a) => a !== '--start')
+
+// Puerto propio salvo que se pase otro (`npm run dev -- --port 3100`).
+if (!resto.some((a) => a === '--port' || a === '-p' || a.startsWith('--port='))) {
+  resto.push('--port', String(PUERTO_DEV))
 }
 
-const next = spawn('npx', ['next', 'dev', ...args], {
+const next = spawn('npx', ['next', modo, ...resto], {
   stdio: 'inherit',
   env: { ...process.env, ...variables },
 })

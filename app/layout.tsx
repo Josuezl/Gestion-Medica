@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AvisoVersionNueva from "./components/AvisoVersionNueva";
 
 export const metadata: Metadata = {
   title: "CloudMedHN - Gestión Médica Inteligente",
@@ -16,7 +17,10 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AvisoVersionNueva />
+        {children}
+      </body>
     </html>
   );
 }

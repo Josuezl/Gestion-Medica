@@ -639,7 +639,8 @@ export default function NewConsultationClient({
         </div>
       )}
 
-      <form ref={formRef} onSubmit={handleSubmit} onInput={scheduleSave} style={styles.form}>
+      {/* data-respaldo-propio: tiene su borrador local; la red de AvisoVersionNueva no la llena dos veces. */}
+      <form ref={formRef} onSubmit={handleSubmit} onInput={scheduleSave} style={styles.form} data-respaldo-propio>
             
             {/* 1. Signos Vitales */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
