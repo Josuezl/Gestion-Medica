@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState, useTransition } from 'react'
 import { Heart, X, Loader2, Stethoscope } from 'lucide-react'
-import { savePreclinicalVitals, getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
+import { savePreclinicalVitals, getPendingPreclinical, getBloodPressureRequired } from '@/app/dashboard/preclinical/actions'
 import type { PatientRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
+import BloodPressureField from './BloodPressureField'
 
 /**
  * Modal de PRE-CLÍNICA: la Auxiliar de Enfermería (o el médico) toma los signos vitales del
@@ -18,13 +19,14 @@ export default function PreclinicalVitalsModal({ patient, appointmentId = null, 
 }) {
   const [loading, setLoading] = useState(true)
   const [existing, setExisting] = useState<PreclinicalVitalsRow | null>(null)
+  const [bpRequired, setBpRequired] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     let active = true
-    getPendingPreclinical(patient.id).then((row) => {
-      if (active) { setExisting(row); setLoading(false) }
+    Promise.all([getPendingPreclinical(patient.id), getBloodPressureRequired(patient.id)]).then(([row, required]) => {
+      if (active) { setExisting(row); setBpRequired(required); setLoading(false) }
     })
     return () => { active = false }
   }, [patient.id])
@@ -77,11 +79,8 @@ export default function PreclinicalVitalsModal({ patient, appointmentId = null, 
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            <BloodPressureField required={bpRequired} defaults={existing} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem' }}>
-              <div className="form-group">
-                <label className="form-label">Presión Arterial</label>
-                <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80" defaultValue={existing?.blood_pressure || ''} />
-              </div>
               <div className="form-group">
                 <label className="form-label">Temperatura (°C)</label>
                 <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={existing?.temperature ?? ''} />

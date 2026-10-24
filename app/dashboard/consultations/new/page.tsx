@@ -5,6 +5,7 @@ import { canDoClinical } from '@/utils/permissions'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
 import NewConsultationClient from './NewConsultationClient'
+import { isBloodPressureRequired } from '@/utils/bloodPressure'
 
 interface PageProps {
   searchParams: Promise<{ patientId?: string; appointmentId?: string }>
@@ -138,11 +139,17 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
   //    Tolera que la tabla aún no exista (devuelve null) → la pantalla funciona igual que antes.
   const preclinical = await getPendingPreclinical(patientId)
 
+  // Presión con brazo obligatoria (clínica con require_bp_arm y paciente no pediátrico).
+  const requireBloodPressure = currentProfile?.clinic_id
+    ? await isBloodPressureRequired(supabase, currentProfile.clinic_id, patientId)
+    : false
+
   return (
     <NewConsultationClient
       patient={patient}
       appointmentId={appointmentId}
       preclinical={preclinical}
+      requireBloodPressure={requireBloodPressure}
       consultations={consultations || []}
       studies={studies || []}
       prescriptions={prescriptions || []}

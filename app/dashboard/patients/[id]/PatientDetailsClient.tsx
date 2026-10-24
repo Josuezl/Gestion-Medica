@@ -53,6 +53,7 @@ import nextDynamic from 'next/dynamic'
 const PediatricGrowthChart = nextDynamic(() => import('../../components/PediatricGrowthChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
+import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -192,7 +193,7 @@ export default function PatientDetailsClient({
           const consultDate = formatDate(c.created_at);
 
           const vitalsHtml = [
-            c.blood_pressure ? `<span class="vital-tag">PA: ${c.blood_pressure}</span>` : '',
+            ...bpReadings(c).map((r) => `<span class="vital-tag">${bpShortLabel(r.arm)}: ${r.value}</span>`),
             c.temperature ? `<span class="vital-tag">Temp: ${c.temperature}°C</span>` : '',
             c.weight ? `<span class="vital-tag">Peso: ${c.weight} kg</span>` : '',
             c.heart_rate ? `<span class="vital-tag">FC: ${c.heart_rate} bpm</span>` : '',
@@ -1228,7 +1229,7 @@ export default function PatientDetailsClient({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                               {/* Signos Vitales Badge */}
                               <div style={styles.vitalsRow}>
-                                {consult.blood_pressure && <span style={styles.vitalTag}>PA: {consult.blood_pressure}</span>}
+                                {bpReadings(consult).map((r) => <span key={r.arm ?? 'pa'} style={styles.vitalTag}>{bpShortLabel(r.arm)}: {r.value}</span>)}
                                 {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
                                 {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
                                 {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}

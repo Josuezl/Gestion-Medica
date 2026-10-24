@@ -459,6 +459,119 @@ h1, h2, h3, h4, h5, h6 {
   color: #0f172a !important;
 }
 
+/* Presión arterial por brazo (BloodPressureField). Mismos colores claros que el resto del dashboard. */
+.bp-field {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bp-legend {
+  padding: 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bp-required {
+  color: #b91c1c;
+}
+
+.bp-hint {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.bp-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.bp-row .form-group {
+  margin-bottom: 0;
+}
+
+.bp-reading {
+  width: 180px;
+  max-width: 100%;
+}
+
+.bp-segmented {
+  display: flex;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.bp-segmented label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.bp-segmented label + label {
+  border-left: 1px solid #e2e8f0;
+}
+
+/* El radio sigue siendo el control real (teclado y lector de pantalla); solo se oculta a la vista. */
+.bp-segmented input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.bp-segmented label:has(input:checked) {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.bp-segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.bp-both-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  width: fit-content;
+  font-size: 0.9rem;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.bp-both-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #0f766e;
+}
+
+.bp-field:has(input[name="blood_pressure_both"]:checked) .bp-only-single,
+.bp-field:not(:has(input[name="blood_pressure_both"]:checked)) .bp-only-both {
+  display: none;
+}
+
 .dashboard-content .btn-secondary {
   background: #f1f5f9 !important;
   color: #0f172a !important;

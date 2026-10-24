@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { generateVerificationCode } from '@/utils/verification-code'
 import { validateVitals } from '@/utils/validation'
+import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
 
@@ -130,6 +131,15 @@ export async function guardarConsulta(
   const vitalError = validateVitals({ temperature, weight, height, headCircumference, heartRate, respiratoryRate, oxygenSaturation })
   if (vitalError) return { error: vitalError }
 
+  // 2.c Presión arterial por brazo. Un formulario de antes de este cambio (pestaña abierta durante
+  //     el despliegue) no trae los campos nuevos: se guarda como siempre, sin exigir brazo.
+  const bpValues = bpFormValuesFromFormData(formData)
+  if (bpValues && await isBloodPressureRequired(supabase, clinicId, patientId)) {
+    const bpError = validateBloodPressure(bpValues, true)
+    if (bpError) return { error: bpError }
+  }
+  const bpColumns = bpValues ? bpRecordFromForm(bpValues) : { blood_pressure: bp, blood_pressure_left: null, blood_pressure_right: null }
+
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
     .from('consultations')
@@ -147,7 +157,7 @@ export async function guardarConsulta(
       referral,
       diagnosis,
       treatment_plan: treatmentPlan,
-      blood_pressure: bp,
+      ...bpColumns,
       temperature,
       weight,
       height,

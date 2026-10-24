@@ -28,6 +28,9 @@ import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 import { draftKey, formDataToFields } from '@/utils/formDraft'
+import { readFormField, writeFormField } from '@/utils/formFields'
+import { bpFormValuesFromFormData, validateBloodPressure } from '@/utils/bloodPressure'
+import BloodPressureField from '../../components/BloodPressureField'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -46,6 +49,8 @@ interface NewConsultationClientProps {
   patient: PatientRow
   appointmentId: string | null
   preclinical?: PreclinicalVitalsRow | null
+  /** Clínica con require_bp_arm y paciente no pediátrico: presión con brazo obligatoria. */
+  requireBloodPressure?: boolean
   consultations?: ConsultationRow[]
   studies?: StudyRow[]
   prescriptions?: PrescriptionRow[]
@@ -83,6 +88,7 @@ export default function NewConsultationClient({
   patient,
   appointmentId,
   preclinical = null,
+  requireBloodPressure = false,
   consultations = [],
   studies = [],
   prescriptions = [],
@@ -173,8 +179,7 @@ export default function NewConsultationClient({
     const form = formRef.current
     const out = {} as VitalsValues
     for (const field of VITALS_FIELDS) {
-      const el = form?.elements.namedItem(field)
-      out[field] = el instanceof HTMLInputElement ? el.value : ''
+      out[field] = readFormField(form, field)
     }
     return out
   }
@@ -185,8 +190,7 @@ export default function NewConsultationClient({
     if (form) {
       for (const field of VITALS_FIELDS) {
         // El perímetro cefálico solo existe si el paciente es pediátrico: si no está, se omite.
-        const el = form.elements.namedItem(field)
-        if (el instanceof HTMLInputElement) el.value = values[field]
+        writeFormField(form, field, values[field])
       }
     }
     // Se relee del DOM (y no se guarda `values` tal cual) para que la comparación posterior no
@@ -319,8 +323,7 @@ export default function NewConsultationClient({
     if (form) {
       for (const [name, value] of Object.entries(fields)) {
         if (DRAFT_STATE_FIELDS.has(name)) continue
-        const el = form.elements.namedItem(name)
-        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.value = value
+        writeFormField(form, name, value)
       }
     }
     resolvePendingDraft()
@@ -343,6 +346,15 @@ export default function NewConsultationClient({
 
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
+
+    // Aviso inmediato; el servidor vuelve a validar la misma regla.
+    const bpValues = bpFormValuesFromFormData(formData)
+    const bpError = bpValues ? validateBloodPressure(bpValues, requireBloodPressure) : null
+    if (bpError) {
+      setError(bpError)
+      setLoading(false)
+      return
+    }
 
     // Si el guardado tarda más de lo normal (petición colgada, servidor lento), avisar al médico
     // en vez de dejarlo mirando el spinner sin señal.
@@ -622,7 +634,7 @@ export default function NewConsultationClient({
       {/* Volvió el internet tras un guardado fallido: guía explícita de reintento */}
       {retryHint && !error && (
         <div ref={errorRef} style={styles.retryAlert}>
-          ✅ Ya hay conexión — presiona «Finalizar Consulta &amp; Recetar» de nuevo para guardar la consulta. Tus datos siguen en el formulario.
+          ✅ Ya hay conexión — presiona «Finalizar Consulta» de nuevo para guardar la consulta. Tus datos siguen en el formulario.
         </div>
       )}
 
@@ -715,11 +727,8 @@ export default function NewConsultationClient({
                   </div>
                 </div>
               )}
+              <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
               <div style={styles.vitalsGrid}>
-                <div className="form-group">
-                  <label className="form-label">Presión Arterial</label>
-                  <input className="form-input" name="blood_pressure" placeholder="Ej. 120/80" defaultValue={preclinical?.blood_pressure || ''} />
-                </div>
                 <div className="form-group">
                   <label className="form-label">Temperatura (°C)</label>
                   <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
@@ -1099,7 +1108,7 @@ export default function NewConsultationClient({
                   ) : (
                     <>
                       <Save size={18} />
-                      Finalizar Consulta & Recetar
+                      Finalizar Consulta
                     </>
                   )}
                 </button>

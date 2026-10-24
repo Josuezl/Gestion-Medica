@@ -22,6 +22,7 @@ import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
+import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
 import type {
   PatientRow,
   ConsultationRow,
@@ -197,7 +198,7 @@ export default function PatientHistoryTabs({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                               {/* Signos Vitales Badge */}
                               <div className="vitals-row" style={styles.vitalsRow}>
-                                {consult.blood_pressure && <span style={styles.vitalTag}>PA: {consult.blood_pressure}</span>}
+                                {bpReadings(consult).map((r) => <span key={r.arm ?? 'pa'} style={styles.vitalTag}>{bpShortLabel(r.arm)}: {r.value}</span>)}
                                 {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
                                 {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
                                 {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}

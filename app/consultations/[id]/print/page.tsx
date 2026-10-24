@@ -8,6 +8,7 @@ import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { calculateAge } from '@/utils/age'
 import type { ConsultationRow } from '@/utils/clinicalTypes'
+import { bpReadings } from '@/utils/bloodPressure'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -57,7 +58,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
 
   const c = consultation
   const hc = c.head_circumference
-  const hasVitals = c.weight || c.height || c.blood_pressure || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
+  const hasVitals = c.weight || c.height || bpReadings(c).length > 0 || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
   const sections = (isReferral
     ? [
@@ -221,7 +222,11 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
                 {c.weight && <span className="vital">Peso: <strong>{c.weight} kg</strong></span>}
                 {c.height && <span className="vital">Talla: <strong>{c.height} cm</strong></span>}
                 {patient.is_pediatric && hc && <span className="vital">P. cefálico: <strong>{hc} cm</strong></span>}
-                {c.blood_pressure && <span className="vital">P. Arterial: <strong>{c.blood_pressure}</strong></span>}
+                {bpReadings(c).map((r) => (
+                  <span key={r.arm ?? 'pa'} className="vital">
+                    P. Arterial{r.arm === 'left' ? ' (brazo izq.)' : r.arm === 'right' ? ' (brazo der.)' : ''}: <strong>{r.value}</strong>
+                  </span>
+                ))}
                 {c.temperature && <span className="vital">Temp: <strong>{c.temperature} °C</strong></span>}
                 {c.heart_rate && <span className="vital">F. Cardíaca: <strong>{c.heart_rate} bpm</strong></span>}
                 {c.respiratory_rate && <span className="vital">F. Respiratoria: <strong>{c.respiratory_rate} rpm</strong></span>}

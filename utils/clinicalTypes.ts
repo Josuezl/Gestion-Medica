@@ -62,6 +62,8 @@ export interface ConsultationRow {
   reason_for_visit?: string | null
   symptoms?: string | null
   blood_pressure?: string | null
+  blood_pressure_left?: string | null
+  blood_pressure_right?: string | null
   temperature?: number | null
   weight?: number | null
   height?: number | null
@@ -159,6 +161,8 @@ export interface PreclinicalVitalsRow {
   id: string
   patient_id?: string
   blood_pressure?: string | null
+  blood_pressure_left?: string | null
+  blood_pressure_right?: string | null
   temperature?: number | null
   weight?: number | null
   height?: number | null

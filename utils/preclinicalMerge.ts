@@ -1,4 +1,5 @@
 import type { PreclinicalVitalsRow } from '@/utils/clinicalTypes'
+import { bpFormFieldsFromRow } from '@/utils/bloodPressure'
 
 /**
  * Decide qué hacer cuando llegan signos de pre-clínica mientras el médico ya tiene abierta la
@@ -18,6 +19,9 @@ export const PRECLINICAL_FALLBACK_MS = 15_000
 /** Campos que comparten la pre-clínica y el formulario de consulta, por su atributo `name`. */
 export const VITALS_FIELDS = [
   'blood_pressure',
+  'blood_pressure_arm',
+  'blood_pressure_both',
+  'blood_pressure_second',
   'temperature',
   'weight',
   'height',
@@ -38,9 +42,15 @@ export type PreclinicalDecision = {
 
 /** Los valores de la fila como texto, tal como los esperan los inputs del formulario. */
 export function vitalsFromPreclinical(row: PreclinicalVitalsRow): VitalsValues {
+  // La presión no es una columna por campo: el brazo se deduce de blood_pressure_left/right.
+  const bp = bpFormFieldsFromRow(row)
   const out = {} as VitalsValues
   for (const field of VITALS_FIELDS) {
-    const value = row[field]
+    if (field in bp) {
+      out[field] = bp[field as keyof typeof bp]
+      continue
+    }
+    const value = row[field as Exclude<VitalsFieldName, keyof typeof bp>]
     // `?? ''` y no `|| ''`: un 0 es un valor medido, no un vacío.
     out[field] = value === null || value === undefined ? '' : String(value)
   }

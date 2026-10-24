@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { validateVitals } from '@/utils/validation'
+import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
 
 // Inicio del día local de Honduras (UTC-6, sin horario de verano) expresado en UTC.
@@ -54,8 +55,16 @@ export async function savePreclinicalVitals(
   const vitalError = validateVitals({ temperature, weight, height, headCircumference, heartRate, respiratoryRate, oxygenSaturation })
   if (vitalError) return { error: vitalError }
 
+  // Presión por brazo: misma regla que la consulta. Sin los campos nuevos (pestaña vieja) se guarda como antes.
+  const bpValues = bpFormValuesFromFormData(formData)
+  if (bpValues && await isBloodPressureRequired(supabase, ctx.clinicId, patientId)) {
+    const bpError = validateBloodPressure(bpValues, true)
+    if (bpError) return { error: bpError }
+  }
+  const bpColumns = bpValues ? bpRecordFromForm(bpValues) : { blood_pressure: bp, blood_pressure_left: null, blood_pressure_right: null }
+
   const row = {
-    blood_pressure: bp,
+    ...bpColumns,
     temperature,
     weight,
     height,
@@ -99,6 +108,14 @@ export async function savePreclinicalVitals(
   revalidatePath('/dashboard')
   revalidatePath(`/dashboard/patients/${patientId}`)
   return { success: true }
+}
+
+/** ¿La pre-clínica de este paciente exige presión con brazo? (clínica con require_bp_arm y paciente adulto) */
+export async function getBloodPressureRequired(patientId: string): Promise<boolean> {
+  const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO', 'NURSE'])
+  if (!ctx) return false
+  const supabase = await createClient()
+  return isBloodPressureRequired(supabase, ctx.clinicId, patientId)
 }
 
 /**
