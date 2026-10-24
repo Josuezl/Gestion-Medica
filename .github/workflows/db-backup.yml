@@ -88,6 +88,9 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: auto
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      # Imágenes de Supabase desde ghcr.io: el registro por defecto (public.ecr.aws) limita las
+      # descargas anónimas desde GitHub Actions («toomanyrequests: Data limit exceeded»).
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
     steps:
       - uses: actions/checkout@v4
 
