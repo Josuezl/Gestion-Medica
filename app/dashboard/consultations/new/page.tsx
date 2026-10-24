@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
+import { ensureLabCatalogSeeded } from '@/utils/ensureLabCatalog'
 import NewConsultationClient from './NewConsultationClient'
 import { isBloodPressureRequired } from '@/utils/bloodPressure'
 
@@ -38,10 +39,14 @@ export default async function NewConsultationPage({ searchParams }: PageProps) {
     redirect('/dashboard')
   }
 
-  // Catálogo de estudios habilitado por defecto: si la clínica aún no lo tiene, se siembra
-  // automáticamente (idempotente) para que la "Solicitud de Estudios" funcione sin acción manual.
+  // Catálogos de estudios y de laboratorio habilitados por defecto: si la clínica aún no los tiene,
+  // se siembran automáticamente (idempotente) para que la "Solicitud de Estudios" y la "Orden de
+  // Laboratorio" funcionen sin acción manual.
   if (currentProfile?.clinic_id) {
-    await ensureStudyCatalogSeeded(supabase, currentProfile.clinic_id)
+    await Promise.all([
+      ensureStudyCatalogSeeded(supabase, currentProfile.clinic_id),
+      ensureLabCatalogSeeded(supabase, currentProfile.clinic_id),
+    ])
   }
 
   // 2. Obtener paciente. Se traen todas las columnas porque el formulario y el

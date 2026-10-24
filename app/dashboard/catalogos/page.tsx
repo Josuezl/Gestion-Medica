@@ -2,6 +2,7 @@ import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { requireOrgAdmin } from '@/utils/auth-guard'
 import { ensureStudyCatalogSeeded } from '@/utils/ensureStudyCatalog'
+import { ensureLabCatalogSeeded } from '@/utils/ensureLabCatalog'
 import { BookOpen } from 'lucide-react'
 import LabCatalogCard from '../config/LabCatalogCard'
 import StudyCatalogCard from '../config/StudyCatalogCard'
@@ -25,6 +26,9 @@ export default async function CatalogosPage() {
   }
 
   const supabase = await createClient()
+
+  // Catálogo de laboratorio habilitado por defecto: sembrar si la clínica aún no lo tiene (idempotente).
+  await ensureLabCatalogSeeded(supabase, ctx.clinicId)
 
   // Catálogo de laboratorio (categorías + todos los exámenes, activos e inactivos)
   const { data: labCategories } = await supabase
