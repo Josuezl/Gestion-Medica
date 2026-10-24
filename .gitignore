@@ -61,3 +61,6 @@ scripts/migracion-access/*.local.*
 # Backups locales del script de backup casero (datos clínicos SIN cifrar: jamás al repo)
 backup-out/
 *.tar.gz.enc
+
+# Versión del build (la genera scripts/write-version.mjs en cada build)
+/public/version.json

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/dev-local.mjs",
+    "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/write-version.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

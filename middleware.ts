@@ -81,7 +81,8 @@ export const config = {
      * - ruta del webhook de whatsapp (importante permitir acceso público)
      * - portal público de agendamiento (/agendar) y estado de cita (/citas): son
      *   anónimas por diseño; excluirlas evita el getUser() de Supabase en ese tráfico
+     * - version.json (aviso de versión nueva): cada pestaña lo consulta cada 5 min
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/whatsapp-webhook|agendar|citas|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|version\\.json|api/whatsapp-webhook|agendar|citas|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
