@@ -20,3 +20,5 @@ test('arma las variables locales y apaga los envíos reales', () => {
 })
 test('sin Supabase local corriendo, falla con instrucción clara', () =>
   expect(() => variablesDevLocal({})).toThrow('npm run db:local'))
+test('el sitio local usa el puerto 2000 (el 3000 es de Control)', () =>
+  expect(variablesDevLocal(status).NEXT_PUBLIC_SITE_URL).toBe('http://localhost:2000'))

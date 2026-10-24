@@ -11,7 +11,7 @@
  *   npm run dev:nube   # el modo anterior (base REAL); solo a propósito
  */
 import { execFileSync, spawn } from 'node:child_process'
-import { variablesDevLocal } from '../utils/entornoLocal.ts'
+import { PUERTO_DEV, variablesDevLocal } from '../utils/entornoLocal.ts'
 
 /** Convierte las líneas `CLAVE="valor"` de `supabase status -o env` en un objeto. */
 function parsearStatus(texto) {
@@ -43,7 +43,13 @@ try {
 
 console.log('Usando Supabase LOCAL (127.0.0.1:54321). Correos y WhatsApp desactivados.')
 
-const next = spawn('npx', ['next', 'dev', ...process.argv.slice(2)], {
+// Puerto propio salvo que se pase otro (`npm run dev -- --port 3100`).
+const args = process.argv.slice(2)
+if (!args.some((a) => a === '--port' || a === '-p' || a.startsWith('--port='))) {
+  args.push('--port', String(PUERTO_DEV))
+}
+
+const next = spawn('npx', ['next', 'dev', ...args], {
   stdio: 'inherit',
   env: { ...process.env, ...variables },
 })

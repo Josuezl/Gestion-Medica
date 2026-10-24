@@ -6,7 +6,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 1. `npm run db:local`: levanta Supabase (la primera vez baja las imágenes).
 2. `npm run db:reset && npm run db:sembrar`: esquema + datos inventados + usuarios `medico@e2e.test`, `asistente@e2e.test` y `admin@e2e.test` (contraseña `E2e-Prueba-2026!`).
-3. `npm run dev`: la app contra la base local. `npm run db:parar` la apaga.
+3. `npm run dev`: la app en http://localhost:2000 contra la base local. `npm run db:parar` la apaga.
 
 `npm run dev:nube` usa `.env.local` (base REAL): solo a propósito.
 El esquema sale de `supabase/migrations/20261023000000_esquema_base.sql` (dump sin datos); las migraciones anteriores quedan como historial en `supabase/migraciones-anteriores/`.
