@@ -33,19 +33,30 @@ test('al navegar con versión nueva recarga sola y no queda aviso', async ({ com
 })
 
 test('consulta a medias: avisa sin recargar y los campos siguen llenos', async ({ comoMedico: page }) => {
-  await page.goto('/dashboard/patients')
+  await page.goto('/dashboard/patients?q=Carla')
   await page.getByRole('row', { name: /Carla Prueba Tres/ }).getByRole('link', { name: 'Consulta' }).click()
   await page.waitForURL(/\/dashboard\/consultations\/new\?patientId=/)
-  const continuar = page.getByRole('button', { name: /Continuar con la consulta/ })
-  if (await continuar.isVisible().catch(() => false)) await continuar.click()
+  // Con consultas previas sale el «Resumen del Expediente», que trae dos botones «Continuar».
+  await page.getByRole('button', { name: /Continuar con la consulta/ }).first().click({ timeout: 4000 }).catch(() => {})
+  await page.getByRole('button', { name: 'Descartar' }).click({ timeout: 2000 }).catch(() => {})
   await page.locator('textarea[name=reason_for_visit]').fill('Control de rutina')
 
   await simularVersion(page, 'otra')
   const cargas = contarCargas(page)
   await volverALaPestana(page)
   await expect(page.getByText(AVISO)).toBeVisible()
+  await expect(page.getByText(/Termina y guarda lo que estás haciendo/)).toBeVisible()
   await expect(page.locator('textarea[name=reason_for_visit]')).toHaveValue('Control de rutina')
   expect(cargas.n).toBe(0)
+})
+
+test('sin nada escrito el aviso solo pide actualizar', async ({ comoMedico: page }) => {
+  await page.goto('/dashboard')
+  await simularVersion(page, 'otra')
+  await volverALaPestana(page)
+  await expect(page.getByText(AVISO)).toBeVisible()
+  await expect(page.getByText('Pulsa Actualizar para cargarla.')).toBeVisible()
+  await expect(page.getByText(/Termina y guarda/)).toBeHidden()
 })
 
 test('sin respuesta de version.json: ni aviso ni recarga', async ({ comoMedico: page }) => {

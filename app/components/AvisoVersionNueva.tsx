@@ -8,6 +8,11 @@ import { guardarRespaldoFormularios, restaurarRespaldoFormularios } from '@/util
 
 const RECUPERADO_MS = 8000
 
+/** Algo que la persona tecleó en un formulario de esta pantalla (no lo que llenó la app). */
+function esEscrituraEnFormulario(e: Event): boolean {
+  return e.isTrusted && e.target instanceof Element && e.target.closest('form') !== null
+}
+
 // En `next dev` no hay version.json del build actual: el vigilante solo corre en producción.
 const ACTIVO = process.env.NODE_ENV === 'production'
 
@@ -15,13 +20,17 @@ const ACTIVO = process.env.NODE_ENV === 'production'
  * Vigilante global de versión nueva (montado en app/layout.tsx; no depende de sesión, así que
  * también cubre el portal público). Tras un despliegue en Vercel una pestaña vieja ya no puede
  * llamar a las Server Actions: al navegar se recarga sola; en los demás casos avisa y el botón
- * «Actualizar» guarda lo escrito antes de recargar.
+ * «Actualizar» guarda lo escrito antes de recargar. Si la persona escribió algo en esta pantalla,
+ * el aviso le pide terminar y guardar primero (la consulta se guarda por ruta fija y funciona igual).
  */
 export default function AvisoVersionNueva() {
   const pathname = usePathname()
   const rutaAnterior = useRef<string | null>(null)
   const [hayVersionNueva, setHayVersionNueva] = useState(false)
   const [recuperado, setRecuperado] = useState(false)
+  // Ruta donde se escribió por última vez: al cambiar de pantalla deja de contar sin tocar estado.
+  const [escritoEn, setEscritoEn] = useState<string | null>(null)
+  const hayEscrito = escritoEn === pathname
 
   useEffect(() => {
     if (!ACTIVO) return
@@ -30,6 +39,9 @@ export default function AvisoVersionNueva() {
       if (document.visibilityState === 'visible') void verificarVersion('foco')
     }
     const alFallar = () => void verificarVersion('fallo_guardado')
+    const alEscribir = (e: Event) => {
+      if (esEscrituraEnFormulario(e)) setEscritoEn(window.location.pathname)
+    }
     const intervalo = window.setInterval(() => {
       if (document.visibilityState !== 'hidden') void verificarVersion('intervalo')
     }, INTERVALO_VERSION_MS)
@@ -37,6 +49,7 @@ export default function AvisoVersionNueva() {
     window.addEventListener(EVENTO_VERSION_NUEVA, alAvisar)
     document.addEventListener('visibilitychange', alCambiarVisibilidad)
     window.addEventListener('unhandledrejection', alFallar)
+    document.addEventListener('input', alEscribir, true)
 
     let ocultar: number | undefined
     void restaurarRespaldoFormularios().then((lleno) => {
@@ -51,6 +64,7 @@ export default function AvisoVersionNueva() {
       window.removeEventListener(EVENTO_VERSION_NUEVA, alAvisar)
       document.removeEventListener('visibilitychange', alCambiarVisibilidad)
       window.removeEventListener('unhandledrejection', alFallar)
+      document.removeEventListener('input', alEscribir, true)
     }
   }, [])
 
@@ -72,7 +86,9 @@ export default function AvisoVersionNueva() {
       <div role="status" style={styles.barra}>
         <span style={styles.texto}>
           <strong>Hay una versión nueva de la aplicación.</strong>{' '}
-          Pulsa Actualizar: lo que escribiste se conserva.
+          {hayEscrito
+            ? 'Termina y guarda lo que estás haciendo; después pulsa Actualizar. Si al guardar sale un error, pulsa Actualizar: lo escrito se conserva.'
+            : 'Pulsa Actualizar para cargarla.'}
         </span>
         <button type="button" onClick={actualizar} style={styles.boton}>Actualizar</button>
       </div>
