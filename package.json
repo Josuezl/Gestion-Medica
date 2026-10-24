@@ -3,12 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/dev-local.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:nube": "next dev",
+    "db:local": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:parar": "supabase stop",
+    "db:sembrar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sembrar-usuarios-local.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -29,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "supabase": "^2.122.0",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }

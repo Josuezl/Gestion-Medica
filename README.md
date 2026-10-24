@@ -1,5 +1,16 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Desarrollo local
+
+`npm run dev` usa una Supabase **local** en Docker, nunca la base real. Correo, WhatsApp e IA quedan apagados.
+
+1. `npm run db:local`: levanta Supabase (la primera vez baja las imágenes).
+2. `npm run db:reset && npm run db:sembrar`: esquema + datos inventados + usuarios `medico@e2e.test`, `asistente@e2e.test` y `admin@e2e.test` (contraseña `E2e-Prueba-2026!`).
+3. `npm run dev`: la app contra la base local. `npm run db:parar` la apaga.
+
+`npm run dev:nube` usa `.env.local` (base REAL): solo a propósito.
+El esquema sale de `supabase/migrations/20261023000000_esquema_base.sql` (dump sin datos); las migraciones anteriores quedan como historial en `supabase/migraciones-anteriores/`.
+
 ## Getting Started
 
 First, run the development server:
