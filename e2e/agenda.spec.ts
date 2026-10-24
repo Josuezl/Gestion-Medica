@@ -1,11 +1,12 @@
 import { test, expect } from './fixtures'
 
 test('el asistente agenda una cita y el médico la ve sin recargar', async ({ comoAsistente: asistente, comoMedico: medico }, testInfo) => {
-  // Esperar a que el canal en vivo del médico quede unido; si no, la cita podría llegar antes.
+  // Esperar a que el canal del médico esté suscrito a Postgres (mensaje `system` de Realtime; el
+  // `phx_reply` del join llega antes y, con Realtime recién arrancado, se perdería el evento).
   const canalUnido = new Promise<void>((resolve) => {
     medico.on('websocket', (ws) => ws.on('framereceived', ({ payload }) => {
       const texto = String(payload)
-      if (texto.includes('realtime:appointments:clinic') && texto.includes('phx_reply') && texto.includes('"ok"')) resolve()
+      if (texto.includes('realtime:appointments:clinic') && texto.includes('Subscribed to PostgreSQL')) resolve()
     }))
   })
   await medico.goto('/dashboard')
