@@ -16,6 +16,7 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # freno: si algo se cuelga, GitHub lo corta
     permissions:
       contents: read
       actions: write # solo para el paso «Mantener vivo el respaldo»
@@ -76,6 +77,7 @@ jobs:
   # Todo sale cifrado con BACKUP_PASSPHRASE. Restauración: docs/backup-restore.md.
   respaldo-r2:
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # freno: si algo se cuelga, GitHub lo corta
     permissions:
       contents: read
     env:

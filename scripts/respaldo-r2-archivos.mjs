@@ -23,6 +23,11 @@ for (const n of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'BACKUP_PASSPHRASE
 }
 const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
 
+// Frenos por corrida: una noche normal sube unos pocos archivos. Si un bug hiciera creer que faltan
+// todos, se detiene en vez de gastar egress de Supabase (plan Free) y operaciones de R2 (con tarjeta).
+const MAX_ARCHIVOS = 500
+const MAX_BYTES = 300e6
+
 async function api(path, init = {}) {
   const res = await fetch(`${SUPABASE_URL}/storage/v1/${path}`, { ...init, headers })
   if (!res.ok) throw new Error(`Storage ${path.split('/')[0]}: ${res.status}`)
@@ -64,6 +69,9 @@ try {
       total++
       const clave = `archivos/${bucket}/${ruta}@${version}.enc`
       if (enR2.has(clave)) continue
+      if (subidos >= MAX_ARCHIVOS || bytes >= MAX_BYTES) {
+        throw new Error(`Freno: ya se subieron ${subidos} archivos (${(bytes / 1e6).toFixed(1)} MB) en esta corrida. Revisar antes de seguir.`)
+      }
       const plano = join(tmp, 'plano'), cifrado = join(tmp, 'cifrado')
       const datos = Buffer.from(await (await api(`object/${bucket}/${ruta.split('/').map(encodeURIComponent).join('/')}`)).arrayBuffer())
       writeFileSync(plano, datos)
