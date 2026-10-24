@@ -11,6 +11,7 @@ import { esUrlLocal } from '../utils/entornoLocal.ts'
 const CLINICA_ID = '00000000-0000-4000-a000-000000000001'
 const SEDE_ID = '00000000-0000-4000-a000-000000000011'
 const PASSWORD = 'E2e-Prueba-2026!'
+const TOKEN_AGENDAR = 'e2e-agendar'
 
 const USUARIOS = [
   { email: 'medico@e2e.test', first: 'Médico', last: 'Prueba', role: 'DOCTOR', isOrgAdmin: false, specialty: 'Medicina General' },
@@ -46,6 +47,22 @@ async function buscarPorEmail(email) {
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
   if (error) throw error
   return data.users.find((u) => u.email === email) ?? null
+}
+
+/** Horario de 07:00 a 20:00 todos los días y enlace fijo /agendar/e2e-agendar (portal público). */
+async function sembrarAgendaPublica(doctorId) {
+  const { error: delErr } = await admin.from('doctor_schedules').delete().eq('doctor_id', doctorId)
+  if (delErr) throw new Error(`horario: ${delErr.message}`)
+  const horario = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+    clinic_id: CLINICA_ID, doctor_id: doctorId, location_id: SEDE_ID, weekday, start_time: '07:00', end_time: '20:00',
+  }))
+  const { error: horErr } = await admin.from('doctor_schedules').insert(horario)
+  if (horErr) throw new Error(`horario: ${horErr.message}`)
+  const { error: linkErr } = await admin.from('public_booking_links').upsert({
+    clinic_id: CLINICA_ID, doctor_id: doctorId, location_id: SEDE_ID, token: TOKEN_AGENDAR, is_active: true,
+  }, { onConflict: 'token' })
+  if (linkErr) throw new Error(`enlace público: ${linkErr.message}`)
+  console.log(`  ✓ horario 07:00–20:00 y enlace /agendar/${TOKEN_AGENDAR}`)
 }
 
 async function main() {
@@ -84,6 +101,8 @@ async function main() {
       if (ownerErr) throw new Error(`dueño de la clínica: ${ownerErr.message}`)
     }
     console.log(`✓ ${u.email} (${u.role})`)
+
+    if (u.role === 'DOCTOR') await sembrarAgendaPublica(id)
   }
   console.log(`\nListo. Contraseña de los 3: ${PASSWORD}`)
 }

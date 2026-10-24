@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { SIN_VERSION } from "./utils/appVersion";
 
 const nextConfig: NextConfig = {
+  // Las E2E construyen en otra carpeta (NEXT_DIST_DIR=.next-e2e) para no pisar el `.next`
+  // de un `npm run dev` abierto.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Commit del build en el bundle del navegador; se compara con public/version.json
   // (scripts/write-version.mjs) para avisar a las pestañas abiertas de una versión nueva.
   env: {

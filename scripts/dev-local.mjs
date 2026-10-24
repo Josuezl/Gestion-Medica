@@ -10,8 +10,9 @@
  *   npm run dev        # este script
  *   npm run dev:nube   # el modo anterior (base REAL); solo a propósito
  *   node scripts/dev-local.mjs --start --port 3100   # build de producción contra la base local
+ *   node scripts/dev-local.mjs --build --start ...   # construye antes (las NEXT_PUBLIC_* se fijan en el build)
  */
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { PUERTO_DEV, variablesDevLocal } from '../utils/entornoLocal.ts'
 
 /** Convierte las líneas `CLAVE="valor"` de `supabase status -o env` en un objeto. */
@@ -48,15 +49,25 @@ console.log('Usando Supabase LOCAL (127.0.0.1:54321). Correos y WhatsApp desacti
 // (.env.production.local trae la URL de la nube).
 const args = process.argv.slice(2)
 const modo = args.includes('--start') ? 'start' : 'dev'
-const resto = args.filter((a) => a !== '--start')
+const construir = args.includes('--build')
+const resto = args.filter((a) => a !== '--start' && a !== '--build')
 
 // Puerto propio salvo que se pase otro (`npm run dev -- --port 3100`).
 if (!resto.some((a) => a === '--port' || a === '-p' || a.startsWith('--port='))) {
   resto.push('--port', String(PUERTO_DEV))
 }
 
+const env = { ...process.env, ...variables }
+
+if (construir) {
+  for (const cmd of [['node', 'scripts/write-version.mjs'], ['npx', 'next', 'build']]) {
+    const r = spawnSync(cmd[0], cmd.slice(1), { stdio: 'inherit', env })
+    if (r.status !== 0) process.exit(r.status ?? 1)
+  }
+}
+
 const next = spawn('npx', ['next', modo, ...resto], {
   stdio: 'inherit',
-  env: { ...process.env, ...variables },
+  env,
 })
 next.on('exit', (code) => process.exit(code ?? 0))
