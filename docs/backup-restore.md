@@ -73,10 +73,12 @@ Desde 2026-10-24 el mismo workflow sube cada noche a un bucket propio de Cloudfl
 | Clave en R2 | Contenido | Retención |
 | --- | --- | --- |
 | `diario/AAAA-MM-DD_HHMM.tar.gz.enc` | `supabase db dump`: `roles.sql`, `schema.sql`, `data.sql` (incluye **las cuentas de `auth`** con sus contraseñas cifradas). `audit_logs` solo los domingos y en corridas manuales (`incluye-audit-logs.txt` lo indica). | Bucket lock 30 días + ciclo de vida que borra a los 31 |
-| `archivos/<bucket>/<ruta>@<versión>.enc` | Cada archivo de Storage, cifrado por separado. Solo se agregan; si un archivo se reemplazó hay varias versiones: usar la de número mayor. | Bucket lock 30 días; no se borran |
+| `archivos/<generación>/<bucket>/<ruta>@<versión>.enc` | Cada archivo de Storage, cifrado por separado. Solo se agregan; si un archivo se reemplazó hay varias versiones: usar la de número mayor. La generación (`k2`…) cambia cada vez que se rota `BACKUP_PASSPHRASE` (ver `GENERACION_CLAVE` en `scripts/respaldo-r2-archivos.mjs`): usar la generación más alta. | Bucket lock 30 días; no se borran |
 
 Antes de subir, el job restaura el dump en una base Supabase local vacía del runner y compara
 conteos con producción; si no cuadra, no sube nada y GitHub avisa por correo.
+
+**Rotar `BACKUP_PASSPHRASE`:** guardar la nueva en el gestor (y una segunda copia fuera de él), actualizar el secreto y subir `GENERACION_CLAVE` en `scripts/respaldo-r2-archivos.mjs`; si no, los archivos ya subidos seguirían cifrados con la frase anterior. (Pasó el 2026-10-24: la frase de julio nunca se guardó y se rotó.)
 
 Secrets adicionales: `SUPABASE_DB_URL` (cadena del **session pooler**, con la contraseña de la base),
 `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token de R2 con Object Read &
@@ -109,7 +111,7 @@ Write **solo** sobre ese bucket).
    Después: volver a habilitar las publicaciones de Realtime en el panel, y si el día del respaldo
    no incluía `audit_logs`, cargar la bitácora desde el respaldo del domingo anterior.
 4. Archivos: descargar `archivos/`, descifrar cada uno con el mismo comando `openssl enc -d …` y
-   subirlo al bucket de Storage correspondiente (`<bucket>/<ruta>`, sin el sufijo `@<versión>.enc`).
+   subirlo al bucket de Storage correspondiente (`<bucket>/<ruta>`, sin la generación ni el sufijo `@<versión>.enc`).
 
 ## Limitaciones conocidas (aceptadas en el spec)
 

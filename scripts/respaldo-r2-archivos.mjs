@@ -2,7 +2,7 @@
 // Copia incremental de Supabase Storage a R2 (corre en el workflow DB Backup, job respaldo-r2).
 //
 // Solo AGREGA: cada archivo se sube cifrado una vez con la clave
-//   archivos/<bucket>/<ruta>@<updated_at en ms>.enc
+//   archivos/<generación>/<bucket>/<ruta>@<updated_at en ms>.enc
 // Si un archivo se reemplaza en Storage cambia su updated_at y se sube como una clave nueva, así
 // nada se sobrescribe ni se borra (el bucket lock de R2 lo impediría igual). Para restaurar, por
 // cada <bucket>/<ruta> se toma la versión con el número más alto.
@@ -22,6 +22,11 @@ for (const n of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'BACKUP_PASSPHRASE
   if (!process.env[n]) throw new Error(`Falta ${n}`)
 }
 const headers = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' }
+
+// Generación de la BACKUP_PASSPHRASE. Al rotarla, subir este valor: así los archivos se vuelven a
+// subir cifrados con la frase nueva (los de la generación anterior no se pueden sobrescribir por el
+// bucket lock y quedan ilegibles sin la frase vieja). k1 = 2026-07 (perdida), k2 = 2026-10-24.
+const GENERACION_CLAVE = 'k2'
 
 // Frenos por corrida: una noche normal sube unos pocos archivos. Si un bug hiciera creer que faltan
 // todos, se detiene en vez de gastar egress de Supabase (plan Free) y operaciones de R2 (con tarjeta).
@@ -56,7 +61,7 @@ function aws(args) {
 }
 
 const enR2 = new Set(JSON.parse(aws([
-  's3api', 'list-objects-v2', '--bucket', R2_BUCKET, '--prefix', 'archivos/',
+  's3api', 'list-objects-v2', '--bucket', R2_BUCKET, '--prefix', `archivos/${GENERACION_CLAVE}/`,
   '--query', 'Contents[].Key', '--output', 'json',
 ]) || 'null') ?? [])
 
@@ -67,7 +72,7 @@ try {
   for (const { id: bucket } of buckets) {
     for (const { ruta, version } of await listar(bucket)) {
       total++
-      const clave = `archivos/${bucket}/${ruta}@${version}.enc`
+      const clave = `archivos/${GENERACION_CLAVE}/${bucket}/${ruta}@${version}.enc`
       if (enR2.has(clave)) continue
       if (subidos >= MAX_ARCHIVOS || bytes >= MAX_BYTES) {
         throw new Error(`Freno: ya se subieron ${subidos} archivos (${(bytes / 1e6).toFixed(1)} MB) en esta corrida. Revisar antes de seguir.`)
