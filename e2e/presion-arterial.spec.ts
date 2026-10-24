@@ -16,8 +16,11 @@ const PACIENTES = [
 const exigirBrazo = (valor: boolean) =>
   rest(`clinics?id=eq.${CLINICA_E2E}`, { method: 'PATCH', body: JSON.stringify({ require_bp_arm: valor }) })
 
+// La lista se busca por nombre: sin filtro, los pacientes que crean otras corridas la llenan.
+const listaFiltrada = (paciente: RegExp) => `/dashboard/patients?q=${encodeURIComponent(paciente.source.split(' ')[0])}`
+
 async function abrirConsulta(page: Page, paciente: RegExp) {
-  await page.goto('/dashboard/patients')
+  await page.goto(listaFiltrada(paciente))
   await page.getByRole('row', { name: paciente }).getByRole('link', { name: 'Consulta' }).click()
   await page.waitForURL(/\/dashboard\/consultations\/new\?patientId=/)
   // Con consultas previas sale el «Resumen del Expediente» (tapa el formulario) y puede quedar un
@@ -91,7 +94,7 @@ test.describe('presión arterial por brazo', () => {
   })
 
   test('pre-clínica: también la exige, y el brazo llega a la consulta', async ({ comoMedico: page }) => {
-    await page.goto('/dashboard/patients')
+    await page.goto(listaFiltrada(/Pedro Presion Uno/))
     await page.getByRole('row', { name: /Pedro Presion Uno/ }).getByRole('button', { name: /Tomar signos/ }).click()
     const guardar = page.getByRole('button', { name: 'Guardar signos' })
 

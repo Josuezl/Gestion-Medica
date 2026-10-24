@@ -1,17 +1,9 @@
 import { Resend } from 'resend'
 import { errorMessage } from './errors'
+import { escapeHtml } from '@/utils/escapeHtml'
 
 // Debe venir en formato "Nombre <correo>" (igual que utils/email.ts)
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'CloudMedHN <onboarding@resend.dev>'
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 /**
  * Email con enlace de un solo uso para restablecer la contraseña.

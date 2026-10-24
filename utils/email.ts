@@ -6,6 +6,7 @@
 import { Resend } from 'resend'
 import { medicineDetail } from './medicines'
 import { errorMessage } from './errors'
+import { escapeHtml } from '@/utils/escapeHtml'
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_mock_123')
 
@@ -17,17 +18,6 @@ interface SendEmailResult {
   success: boolean
   id?: string
   error?: string
-}
-
-// Escapa datos del usuario antes de interpolarlos en el HTML del correo (anti-XSS/phishing).
-function escapeHtml(value: string | null | undefined): string {
-  if (value == null) return ''
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 /**

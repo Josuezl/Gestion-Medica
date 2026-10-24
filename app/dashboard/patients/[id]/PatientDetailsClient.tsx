@@ -54,6 +54,7 @@ const PediatricGrowthChart = nextDynamic(() => import('../../components/Pediatri
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
+import { escapeHtml } from '@/utils/escapeHtml'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -193,7 +194,7 @@ export default function PatientDetailsClient({
           const consultDate = formatDate(c.created_at);
 
           const vitalsHtml = [
-            ...bpReadings(c).map((r) => `<span class="vital-tag">${bpShortLabel(r.arm)}: ${r.value}</span>`),
+            ...bpReadings(c).map((r) => `<span class="vital-tag">${bpShortLabel(r.arm)}: ${escapeHtml(r.value)}</span>`),
             c.temperature ? `<span class="vital-tag">Temp: ${c.temperature}°C</span>` : '',
             c.weight ? `<span class="vital-tag">Peso: ${c.weight} kg</span>` : '',
             c.heart_rate ? `<span class="vital-tag">FC: ${c.heart_rate} bpm</span>` : '',
@@ -209,7 +210,7 @@ export default function PatientDetailsClient({
                     const det = medicineDetail(m)
                     return `<tr>
                       <td>${i + 1}</td>
-                      <td><strong>${m.name || ''}</strong>${det ? ` — ${det}` : ''}</td>
+                      <td><strong>${escapeHtml(m.name)}</strong>${det ? ` — ${escapeHtml(det)}` : ''}</td>
                     </tr>`
                   }).join('')}
                 </tbody>
@@ -220,8 +221,8 @@ export default function PatientDetailsClient({
             <div class="consult-card ${index > 0 ? 'page-break-before' : ''}">
               <div class="consult-header">
                 <div>
-                  <div class="consult-date">${consultDate}</div>
-                  <div class="consult-doctor">${docName}</div>
+                  <div class="consult-date">${escapeHtml(consultDate)}</div>
+                  <div class="consult-doctor">${escapeHtml(docName)}</div>
                 </div>
                 ${vitalsHtml ? `<div class="vitals">${vitalsHtml}</div>` : ''}
               </div>
@@ -229,29 +230,29 @@ export default function PatientDetailsClient({
               <div class="consult-grid">
                 <div class="field-card diagnosis-card">
                   <div class="field-label">Diagnóstico Principal</div>
-                  <div class="field-value diagnosis-value">${c.diagnosis || '—'}</div>
+                  <div class="field-value diagnosis-value">${escapeHtml(c.diagnosis) || '—'}</div>
                 </div>
               </div>
 
               <div class="consult-grid two-col">
                 <div class="field-card">
                   <div class="field-label">Motivo de Consulta</div>
-                  <div class="field-value">${c.reason_for_visit || '—'}</div>
+                  <div class="field-value">${escapeHtml(c.reason_for_visit) || '—'}</div>
                 </div>
                 <div class="field-card">
                   <div class="field-label">Síntomas / Anamnesis</div>
-                  <div class="field-value">${c.symptoms || 'Ninguno reportado'}</div>
+                  <div class="field-value">${escapeHtml(c.symptoms) || 'Ninguno reportado'}</div>
                 </div>
               </div>
 
               <div class="consult-grid two-col">
                 <div class="field-card">
                   <div class="field-label">Exámenes de laboratorio / estudios médicos</div>
-                  <div class="field-value">${c.physical_exam || 'Ninguno registrado'}</div>
+                  <div class="field-value">${escapeHtml(c.physical_exam) || 'Ninguno registrado'}</div>
                 </div>
                 <div class="field-card">
                   <div class="field-label">Plan de Tratamiento</div>
-                  <div class="field-value">${c.treatment_plan || '—'}</div>
+                  <div class="field-value">${escapeHtml(c.treatment_plan) || '—'}</div>
                 </div>
               </div>
 
@@ -268,7 +269,7 @@ export default function PatientDetailsClient({
       <html lang="es">
         <head>
           <meta charset="UTF-8" />
-          <title>Expediente Clínico — ${patient.first_name} ${patient.last_name}</title>
+          <title>Expediente Clínico — ${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)}</title>
           <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
@@ -571,7 +572,7 @@ export default function PatientDetailsClient({
         <body>
           <!-- ===== PRINT BAR ===== -->
           <div class="print-bar">
-            <span>Vista previa · Expediente Clínico — ${patient.first_name} ${patient.last_name}</span>
+            <span>Vista previa · Expediente Clínico — ${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)}</span>
             <button onclick="window.print()">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               Imprimir / Guardar PDF
@@ -580,7 +581,7 @@ export default function PatientDetailsClient({
           <!-- ===== HEADER ===== -->
           <div class="report-header" style="background-color:#0d9488;color:#ffffff;padding:32px 40px;">
             <h1 style="font-size:22px;font-weight:800;color:#ffffff;margin:0;">Expediente Clínico</h1>
-            <div class="subtitle" style="font-size:13px;color:rgba(255,255,255,0.88);margin-top:6px;">${patient.first_name} ${patient.last_name}</div>
+            <div class="subtitle" style="font-size:13px;color:rgba(255,255,255,0.88);margin-top:6px;">${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)}</div>
             <div class="print-date" style="font-size:12px;color:rgba(255,255,255,0.72);margin-top:10px;">Generado el ${new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
           </div>
 
@@ -589,21 +590,21 @@ export default function PatientDetailsClient({
             <div class="section-title">Datos Personales</div>
 
             <div class="info-grid">
-              <div class="info-field"><label>Nombre completo</label><span>${patient.first_name} ${patient.last_name}</span></div>
-              <div class="info-field"><label>Identidad (DNI)</label><span>${patient.id_card || 'N/A'}</span></div>
-              <div class="info-field"><label>Fecha de nacimiento</label><span>${formatDate(patient.birth_date || '')}</span></div>
+              <div class="info-field"><label>Nombre completo</label><span>${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)}</span></div>
+              <div class="info-field"><label>Identidad (DNI)</label><span>${escapeHtml(patient.id_card) || 'N/A'}</span></div>
+              <div class="info-field"><label>Fecha de nacimiento</label><span>${escapeHtml(formatDate(patient.birth_date || ''))}</span></div>
               <div class="info-field"><label>Edad</label><span>${calculateAge(patient.birth_date)} años</span></div>
               <div class="info-field"><label>Sexo</label><span>${patient.gender === 'M' ? 'Masculino' : patient.gender === 'F' ? 'Femenino' : 'Otro'}</span></div>
-              <div class="info-field"><label>Tipo de sangre</label><span>${patient.blood_type || 'N/A'}</span></div>
-              <div class="info-field"><label>Teléfono</label><span>${patient.phone || 'N/A'}</span></div>
-              <div class="info-field"><label>Correo electrónico</label><span>${patient.email || 'N/A'}</span></div>
-              <div class="info-field"><label>Dirección</label><span>${patient.address || 'N/A'}</span></div>
+              <div class="info-field"><label>Tipo de sangre</label><span>${escapeHtml(patient.blood_type) || 'N/A'}</span></div>
+              <div class="info-field"><label>Teléfono</label><span>${escapeHtml(patient.phone) || 'N/A'}</span></div>
+              <div class="info-field"><label>Correo electrónico</label><span>${escapeHtml(patient.email) || 'N/A'}</span></div>
+              <div class="info-field"><label>Dirección</label><span>${escapeHtml(patient.address) || 'N/A'}</span></div>
             </div>
 
             <!-- ===== ALERGIAS ===== -->
             <div class="allergy-box">
               <label>⚠ Alergias conocidas</label>
-              <span>${patient.allergies || 'Ninguna conocida'}</span>
+              <span>${escapeHtml(patient.allergies) || 'Ninguna conocida'}</span>
             </div>
 
             <!-- ===== ANTECEDENTES ===== -->
@@ -611,15 +612,15 @@ export default function PatientDetailsClient({
             <div class="bg-grid">
               <div class="bg-card">
                 <label>Patológicos</label>
-                <p>${patient.pathological_history || 'No declarados'}</p>
+                <p>${escapeHtml(patient.pathological_history) || 'No declarados'}</p>
               </div>
               <div class="bg-card">
                 <label>No Patológicos</label>
-                <p>${patient.non_pathological_history || 'No declarados'}</p>
+                <p>${escapeHtml(patient.non_pathological_history) || 'No declarados'}</p>
               </div>
               <div class="bg-card">
                 <label>Heredofamiliares</label>
-                <p>${patient.family_history || 'No declarados'}</p>
+                <p>${escapeHtml(patient.family_history) || 'No declarados'}</p>
               </div>
             </div>
 
@@ -637,7 +638,7 @@ export default function PatientDetailsClient({
 
           <!-- ===== FOOTER ===== -->
           <div class="report-footer">
-            Expediente Clínico · ${patient.first_name} ${patient.last_name} · Confidencial — solo para uso médico
+            Expediente Clínico · ${escapeHtml(patient.first_name)} ${escapeHtml(patient.last_name)} · Confidencial — solo para uso médico
           </div>
         </body>
       </html>
