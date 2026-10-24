@@ -16,6 +16,9 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # solo para el paso «Mantener vivo el respaldo»
     steps:
       - uses: actions/checkout@v4
 
@@ -53,3 +56,12 @@ jobs:
           path: backup.tar.gz.enc
           retention-days: 30
           if-no-files-found: error
+
+      # GitHub apaga los cron de un repo público tras 60 días sin commits (pasó el 2026-10-11 y el
+      # respaldo estuvo 13 días detenido). Volver a habilitar el workflow cada día reinicia ese plazo.
+      # Corre aunque falle el respaldo: un fallo no debe además dejarlo apagado.
+      - name: Mantener vivo el respaldo
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable db-backup.yml --repo "${{ github.repository }}"
