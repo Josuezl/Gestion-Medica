@@ -19,6 +19,11 @@ test('el reporte muestra el nombre corto del médico', async ({ comoMedico: page
     const grafica = page.locator('.recharts-cartesian-axis-tick').filter({ hasText: /Espinoza/ })
     await expect(grafica.first()).toHaveText('Dr. Manuel Espinoza')
     await expect(page.getByText('Manuel Armando Espinoza Rueda')).toHaveCount(0)
+
+    // La etiqueta rotada no se sale por la izquierda de la gráfica.
+    const svg = await page.locator('.recharts-surface').filter({ has: grafica.first() }).boundingBox()
+    const etiqueta = await grafica.first().boundingBox()
+    expect(etiqueta!.x).toBeGreaterThanOrEqual(svg!.x)
   } finally {
     await perfil({ first_name: medico.first_name, last_name: medico.last_name })
   }

@@ -170,9 +170,14 @@ function RankBars({ data, color }: { data: { name: string; value: number }[]; co
  *  isAnimationActive={false}: sin esto, recharts + React 19 no pinta las barras. */
 function ColumnChart({ data, color }: { data: { name: string; fullName?: string; value: number }[]; color: string }) {
   const sorted = data.slice().sort((a, b) => b.value - a.value)
+  // Las etiquetas, rotadas -35°, se extienden a la izquierda de su columna y la primera se cortaba.
+  // Margen según la más larga de las primeras (en teléfono las columnas son angostas y la segunda
+  // también llega al borde): ~6.2 px por carácter a 11 px, proyectado en horizontal.
+  const masLarga = Math.max(0, ...sorted.slice(0, 3).map((d) => d.name.length))
+  const margenIzq = Math.max(0, Math.ceil(masLarga * 6.2 * Math.cos(Math.PI * 35 / 180)) - 40)
   return (
     <ResponsiveContainer width="100%" height={340}>
-      <BarChart data={sorted} margin={{ top: 24, right: 8, left: 0, bottom: 4 }} barCategoryGap="22%">
+      <BarChart data={sorted} margin={{ top: 24, right: 8, left: margenIzq, bottom: 4 }} barCategoryGap="22%">
         <CartesianGrid stroke="#f1f5f9" vertical={false} />
         <XAxis
           dataKey="name" interval={0} height={92} tickLine={false} axisLine={{ stroke: '#e2e8f0' }}
