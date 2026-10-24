@@ -1,7 +1,15 @@
 import { test, expect } from './fixtures'
 
 test('el asistente agenda una cita y el médico la ve sin recargar', async ({ comoAsistente: asistente, comoMedico: medico }, testInfo) => {
+  // Esperar a que el canal en vivo del médico quede unido; si no, la cita podría llegar antes.
+  const canalUnido = new Promise<void>((resolve) => {
+    medico.on('websocket', (ws) => ws.on('framereceived', ({ payload }) => {
+      const texto = String(payload)
+      if (texto.includes('realtime:appointments:clinic') && texto.includes('phx_reply') && texto.includes('"ok"')) resolve()
+    }))
+  })
   await medico.goto('/dashboard')
+  await canalUnido
   await expect(medico.getByRole('heading', { name: /citas|No hay citas/i }).first()).toBeAttached()
   const tarjetasMedico = medico.getByText('Ana Prueba Uno', { exact: true })
   const antes = await tarjetasMedico.count()
