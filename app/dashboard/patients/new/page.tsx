@@ -2,8 +2,12 @@
 
 import React, { Suspense, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { createPatient, getRecordNumberConfig } from '../actions'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { getRecordNumberConfig } from '../actions'
+import type { crearPaciente } from '@/utils/guardado/paciente'
+import { guardarEnApi } from '@/utils/guardarApi'
+import { agregarParametros } from '@/utils/camposGuardado'
+import { verificarVersion } from '@/utils/versionCheck'
 import { isPediatric as isPediatricAge } from '@/utils/age'
 import {
   User,
@@ -25,6 +29,7 @@ export default function NewPatientPage() {
 }
 
 function NewPatientForm() {
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   // Posible duplicado. `block: true` => duplicado exacto (nombre+fecha+género): NO se puede
@@ -64,7 +69,19 @@ function NewPatientForm() {
     setDuplicate(null)
     setLoading(true)
 
-    const result = await createPatient(formData, force)
+    // Ruta de API fija (no Server Action): sigue funcionando en una pestaña abierta antes de un deploy.
+    // Se envía una copia: pendingForm guarda el original para reintentar con force.
+    let result: Awaited<ReturnType<typeof crearPaciente>>
+    try {
+      const envio = new FormData()
+      formData.forEach((v, k) => envio.append(k, v))
+      result = await guardarEnApi<Awaited<ReturnType<typeof crearPaciente>>>('/api/guardar/paciente', agregarParametros(envio, { _force: force }))
+    } catch {
+      setError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
+      setLoading(false)
+      void verificarVersion('fallo_guardado')
+      return
+    }
 
     if (result?.error) {
       setError(result.error)
@@ -77,7 +94,8 @@ function NewPatientForm() {
       setLoading(false)
       return
     }
-    // Éxito: el server action redirige al detalle; no hay nada más que hacer aquí.
+    // Éxito: la ruta devuelve el detalle del paciente nuevo.
+    if (result?.redirectTo) router.push(result.redirectTo)
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { createConsultation } from '../actions'
+import type { guardarConsulta } from '@/utils/guardado/consulta'
+import { guardarEnApi } from '@/utils/guardarApi'
+import { agregarParametros } from '@/utils/camposGuardado'
 import { updatePatientGender } from '../../patients/actions'
 import {
   Heart,
@@ -347,14 +349,20 @@ export default function NewConsultationClient({
     const slowTimer = setTimeout(() => setSlowSave(true), SLOW_SAVE_HINT_MS)
     const saveStartedAt = Date.now()
 
-    let result: Awaited<ReturnType<typeof createConsultation>>
+    let result: Awaited<ReturnType<typeof guardarConsulta>>
     try {
       // Promise.race: si la red se cayó a media petición el fetch puede quedarse colgado sin
       // rechazar nunca; el timeout libera el botón para que el médico pueda reintentar.
       result = await Promise.race([
         // Del estado y no del prop: si los signos llegaron en vivo, es ESA fila la que hay que
         // marcar como consumida (si no, se pierde la bitácora de quién los tomó).
-        createConsultation(patient.id, appointmentId, medicines, formData, preclinicalRow?.id ?? null),
+        // Ruta de API fija (no Server Action): sigue funcionando en una pestaña abierta antes de un deploy.
+        guardarEnApi<Awaited<ReturnType<typeof guardarConsulta>>>('/api/guardar/consulta', agregarParametros(formData, {
+          _patientId: patient.id,
+          _appointmentId: appointmentId,
+          _medicines: medicines,
+          _preclinicalVitalsId: preclinicalRow?.id ?? null,
+        })),
         new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)
         }),

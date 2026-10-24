@@ -2,7 +2,10 @@
 
 import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updatePatient, updatePatientGender } from '../actions'
+import { updatePatientGender } from '../actions'
+import type { actualizarPaciente } from '@/utils/guardado/paciente'
+import { guardarEnApi } from '@/utils/guardarApi'
+import { verificarVersion } from '@/utils/versionCheck'
 import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, sendStudyRequestByEmail } from './email-actions'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
@@ -156,7 +159,15 @@ export default function PatientDetailsClient({
     const formData = new FormData(event.currentTarget)
     
     startEditTransition(async () => {
-      const result = await updatePatient(patient.id, formData)
+      // Ruta de API fija (no Server Action): sigue funcionando en una pestaña abierta antes de un deploy.
+      let result: Awaited<ReturnType<typeof actualizarPaciente>>
+      try {
+        result = await guardarEnApi<Awaited<ReturnType<typeof actualizarPaciente>>>(`/api/guardar/paciente/${patient.id}`, formData)
+      } catch {
+        setEditError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
+        void verificarVersion('fallo_guardado')
+        return
+      }
       if (result.error) {
         setEditError(result.error)
       } else {

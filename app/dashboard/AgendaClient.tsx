@@ -1,8 +1,11 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { createAppointment, updateAppointmentStatus, updateAppointment, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange, getAppointmentById } from './actions'
+import { updateAppointmentStatus, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange, getAppointmentById } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
+import type { actualizarCita, crearCita } from '@/utils/guardado/cita'
+import { guardarEnApi } from '@/utils/guardarApi'
+import { verificarVersion } from '@/utils/versionCheck'
 import {
   Calendar as CalendarIcon,
   User,
@@ -1076,11 +1079,17 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
         }
       }
       
-      let result
-      if (isEdit) {
-        result = await updateAppointment(editAppointment.id, formData)
-      } else {
-        result = await createAppointment(formData)
+      // Rutas de API fijas (no Server Actions): siguen funcionando en una pestaña abierta antes de un deploy.
+      let result: Awaited<ReturnType<typeof crearCita | typeof actualizarCita>>
+      try {
+        result = isEdit
+          ? await guardarEnApi<Awaited<ReturnType<typeof actualizarCita>>>(`/api/guardar/cita/${editAppointment.id}`, formData)
+          : await guardarEnApi<Awaited<ReturnType<typeof crearCita>>>('/api/guardar/cita', formData)
+      } catch {
+        setIsSubmitting(false)
+        setFormError('No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.')
+        void verificarVersion('fallo_guardado')
+        return
       }
       
       setIsSubmitting(false)
