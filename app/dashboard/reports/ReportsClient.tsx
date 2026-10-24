@@ -53,7 +53,8 @@ export interface ClinicReport {
     no_show?: number
     pacientes_nuevos?: number
   }
-  por_medico?: { nombre: string; genero?: string | null; total: number }[]
+  /** `nombre_corto` (primer nombre + primer apellido) falta si la función SQL aún es la anterior. */
+  por_medico?: { nombre: string; nombre_corto?: string | null; genero?: string | null; total: number }[]
   por_especialidad?: { especialidad: string; total: number }[]
   citas_estado?: { status: string; total: number }[]
   serie_diaria?: { fecha: string; consultas: number; citas: number; nuevos?: number; no_show?: number }[]
@@ -167,7 +168,7 @@ function RankBars({ data, color }: { data: { name: string; value: number }[]; co
 /** Columnas verticales con etiqueta de valor arriba y nombres rotados (estilo pedido por los
  *  médicos para "Consultas por médico"). Serie única → sin leyenda; el título nombra la métrica.
  *  isAnimationActive={false}: sin esto, recharts + React 19 no pinta las barras. */
-function ColumnChart({ data, color }: { data: { name: string; value: number }[]; color: string }) {
+function ColumnChart({ data, color }: { data: { name: string; fullName?: string; value: number }[]; color: string }) {
   const sorted = data.slice().sort((a, b) => b.value - a.value)
   return (
     <ResponsiveContainer width="100%" height={340}>
@@ -178,7 +179,11 @@ function ColumnChart({ data, color }: { data: { name: string; value: number }[];
           angle={-35} textAnchor="end" tick={{ fontSize: 11, fill: '#475569' }}
         />
         <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={30} tick={{ fill: '#94a3b8' }} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: `${color}14` }} formatter={(v: number) => [v, 'Consultas']} />
+        <Tooltip
+          contentStyle={TOOLTIP_STYLE} cursor={{ fill: `${color}14` }} formatter={(v: number) => [v, 'Consultas']}
+          // El eje muestra el nombre corto; el tooltip, el completo.
+          labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName ?? label}
+        />
         <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={70} isAnimationActive={false}>
           <LabelList dataKey="value" position="top" style={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }} />
         </Bar>
@@ -355,7 +360,11 @@ export default function ReportsClient({ report, periodo, selectedDate, rpcMissin
     horaPico = `Hora pico: ${fmtHora(peak.hora)}`
   }
 
-  const porMedico = (report.por_medico || []).map((d) => ({ name: `${title(d.genero)} ${d.nombre}`.trim(), value: d.total }))
+  const porMedico = (report.por_medico || []).map((d) => ({
+    name: `${title(d.genero)} ${d.nombre_corto || d.nombre}`.trim(),
+    fullName: `${title(d.genero)} ${d.nombre}`.trim(),
+    value: d.total,
+  }))
   const porEspecialidad = (report.por_especialidad || []).map((d) => ({ name: d.especialidad, value: d.total }))
 
   // Desglose de citas por estado, en orden fijo "atendida → perdida".
