@@ -66,11 +66,54 @@ node scripts/backup-verify.mjs backup-out
      `study_requests` → resto. (Los FKs mandan; si un insert falla por FK, restaura antes la
      tabla referenciada.)
 
+## Respaldo completo en R2 (job `respaldo-r2`)
+
+Desde 2026-10-24 el mismo workflow sube cada noche a un bucket propio de Cloudflare R2:
+
+| Clave en R2 | Contenido | Retención |
+| --- | --- | --- |
+| `diario/AAAA-MM-DD_HHMM.tar.gz.enc` | `supabase db dump`: `roles.sql`, `schema.sql`, `data.sql` (incluye **las cuentas de `auth`** con sus contraseñas cifradas). `audit_logs` solo los domingos y en corridas manuales (`incluye-audit-logs.txt` lo indica). | Bucket lock 30 días + ciclo de vida que borra a los 31 |
+| `archivos/<bucket>/<ruta>@<versión>.enc` | Cada archivo de Storage, cifrado por separado. Solo se agregan; si un archivo se reemplazó hay varias versiones: usar la de número mayor. | Bucket lock 30 días; no se borran |
+
+Antes de subir, el job restaura el dump en una base Supabase local vacía del runner y compara
+conteos con producción; si no cuadra, no sube nada y GitHub avisa por correo.
+
+Secrets adicionales: `SUPABASE_DB_URL` (cadena del **session pooler**, con la contraseña de la base),
+`R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token de R2 con Object Read &
+Write **solo** sobre ese bucket).
+
+### Restaurar desde R2 (pérdida total del proyecto)
+
+1. Descargar el archivo del día (panel de Cloudflare o `aws s3 cp s3://<bucket>/diario/<archivo> . --endpoint-url <R2_ENDPOINT>`).
+2. Descifrar y abrir:
+
+   ```bash
+   openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+     -in AAAA-MM-DD_HHMM.tar.gz.enc -out base.tar.gz -pass env:BACKUP_PASSPHRASE
+   tar -xzf base.tar.gz   # crea dump/roles.sql, dump/schema.sql, dump/data.sql
+   ```
+
+3. Crear un proyecto Supabase nuevo y restaurar (procedimiento oficial de Supabase, con la cadena del
+   session pooler del proyecto NUEVO):
+
+   ```bash
+   psql --single-transaction --variable ON_ERROR_STOP=1 \
+     --file dump/roles.sql --file dump/schema.sql \
+     --command 'SET session_replication_role = replica' \
+     --file dump/data.sql --dbname "<cadena del proyecto nuevo>"
+   ```
+
+   Si falla por `GRANT SET ON PARAMETER … TO "supabase_realtime_admin"` (o por `OWNER TO`), comentar
+   esa línea y repetir: son los errores comunes que documenta Supabase. Probado el 2026-10-24 en una
+   base local: conteos, contraseñas de `auth.users`, funciones y las 55 políticas RLS quedan iguales.
+   Después: volver a habilitar las publicaciones de Realtime en el panel, y si el día del respaldo
+   no incluía `audit_logs`, cargar la bitácora desde el respaldo del domingo anterior.
+4. Archivos: descargar `archivos/`, descifrar cada uno con el mismo comando `openssl enc -d …` y
+   subirlo al bucket de Storage correspondiente (`<bucket>/<ruta>`, sin el sufijo `@<versión>.enc`).
+
 ## Limitaciones conocidas (aceptadas en el spec)
 
 - **No es point-in-time**: recuperas la foto de la 01:15 de esa noche; lo escrito después se pierde.
 - Las tablas se exportan con segundos de diferencia (no es un snapshot transaccional).
-- `auth.users` (contraseñas/sesiones) NO se exporta — PostgREST no lo expone. Tras una pérdida
-  total, los usuarios se recrean por invitación (flujo normal de la app) y `user_profiles` los
-  re-liga. Los datos clínicos, que son lo irremplazable, sí están completos.
-- Cuando San Martín crezca: Supabase Pro (US$25/mes) da backups diarios reales + PITR opcional.
+- El artifact de GitHub NO incluye `auth.users` (PostgREST no lo expone) ni Storage; el respaldo de
+  R2 sí los incluye.
