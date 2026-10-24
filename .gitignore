@@ -64,3 +64,9 @@ backup-out/
 
 # Versión del build (la genera scripts/write-version.mjs en cada build)
 /public/version.json
+
+# Playwright (E2E)
+.env.e2e
+test-results/
+playwright-report/
+e2e/.auth/

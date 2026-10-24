@@ -14,7 +14,8 @@
     "db:local": "supabase start",
     "db:reset": "supabase db reset",
     "db:parar": "supabase stop",
-    "db:sembrar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sembrar-usuarios-local.mjs"
+    "db:sembrar": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sembrar-usuarios-local.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
@@ -29,6 +30,7 @@
     "resend": "^6.12.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
