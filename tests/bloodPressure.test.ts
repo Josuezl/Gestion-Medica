@@ -6,6 +6,8 @@ import {
   bpFormFieldsFromRow,
   validateBloodPressure,
   bpReadings,
+  bpLevel,
+  bpHistory,
   type BpFormValues,
 } from '@/utils/bloodPressure'
 
@@ -131,5 +133,38 @@ describe('bpReadings', () => {
 
   it('sin nada, vacío', () => {
     expect(bpReadings({})).toEqual([])
+  })
+})
+
+describe('bpLevel', () => {
+  it('normal solo si sistólica < 120 y diastólica < 80', () => {
+    expect(bpLevel('118/76')).toBe('normal')
+    expect(bpLevel('120/70')).toBe('elevada')
+    expect(bpLevel('110/80')).toBe('elevada')
+  })
+
+  it('alta si la sistólica o la diastólica llega al límite', () => {
+    expect(bpLevel('140/70')).toBe('alta')
+    expect(bpLevel('130/90')).toBe('alta')
+    expect(bpLevel('139/89')).toBe('elevada')
+  })
+
+  it('texto que no es una lectura: sin nivel', () => {
+    expect(bpLevel('')).toBeNull()
+    expect(bpLevel('alta')).toBeNull()
+    expect(bpLevel(' 125 / 82 ')).toBe('elevada')
+  })
+})
+
+describe('bpHistory', () => {
+  it('ordena de la más reciente a la más antigua y descarta consultas sin presión', () => {
+    const h = bpHistory([
+      { id: 'a', created_at: '2026-08-01T15:00:00Z', blood_pressure: '118/76' },
+      { id: 'b', created_at: '2026-10-24T15:00:00Z', blood_pressure: '145/95', blood_pressure_left: '145/95', blood_pressure_right: '140/90' },
+      { id: 'c', created_at: '2026-09-12T15:00:00Z', blood_pressure: null },
+    ])
+    expect(h.map((r) => r.id)).toEqual(['b', 'a'])
+    expect(h[0]).toMatchObject({ sinBrazo: null, izquierdo: '145/95', derecho: '140/90' })
+    expect(h[1]).toMatchObject({ sinBrazo: '118/76', izquierdo: null, derecho: null })
   })
 })

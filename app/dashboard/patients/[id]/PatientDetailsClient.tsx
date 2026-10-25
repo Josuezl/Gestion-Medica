@@ -54,6 +54,7 @@ const PediatricGrowthChart = nextDynamic(() => import('../../components/Pediatri
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
+import ConsultVitalsChips from '../../components/ConsultVitalsChips'
 import { escapeHtml } from '@/utils/escapeHtml'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
@@ -1220,27 +1221,19 @@ export default function PatientDetailsClient({
                             borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none',
                             paddingBottom: isExpanded ? '0.75rem' : '0',
                             marginBottom: isExpanded ? '1rem' : '0',
-                            alignItems: 'center'
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
                           }}>
-                            <div>
-                              <p style={styles.consultDate}>{date}</p>
-                              <p style={styles.consultDoctor}>{docName}</p>
-                            </div>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                              {/* Signos Vitales Badge */}
-                              <div style={styles.vitalsRow}>
-                                {bpReadings(consult).map((r) => <span key={r.arm ?? 'pa'} style={styles.vitalTag}>{bpShortLabel(r.arm)}: {r.value}</span>)}
-                                {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
-                                {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
-                                {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
-                                {consult.respiratory_rate && <span style={styles.vitalTag}>FR: {consult.respiratory_rate}rpm</span>}
-                                {consult.oxygen_saturation && <span style={styles.vitalTag}>SpO2: {consult.oxygen_saturation}%</span>}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                              <div>
+                                <p style={styles.consultDate}>{date}</p>
+                                <p style={styles.consultDoctor}>{docName}</p>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                             </div>
+                            <ConsultVitalsChips consult={consult} />
                           </div>
 
                           {isExpanded && (
@@ -2068,20 +2061,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.75rem',
     color: 'var(--text-muted)',
     fontWeight: '500',
-  },
-  vitalsRow: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-  },
-  vitalTag: {
-    fontSize: '0.7rem',
-    padding: '0.2rem 0.5rem',
-    backgroundColor: 'var(--bg-input)',
-    borderRadius: '4px',
-    color: 'var(--text-main)',
-    fontWeight: '600',
-    border: '1px solid var(--border-color)',
   },
   consultField: {
     marginBottom: '0.85rem',
