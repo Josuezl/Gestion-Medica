@@ -22,7 +22,7 @@ export default function BloodPressureField({ required, defaults }: {
       <legend className="bp-legend">
         Presión Arterial
         {required && <span className="bp-required" aria-hidden="true"> *</span>}
-        {required && <span className="bp-hint">Obligatoria en adultos · indica al menos un brazo</span>}
+        {required && <span className="bp-hint">Obligatoria en adultos</span>}
       </legend>
 
       <div className="bp-row">

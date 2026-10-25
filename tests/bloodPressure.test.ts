@@ -104,8 +104,8 @@ describe('validateBloodPressure', () => {
     expect(validateBloodPressure(values({ arm: 'left' }), true)).toMatch(/obligatoria/)
   })
 
-  it('obligatorio: exige brazo', () => {
-    expect(validateBloodPressure(values({ reading: '120/80' }), true)).toMatch(/brazo/)
+  it('obligatorio: el brazo es opcional', () => {
+    expect(validateBloodPressure(values({ reading: '120/80' }), true)).toBeNull()
   })
 
   it('obligatorio: lectura + brazo es válido', () => {

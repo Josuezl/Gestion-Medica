@@ -81,7 +81,10 @@ export function bpFormFieldsFromRow(row: BpRowLike): {
   return { blood_pressure: clean(row.blood_pressure), blood_pressure_arm: '', blood_pressure_both: '', blood_pressure_second: '' }
 }
 
-/** Regla de Centro Neurológico (o cualquier clínica con `require_bp_arm`). null = válido. */
+/**
+ * Regla de Centro Neurológico (o cualquier clínica con `require_bp_arm`): la presión es obligatoria,
+ * el brazo no (desde 2026-10-25 el médico puede no especificarlo). null = válido.
+ */
 export function validateBloodPressure(values: BpFormValues, required: boolean): string | null {
   if (!required) return null
   if (values.both) {
@@ -89,7 +92,6 @@ export function validateBloodPressure(values: BpFormValues, required: boolean): 
     return null
   }
   if (!clean(values.reading)) return 'La presión arterial es obligatoria para pacientes adultos.'
-  if (!values.arm) return 'Indica en qué brazo se tomó la presión arterial.'
   return null
 }
 
