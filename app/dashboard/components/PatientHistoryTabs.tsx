@@ -17,6 +17,7 @@ import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
 const PediatricGrowthChart = nextDynamic(() => import('./PediatricGrowthChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 import StudyUploader from './StudyUploader'
+import { SUBIDA_ESTUDIOS_HABILITADA } from '@/utils/features'
 import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
@@ -122,14 +123,17 @@ export default function PatientHistoryTabs({
           <span>Lab. Solicitados</span>
         </button>
 
-        <button
-          type="button"
-          style={activeTab === 'studies' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('studies')}
-        >
-          <FileSpreadsheet size={18} />
-          <span>Estudios Médicos</span>
-        </button>
+        {/* Apagado globalmente (utils/features.ts) */}
+        {SUBIDA_ESTUDIOS_HABILITADA && (
+          <button
+            type="button"
+            style={activeTab === 'studies' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('studies')}
+          >
+            <FileSpreadsheet size={18} />
+            <span>Estudios Médicos</span>
+          </button>
+        )}
 
         {patient.is_pediatric && (
           <button 

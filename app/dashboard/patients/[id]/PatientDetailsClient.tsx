@@ -24,6 +24,7 @@ import type {
   ShareableDoc,
 } from '@/utils/clinicalTypes'
 import StudyUploader from '../../components/StudyUploader'
+import { SUBIDA_ESTUDIOS_HABILITADA } from '@/utils/features'
 import StudyList from '../../components/StudyList'
 import Link from 'next/link'
 import {
@@ -1161,8 +1162,8 @@ export default function PatientDetailsClient({
             <span>Referencias</span>
           </button>
 
-          {/* Estudios Médicos (archivos subidos) al final */}
-          {canClinical && (
+          {/* Estudios Médicos (archivos subidos) al final; apagado globalmente (utils/features.ts) */}
+          {SUBIDA_ESTUDIOS_HABILITADA && canClinical && (
             <button
               style={activeTab === 'studies' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('studies')}

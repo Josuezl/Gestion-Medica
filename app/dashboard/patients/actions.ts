@@ -7,6 +7,7 @@ import { sanitizeSearchTerm } from '@/utils/validation'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { actualizarPaciente, crearPaciente } from '@/utils/guardado/paciente'
+import { SUBIDA_ESTUDIOS_HABILITADA } from '@/utils/features'
 
 /**
  * Sugiere el siguiente N° de expediente para la clínica del usuario: toma el record_number con el
@@ -116,6 +117,7 @@ const MAX_FILE_BYTES = 26214400 // 25 MB
  * de body de Server Actions / Vercel y no satura el servidor).
  */
 export async function checkStudyQuota(fileSize: number) {
+  if (!SUBIDA_ESTUDIOS_HABILITADA) return { error: 'La subida de estudios está deshabilitada.' }
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -153,6 +155,7 @@ export async function checkStudyQuota(fileSize: number) {
  * usuario y reconfirma la cuota (autoritativo); si algo falla, borra el archivo subido.
  */
 export async function recordMedicalStudy(patientId: string, name: string, filePath: string) {
+  if (!SUBIDA_ESTUDIOS_HABILITADA) return { error: 'La subida de estudios está deshabilitada.' }
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
