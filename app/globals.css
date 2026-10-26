@@ -300,16 +300,42 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 100%;
 }
 
-/* Vitals badges: capped beside the date on desktop, full width on mobile. */
-.vitals-row {
-  max-width: 50%;
+/* Signos vitales de una consulta (ConsultVitalsChips): una fila alineada a la izquierda bajo la
+   fecha y el médico. La presión en verde azulado; el resto en gris. */
+.vital-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
 }
 
-@media (max-width: 768px) {
-  .vitals-row {
-    max-width: 100%;
-    justify-content: flex-start;
-  }
+.vital-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.vital-chip--pa {
+  background: rgba(13, 148, 136, 0.1);
+  color: #115e59;
+}
+
+.vital-chip-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.vital-chip strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Agenda filter groups grow to fill available width and wrap on small screens. */
@@ -566,6 +592,112 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0;
   accent-color: #0f766e;
 }
+
+/* Con historial (Nueva Consulta): captura a la izquierda, tabla a la derecha; apilado en pantallas angostas. */
+.bp-field--con-historial {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.bp-captura {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .bp-field--con-historial {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.bp-historial {
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.bp-historial-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bp-historial-titulo {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bp-historial-leyenda {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  color: #475569;
+}
+
+.bp-historial-leyenda > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Cada nivel con su forma además del color: se distinguen sin depender del color. */
+.bp-marca {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+}
+
+.bp-marca-normal { border: 2px solid #15803d; border-radius: 9999px; }
+.bp-marca-elevada { background: #b45309; border-radius: 9999px; }
+.bp-marca-alta { background: #b91c1c; border-radius: 2px; }
+
+/* Se ven 5 tomas; las anteriores con scroll dentro de la tarjeta, con el encabezado fijo. */
+.bp-historial-scroll {
+  max-height: 238px;
+  overflow-y: auto;
+}
+
+.bp-historial table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.bp-historial th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  padding: 0.5rem 0.85rem;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.bp-historial td {
+  padding: 0.55rem 0.85rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.bp-hist-fecha { color: #334155; white-space: nowrap; }
+.bp-hist-vacio { color: #94a3b8; }
+.bp-hist-valor { font-weight: 700; font-variant-numeric: tabular-nums; color: #0f172a; }
+.bp-nivel-normal { color: #15803d; }
+.bp-nivel-elevada { color: #b45309; }
+.bp-nivel-alta { color: #b91c1c; }
 
 .bp-field:has(input[name="blood_pressure_both"]:checked) .bp-only-single,
 .bp-field:not(:has(input[name="blood_pressure_both"]:checked)) .bp-only-both {

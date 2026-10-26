@@ -56,7 +56,7 @@ test.describe('presión arterial por brazo', () => {
   })
   test.afterAll(() => exigirBrazo(false))
 
-  test('adulto en clínica que la exige: pide presión y brazo; guarda ambos brazos', async ({ comoMedico: page }) => {
+  test('adulto en clínica que la exige: pide la presión; guarda ambos brazos', async ({ comoMedico: page }) => {
     await abrirConsulta(page, /Pedro Presion Uno/)
     const finalizar = page.getByRole('button', { name: /Finalizar Consulta/ })
 
@@ -64,8 +64,6 @@ test.describe('presión arterial por brazo', () => {
     await expect(page.getByText('La presión arterial es obligatoria para pacientes adultos.')).toBeVisible()
 
     await page.getByLabel('Lectura (mmHg)').fill('120/80')
-    await finalizar.click()
-    await expect(page.getByText('Indica en qué brazo se tomó la presión arterial.')).toBeVisible()
 
     // Ambos brazos: desaparece el selector y aparece el campo del brazo derecho.
     await page.getByLabel('Tomar en ambos brazos').check()
@@ -77,20 +75,42 @@ test.describe('presión arterial por brazo', () => {
     expect(await ultimaConsulta('Pedro')).toEqual({
       blood_pressure: '120/80', blood_pressure_left: '120/80', blood_pressure_right: '125/82',
     })
-    await expect(page.getByText('PA BI: 120/80').first()).toBeVisible()
-    await expect(page.getByText('PA BD: 125/82').first()).toBeVisible()
+    await expect(page.locator('.vital-chip', { hasText: 'PA izq.' }).filter({ hasText: '120/80' }).first()).toBeVisible()
+    await expect(page.locator('.vital-chip', { hasText: 'PA der.' }).filter({ hasText: '125/82' }).first()).toBeVisible()
   })
 
   test('adulto: un solo brazo queda en su columna', async ({ comoMedico: page }) => {
     await abrirConsulta(page, /Paula Presion Dos/)
     await page.getByLabel('Lectura (mmHg)').fill('130/85')
-    await page.getByText('Derecho', { exact: true }).click()
+    await page.getByRole('radio', { name: 'Derecho' }).check()
     await page.getByRole('button', { name: /Finalizar Consulta/ }).click()
     await page.waitForURL(/\/dashboard\/patients\//)
 
     expect(await ultimaConsulta('Paula')).toEqual({
       blood_pressure: '130/85', blood_pressure_left: null, blood_pressure_right: '130/85',
     })
+  })
+
+  test('adulto: el brazo es opcional, se guarda solo la lectura', async ({ comoMedico: page }) => {
+    await abrirConsulta(page, /Paula Presion Dos/)
+    await page.getByLabel('Lectura (mmHg)').fill('126/82')
+    await page.getByRole('button', { name: /Finalizar Consulta/ }).click()
+    await page.waitForURL(/\/dashboard\/patients\//)
+
+    expect(await ultimaConsulta('Paula')).toEqual({
+      blood_pressure: '126/82', blood_pressure_left: null, blood_pressure_right: null,
+    })
+  })
+
+  test('Nueva Consulta muestra el historial de tomas del paciente', async ({ comoMedico: page }) => {
+    // Paula ya tiene dos consultas de este archivo: 126/82 sin brazo (la más reciente) y 130/85 derecho.
+    await abrirConsulta(page, /Paula Presion Dos/)
+    const historial = page.getByRole('region', { name: 'Historial de presión arterial' })
+    await expect(historial).toBeVisible()
+    const filas = historial.locator('tbody tr')
+    await expect(filas.first().locator('td').nth(1)).toHaveText('126/82')
+    await expect(historial.locator('td', { hasText: '130/85' }).first()).toBeVisible()
+    await expect(historial.locator('.bp-nivel-elevada').first()).toBeVisible()
   })
 
   test('pre-clínica: también la exige, y el brazo llega a la consulta', async ({ comoMedico: page }) => {
@@ -102,7 +122,7 @@ test.describe('presión arterial por brazo', () => {
     await expect(page.getByText('La presión arterial es obligatoria para pacientes adultos.')).toBeVisible()
 
     await page.getByLabel('Lectura (mmHg)').fill('118/76')
-    await page.getByText('Izquierdo', { exact: true }).click()
+    await page.getByRole('radio', { name: 'Izquierdo' }).check()
     await guardar.click()
     await expect(guardar).toBeHidden()
 

@@ -29,7 +29,7 @@ import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyReq
 import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRow, PreclinicalVitalsRow } from '@/utils/clinicalTypes'
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { readFormField, writeFormField } from '@/utils/formFields'
-import { bpFormValuesFromFormData, validateBloodPressure } from '@/utils/bloodPressure'
+import { bpFormValuesFromFormData, bpHistory, validateBloodPressure } from '@/utils/bloodPressure'
 import BloodPressureField from '../../components/BloodPressureField'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
@@ -727,7 +727,7 @@ export default function NewConsultationClient({
                   </div>
                 </div>
               )}
-              <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
+              <BloodPressureField required={requireBloodPressure} defaults={preclinical} history={bpHistory(consultations)} />
               <div style={styles.vitalsGrid}>
                 <div className="form-group">
                   <label className="form-label">Temperatura (°C)</label>

@@ -17,12 +17,13 @@ import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
 const PediatricGrowthChart = nextDynamic(() => import('./PediatricGrowthChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
 import StudyUploader from './StudyUploader'
+import { SUBIDA_ESTUDIOS_HABILITADA } from '@/utils/features'
 import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
-import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
+import ConsultVitalsChips from './ConsultVitalsChips'
 import type {
   PatientRow,
   ConsultationRow,
@@ -122,14 +123,17 @@ export default function PatientHistoryTabs({
           <span>Lab. Solicitados</span>
         </button>
 
-        <button
-          type="button"
-          style={activeTab === 'studies' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('studies')}
-        >
-          <FileSpreadsheet size={18} />
-          <span>Estudios Médicos</span>
-        </button>
+        {/* Apagado globalmente (utils/features.ts) */}
+        {SUBIDA_ESTUDIOS_HABILITADA && (
+          <button
+            type="button"
+            style={activeTab === 'studies' ? styles.tabActive : styles.tab}
+            onClick={() => setActiveTab('studies')}
+          >
+            <FileSpreadsheet size={18} />
+            <span>Estudios Médicos</span>
+          </button>
+        )}
 
         {patient.is_pediatric && (
           <button 
@@ -188,27 +192,19 @@ export default function PatientHistoryTabs({
                             borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none',
                             paddingBottom: isExpanded ? '0.75rem' : '0',
                             marginBottom: isExpanded ? '1rem' : '0',
-                            alignItems: 'center'
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
                           }}>
-                            <div>
-                              <p style={styles.consultDate}>{date}</p>
-                              <p style={styles.consultDoctor}>{docName}</p>
-                            </div>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                              {/* Signos Vitales Badge */}
-                              <div className="vitals-row" style={styles.vitalsRow}>
-                                {bpReadings(consult).map((r) => <span key={r.arm ?? 'pa'} style={styles.vitalTag}>{bpShortLabel(r.arm)}: {r.value}</span>)}
-                                {consult.temperature && <span style={styles.vitalTag}>T°: {consult.temperature}°C</span>}
-                                {consult.weight && <span style={styles.vitalTag}>Peso: {consult.weight}kg</span>}
-                                {consult.heart_rate && <span style={styles.vitalTag}>FC: {consult.heart_rate}bpm</span>}
-                                {consult.respiratory_rate && <span style={styles.vitalTag}>FR: {consult.respiratory_rate}rpm</span>}
-                                {consult.oxygen_saturation && <span style={styles.vitalTag}>SpO2: {consult.oxygen_saturation}%</span>}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                              <div>
+                                <p style={styles.consultDate}>{date}</p>
+                                <p style={styles.consultDoctor}>{docName}</p>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                             </div>
+                            <ConsultVitalsChips consult={consult} />
                           </div>
 
                           {isExpanded && (
@@ -746,21 +742,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-muted)',
     marginTop: '0.25rem',
     fontWeight: '600',
-  },
-  vitalsRow: {
-    display: 'flex',
-    gap: '0.5rem',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-  },
-  vitalTag: {
-    backgroundColor: 'rgba(13, 148, 136, 0.1)',
-    color: 'var(--primary-dark)',
-    padding: '0.3rem 0.6rem',
-    borderRadius: '6px',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    whiteSpace: 'nowrap',
   },
   consultField: {
     marginBottom: '1rem',

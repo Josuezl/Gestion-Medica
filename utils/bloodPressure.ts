@@ -81,7 +81,10 @@ export function bpFormFieldsFromRow(row: BpRowLike): {
   return { blood_pressure: clean(row.blood_pressure), blood_pressure_arm: '', blood_pressure_both: '', blood_pressure_second: '' }
 }
 
-/** Regla de Centro Neurológico (o cualquier clínica con `require_bp_arm`). null = válido. */
+/**
+ * Regla de Centro Neurológico (o cualquier clínica con `require_bp_arm`): la presión es obligatoria,
+ * el brazo no (desde 2026-10-25 el médico puede no especificarlo). null = válido.
+ */
 export function validateBloodPressure(values: BpFormValues, required: boolean): string | null {
   if (!required) return null
   if (values.both) {
@@ -89,7 +92,6 @@ export function validateBloodPressure(values: BpFormValues, required: boolean): 
     return null
   }
   if (!clean(values.reading)) return 'La presión arterial es obligatoria para pacientes adultos.'
-  if (!values.arm) return 'Indica en qué brazo se tomó la presión arterial.'
   return null
 }
 
@@ -113,9 +115,50 @@ export function bpReadings(row: BpRowLike): BpReading[] {
   return bp ? [{ arm: null, value: bp }] : []
 }
 
-/** Etiqueta corta para chips: «PA BI», «PA BD» o «PA». */
+/**
+ * Nivel de una lectura «120/80» para el resaltado del historial. Validado por el responsable clínico
+ * el 2026-10-25 como referencia visual, no diagnóstico: basta con que la sistólica O la diastólica
+ * caiga en el rango. null si no se puede leer.
+ */
+export type BpLevel = 'normal' | 'elevada' | 'alta'
+export function bpLevel(value: string | null | undefined): BpLevel | null {
+  const m = clean(value).match(/^(\d{2,3})\s*\/\s*(\d{2,3})/)
+  if (!m) return null
+  const s = Number(m[1]), d = Number(m[2])
+  if (s >= 140 || d >= 90) return 'alta'
+  if (s >= 120 || d >= 80) return 'elevada'
+  return 'normal'
+}
+
+export interface BpHistoryRow {
+  id: string
+  createdAt: string
+  /** Lectura sin brazo (consultas antiguas u otros tenants). */
+  sinBrazo: string | null
+  izquierdo: string | null
+  derecho: string | null
+}
+
+/** Tomas de presión de las consultas, de la más reciente a la más antigua (sin las que no tienen). */
+export function bpHistory(rows: (BpRowLike & { id: string; created_at: string })[]): BpHistoryRow[] {
+  return rows
+    .map((r) => {
+      const lecturas = bpReadings(r)
+      return {
+        id: r.id,
+        createdAt: r.created_at,
+        sinBrazo: lecturas.find((l) => l.arm === null)?.value ?? null,
+        izquierdo: lecturas.find((l) => l.arm === 'left')?.value ?? null,
+        derecho: lecturas.find((l) => l.arm === 'right')?.value ?? null,
+      }
+    })
+    .filter((r) => r.sinBrazo || r.izquierdo || r.derecho)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+/** Etiqueta corta para chips: «PA izq.», «PA der.» o «PA» (sin brazo). */
 export function bpShortLabel(arm: BpArm | null): string {
-  return arm === 'left' ? 'PA BI' : arm === 'right' ? 'PA BD' : 'PA'
+  return arm === 'left' ? 'PA izq.' : arm === 'right' ? 'PA der.' : 'PA'
 }
 
 /**

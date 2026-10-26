@@ -63,6 +63,16 @@ export function formatTimeHN(value: string | number | Date): string {
   })
 }
 
+/** "24 oct 2026" (corto, para tablas) */
+export function formatDateShortHN(value: string | number | Date): string {
+  return new Date(value).toLocaleDateString('es-HN', {
+    timeZone: HN_TIME_ZONE,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 /** "15/06/2026" */
 export function formatDateHN(value: string | number | Date): string {
   return new Date(value).toLocaleDateString('es-HN', {
