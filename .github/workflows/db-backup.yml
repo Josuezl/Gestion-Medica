@@ -16,6 +16,7 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # freno: si algo se cuelga, GitHub lo corta
     permissions:
       contents: read
       actions: write # solo para el paso «Mantener vivo el respaldo»
@@ -65,3 +66,110 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow enable db-backup.yml --repo "${{ github.repository }}"
+
+  # Respaldo completo a R2 (bucket propio con bucket lock de 30 días sobre diario/ y archivos/, y
+  # regla de ciclo de vida que borra diario/ a los 31 días). Plan Free: cuidar el egress (5 GB/mes).
+  #  - Base: `supabase db dump` (roles + estructura + datos, incluidas las cuentas de auth). La
+  #    bitácora audit_logs (~55% del peso) va solo los domingos o en corridas manuales con «completo».
+  #  - Prueba de restauración ANTES de subir: se restaura en una base Supabase local vacía dentro del
+  #    runner y se comparan conteos contra producción. Si falla, no sube nada y GitHub avisa por correo.
+  #  - Storage: incremental, solo agrega (scripts/respaldo-r2-archivos.mjs).
+  # Todo sale cifrado con BACKUP_PASSPHRASE. Restauración: docs/backup-restore.md.
+  respaldo-r2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # freno: si algo se cuelga, GitHub lo corta
+    permissions:
+      contents: read
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      # Imágenes de Supabase desde ghcr.io: el registro por defecto (public.ecr.aws) limita las
+      # descargas anónimas desde GitHub Actions («toomanyrequests: Data limit exceeded»).
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisar secrets
+        run: |
+          for s in SUPABASE_DB_URL R2_ENDPOINT R2_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY BACKUP_PASSPHRASE; do
+            test -n "${!s}" || { echo "Falta el secret de $s"; exit 1; }
+          done
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Base local vacía para la prueba de restauración
+        run: |
+          mkdir -p /tmp/restaurar && cd /tmp/restaurar
+          supabase init --force > /dev/null
+          sed -i 's/^project_id = .*/project_id = "restaurar"/; s/^major_version = .*/major_version = 17/' supabase/config.toml
+          supabase db start
+
+      - name: Conteos de producción (antes del dump)
+        run: |
+          docker exec supabase_db_restaurar psql "$SUPABASE_DB_URL" -At -F ' ' -c "
+            select 'auth.users', count(*) from auth.users union all
+            select 'clinics', count(*) from public.clinics union all
+            select 'user_profiles', count(*) from public.user_profiles union all
+            select 'patients', count(*) from public.patients union all
+            select 'consultations', count(*) from public.consultations union all
+            select 'prescriptions', count(*) from public.prescriptions union all
+            select 'appointments', count(*) from public.appointments" > /tmp/conteos-prod.txt
+          cat /tmp/conteos-prod.txt
+
+      - name: Dump (roles, estructura y datos)
+        run: |
+          mkdir -p dump
+          COMPLETO=no
+          if [ "$(date -u +%u)" = 7 ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then COMPLETO=si; fi
+          EXCLUIR="-x storage.buckets_vectors -x storage.vector_indexes"
+          [ "$COMPLETO" = si ] || EXCLUIR="$EXCLUIR -x public.audit_logs"
+          echo "Incluye audit_logs: $COMPLETO"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/roles.sql --role-only
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/data.sql --use-copy --data-only $EXCLUIR
+          echo "$COMPLETO" > dump/incluye-audit-logs.txt
+          ls -la dump
+
+      - name: Prueba de restauración (base local vacía)
+        run: |
+          docker cp dump supabase_db_restaurar:/tmp/dump
+          # supabase_admin (superusuario de la base local): roles.sql trae un GRANT SET ON PARAMETER
+          # que el rol postgres no puede ejecutar (error común documentado por Supabase).
+          docker exec supabase_db_restaurar psql -U supabase_admin -d postgres \
+            --single-transaction --variable ON_ERROR_STOP=1 \
+            --file /tmp/dump/roles.sql \
+            --file /tmp/dump/schema.sql \
+            --command 'SET session_replication_role = replica' \
+            --file /tmp/dump/data.sql > /dev/null
+          fallas=0
+          while read -r tabla prod; do
+            rest=$(docker exec supabase_db_restaurar psql -U postgres -d postgres -At -c "select count(*) from $tabla")
+            # Producción sigue recibiendo datos durante el dump: se acepta una diferencia mínima.
+            if [ "$rest" -lt 1 ] || [ "$rest" -lt $(( prod - 5 )) ]; then echo "FALLA $tabla: prod=$prod restaurado=$rest"; fallas=1
+            else echo "ok $tabla: prod=$prod restaurado=$rest"; fi
+          done < /tmp/conteos-prod.txt
+          exit $fallas
+
+      - name: Cifrar y subir la base a R2
+        run: |
+          # Con hora: una corrida manual el mismo día no puede sobrescribir la de la noche (bucket lock).
+          FECHA=$(TZ=America/Tegucigalpa date +%F_%H%M)
+          tar -czf base.tar.gz dump
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in base.tar.gz -out base.tar.gz.enc -pass env:BACKUP_PASSPHRASE
+          rm -rf dump base.tar.gz
+          aws s3 cp base.tar.gz.enc "s3://$R2_BUCKET/diario/$FECHA.tar.gz.enc" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          echo "Subido diario/$FECHA.tar.gz.enc ($(du -h base.tar.gz.enc | cut -f1))"
+
+      - name: Archivos de Storage a R2 (incremental)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/respaldo-r2-archivos.mjs
