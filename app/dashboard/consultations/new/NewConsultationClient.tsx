@@ -23,7 +23,7 @@ import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
 import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
-import { TextoAmpliable, ReferenciaAnterior } from './DiagnosticoCampos'
+import { TextoConsulta, ReferenciaAnterior } from './DiagnosticoCampos'
 import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
@@ -37,6 +37,7 @@ import VitalsHistoryTable from '../../components/VitalsHistoryTable'
 import { vitalsHistory } from '@/utils/historialSignos'
 import AntecedentesEditor from '../../components/AntecedentesEditor'
 import NotaClinica from '../../components/NotaClinica'
+import { autoCrecer } from '@/utils/autoCrecer'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -808,11 +809,12 @@ export default function NewConsultationClient({
                 <span className="evo-ayuda">Razón principal de la visita.</span>
                 <textarea
                   id="evo-motivo"
-                  className="form-input"
+                  className="form-input auto-crece"
                   name="reason_for_visit"
                   placeholder="¿Por qué consulta el paciente?"
                   rows={3}
                   required
+                  onInput={autoCrecer}
                 />
               </div>
 
@@ -848,7 +850,7 @@ export default function NewConsultationClient({
               <div className="dx-layout">
                 <h4 className="vs-subtitulo">Consulta actual</h4>
                 <h4 className="vs-subtitulo dx-subtitulo-ref">Referencia anterior</h4>
-                <TextoAmpliable
+                <TextoConsulta
                   name="diagnosis"
                   etiqueta="Diagnóstico"
                   placeholder="Diagnóstico clínico: CIE-10 o descripción…"
@@ -861,7 +863,7 @@ export default function NewConsultationClient({
                   valor={lastConsultation?.diagnosis}
                   onUsar={() => setDiagnosisText(lastConsultation?.diagnosis || '')}
                 />
-                <TextoAmpliable
+                <TextoConsulta
                   name="treatment_plan"
                   etiqueta="Plan de tratamiento / Recomendaciones"
                   placeholder="Describe el tratamiento, las recomendaciones y el seguimiento…"

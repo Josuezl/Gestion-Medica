@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useId, useState } from 'react'
-import { Maximize2, Minimize2, Clock, Copy } from 'lucide-react'
+import React, { useId } from 'react'
+import { Clock, Copy } from 'lucide-react'
+import { autoCrecer } from '@/utils/autoCrecer'
 import { formatDateShortHN } from '@/utils/datetime'
 
-/** Cuadro de texto obligatorio de la consulta (controlado) con «Ampliar». */
-export function TextoAmpliable({ name, etiqueta, placeholder, value, onChange }: {
+/** Cuadro de texto obligatorio de la consulta (controlado); crece con lo escrito. */
+export function TextoConsulta({ name, etiqueta, placeholder, value, onChange }: {
   name: string
   etiqueta: string
   placeholder: string
@@ -13,17 +14,12 @@ export function TextoAmpliable({ name, etiqueta, placeholder, value, onChange }:
   onChange: (v: string) => void
 }) {
   const id = useId()
-  const [ampliado, setAmpliado] = useState(false)
   return (
-    <div className={ampliado ? 'dx-campo dx-campo--ampliado' : 'dx-campo'}>
+    <div className="dx-campo">
       <div className="dx-campo-cabecera">
         <label htmlFor={id} className="evo-label">{etiqueta} <span className="evo-requerido">*</span></label>
-        <button type="button" className="nota-clinica-ampliar" onClick={() => setAmpliado((a) => !a)} aria-expanded={ampliado} aria-controls={id}>
-          {ampliado ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}
-          {ampliado ? 'Reducir' : 'Ampliar'}
-        </button>
       </div>
-      <textarea id={id} className="form-input" name={name} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={5} required />
+      <textarea id={id} className="form-input auto-crece" name={name} value={value} onChange={(e) => onChange(e.target.value)} onInput={autoCrecer} placeholder={placeholder} rows={5} required />
     </div>
   )
 }

@@ -2228,25 +2228,7 @@ h1, h2, h3, h4, h5, h6 {
 .nota-clinica-descripcion { font-size: 0.85rem; color: #475569; }
 .nota-clinica-opcional { font-size: 0.82rem; color: #64748b; white-space: nowrap; }
 
-.nota-clinica-ampliar {
-  align-self: flex-end;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 32px;
-  padding: 0 0.4rem;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0f766e;
-  cursor: pointer;
-}
-
-.nota-clinica-ampliar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
 .nota-clinica textarea { flex: 1; min-height: 130px; resize: vertical; }
-.nota-clinica--ampliada textarea { min-height: 360px; }
 
 /* Diagnóstico y Tratamiento: campo actual a la izquierda, referencia anterior a la par. */
 .dx-layout {
@@ -2268,7 +2250,9 @@ h1, h2, h3, h4, h5, h6 {
 .dx-campo { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
 .dx-campo-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; height: 32px; }
 .dx-campo textarea { flex: 1; min-height: 140px; resize: vertical; }
-.dx-campo--ampliado textarea { min-height: 360px; }
+
+/* Cuadros que crecen con lo escrito (ver utils/autoCrecer.ts); la altura mínima la pone cada uno. */
+.auto-crece { field-sizing: content; max-height: 70vh; }
 
 .dx-ref {
   display: flex;
