@@ -2149,25 +2149,29 @@ h1, h2, h3, h4, h5, h6 {
 .vs-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.75rem 1.25rem;
+  gap: 1.25rem;
   align-items: stretch;
 }
 
 .vs-layout > .bp-field { margin: 0; }
 .vs-layout > .bp-historial { margin-top: 10px; }
 /* En dos columnas el historial toma la altura de su formulario (la fila no cambia con la cantidad de
-   registros) y su título va sobre el borde, como la leyenda del formulario: así caben 3 tomas. */
+   registros); título y clave de colores van encima de la tarjeta, así caben 3 tomas. */
 @media (min-width: 1001px) {
   .vs-layout > .bp-historial { contain: size; display: flex; flex-direction: column; overflow: visible; position: relative; }
   .vs-layout > .bp-historial > .bp-historial-scroll { flex: 1; min-height: 0; max-height: none; border-radius: var(--radius-md); }
   .vs-layout > .bp-historial > .bp-historial-cabecera { display: contents; }
-  /* Título sobre el borde superior; la clave de colores aparte, encima de la tarjeta a la derecha. */
   .vs-layout .bp-historial-titulo,
-  .vs-layout .bp-historial-leyenda { position: absolute; z-index: 2; line-height: 20px; white-space: nowrap; }
-  .vs-layout .bp-historial-titulo { top: -11px; left: calc(0.75rem - 1px); padding: 0 0.25rem; background: #ffffff; }
-  .vs-layout .bp-historial-leyenda { bottom: calc(100% + 14px); right: 0; flex-wrap: nowrap; }
+  .vs-layout .bp-historial-leyenda { position: absolute; bottom: calc(100% + 4px); line-height: 20px; white-space: nowrap; }
+  .vs-layout .bp-historial-titulo { left: 0.25rem; }
+  .vs-layout .bp-historial-leyenda { right: 0.25rem; flex-wrap: nowrap; }
+  /* Tarjeta angosta: la clave sube una línea para no encimarse con el título. */
+  .vs-layout > .bp-historial { container-type: inline-size; }
+  @container (max-width: 469px) {
+    .vs-layout .bp-historial-leyenda { bottom: calc(100% + 24px); }
+  }
   .vs-layout .bp-historial-titulo { font-size: 0.875rem; }
-  .vs-layout .bp-historial th { padding-top: 0.65rem; padding-bottom: 0.4rem; }
+  .vs-layout .bp-historial th { padding-top: 0.4rem; padding-bottom: 0.4rem; }
   .vs-layout .bp-historial td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
   .vs-layout .bp-historial-scroll.hay-mas { mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
 }
@@ -2310,3 +2314,18 @@ h1, h2, h3, h4, h5, h6 {
 
 .dx-ref-usar:hover { background: #f0fdfa; }
 .dx-ref-usar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Con espacio, el texto anterior (a veces largo) va a la derecha; título y botón a la izquierda. */
+@media (min-width: 1300px) {
+  .dx-ref {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "cab valor" "usar valor";
+    gap: 0.75rem 1.25rem;
+  }
+  .dx-ref-cabecera { grid-area: cab; }
+  .dx-ref-usar { grid-area: usar; align-self: start; }
+  .dx-ref-valor { grid-area: valor; padding-left: 1.25rem; border-left: 1px solid #e2e8f0; }
+  .dx-ref > .bp-historial-vacio { grid-column: 1 / -1; }
+}
