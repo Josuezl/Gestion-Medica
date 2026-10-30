@@ -67,7 +67,7 @@ export default function AntecedentesEditor({ patient }: { patient: PatientRow })
             <p className="ant-solo-niega">{def.niega}</p>
             <label className="ant-solo-niega ant-obs-boton">
               <input type="checkbox" name={`${def.campo}_obs`} className="ant-obs" defaultChecked={estado === 'niega' && !!inicial} />
-              <PlusCircle size={18} aria-hidden="true" /> Añadir observación
+              <PlusCircle size={18} aria-hidden="true" /> Añadir observación <span className="bp-opcional">(opcional)</span>
             </label>
 
             <div className="ant-texto">
