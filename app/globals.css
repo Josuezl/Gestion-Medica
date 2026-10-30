@@ -2251,18 +2251,22 @@ h1, h2, h3, h4, h5, h6 {
 /* Diagnóstico y Tratamiento: campo actual a la izquierda, referencia anterior a la par. */
 .dx-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem 1.25rem;
   align-items: stretch;
 }
 
+/* La tarjeta de referencia arranca donde arranca el cuadro de texto (debajo de su etiqueta). */
+.dx-layout > .dx-ref { margin-top: calc(32px + 0.4rem); }
+
 @media (max-width: 900px) {
   .dx-layout { grid-template-columns: minmax(0, 1fr); }
   .dx-subtitulo-ref { display: none; }
+  .dx-layout > .dx-ref { margin-top: 0; }
 }
 
 .dx-campo { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
-.dx-campo-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.dx-campo-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; height: 32px; }
 .dx-campo textarea { flex: 1; min-height: 140px; resize: vertical; }
 .dx-campo--ampliado textarea { min-height: 360px; }
 
