@@ -787,7 +787,7 @@ export default function NewConsultationClient({
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <Clipboard size={18} color="var(--primary)" />
-                Antecedentes del Paciente
+                Antecedentes del Paciente <span className="bp-opcional">(opcional)</span>
               </h3>
               <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                 Revisa y actualiza la información. Se guardará al registrar la consulta.

@@ -29,6 +29,7 @@ export default function BloodPressureField({ required, defaults, history }: {
         Presión Arterial
         {required && <span className="bp-required" aria-hidden="true"> *</span>}
         {required && <span className="bp-hint">Obligatoria en adultos</span>}
+        {!required && <span className="bp-opcional"> (opcional)</span>}
       </legend>
 
       <div className="bp-captura">
