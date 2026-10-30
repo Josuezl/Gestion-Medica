@@ -664,9 +664,9 @@ h1, h2, h3, h4, h5, h6 {
 .bp-marca-elevada { background: #b45309; border-radius: 9999px; }
 .bp-marca-alta { background: #b91c1c; border-radius: 2px; }
 
-/* Se ven 5 tomas; las anteriores con scroll dentro de la tarjeta, con el encabezado fijo. */
+/* Se ven 3 tomas; las anteriores con scroll dentro de la tarjeta, con el encabezado fijo. */
 .bp-historial-scroll {
-  max-height: 238px;
+  max-height: 160px;
   overflow-y: auto;
 }
 
@@ -2142,24 +2142,24 @@ h1, h2, h3, h4, h5, h6 {
 .ant-requerido { color: #b91c1c; }
 .ant-ayuda { font-size: 0.8rem; color: #64748b; }
 
-/* Signos vitales en Nueva Consulta: registro actual a la izquierda, historiales a la derecha. */
+/* Signos vitales en Nueva Consulta: cada registro con su histórico a la par (misma fila). */
 .vs-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: start;
+  gap: 0.75rem 1.25rem;
+  align-items: stretch;
 }
 
-.vs-layout--sin-historial { grid-template-columns: minmax(0, 1fr); }
+.vs-layout > .bp-field { margin: 0; }
 
 @media (max-width: 1000px) {
   .vs-layout { grid-template-columns: minmax(0, 1fr); }
-  .vs-columna-historial { padding-top: 0; }
+  .vs-subtitulo-vacio { display: none; }
 }
 
-.vs-columna { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
-.vs-columna-historial { gap: 1rem; padding-top: 1.85rem; }
 .vs-subtitulo { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; }
+
+.bp-historial-vacio { margin: 0; padding: 1rem 0.85rem; font-size: 0.85rem; color: #64748b; }
 
 .vs-campos {
   display: grid;

@@ -734,53 +734,49 @@ export default function NewConsultationClient({
                   </div>
                 </div>
               )}
-              {/* Registro actual a la izquierda; historiales del paciente a la derecha (se apila en pantallas angostas). */}
-              <div className={historialPresion.length || historialSignos.length ? 'vs-layout' : 'vs-layout vs-layout--sin-historial'}>
-                <div className="vs-columna">
-                  <h4 className="vs-subtitulo">Registro actual</h4>
-                  <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
-                  <fieldset className="bp-field">
-                    <legend className="bp-legend">Otros signos vitales</legend>
-                    <div className="vs-campos">
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-temperature">Temperatura (°C)</label>
-                        <input id="vs-temperature" className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-weight">Peso (kg)</label>
-                        <input id="vs-weight" className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-height">Talla (cm)</label>
-                        <input id="vs-height" className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
-                      </div>
-                      {patient.is_pediatric && (
-                        <div className="form-group">
-                          <label className="form-label" htmlFor="vs-hc">Perímetro cefálico (cm)</label>
-                          <input id="vs-hc" className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
-                        </div>
-                      )}
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-hr">Frecuencia cardíaca (lpm)</label>
-                        <input id="vs-hr" className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-rr">Frecuencia respiratoria (rpm)</label>
-                        <input id="vs-rr" className="form-input" type="number" name="respiratory_rate" placeholder="Ej. 16" defaultValue={preclinical?.respiratory_rate ?? ''} />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label" htmlFor="vs-spo2">SpO₂ (%)</label>
-                        <input id="vs-spo2" className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
-                      </div>
+              {/* Cada registro con su histórico a la par (presión | histórico de presión; otros | histórico de
+                  otros). En pantallas angostas se apila en ese mismo orden. */}
+              <div className="vs-layout">
+                <h4 className="vs-subtitulo">Registro actual</h4>
+                <span className="vs-subtitulo-vacio" aria-hidden="true" />
+                <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
+                <BpHistoryTable rows={historialPresion} titulo="Históricos · Presión arterial" />
+                <fieldset className="bp-field">
+                  <legend className="bp-legend">Otros signos vitales</legend>
+                  <div className="vs-campos">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-temperature">Temperatura (°C)</label>
+                      <input id="vs-temperature" className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
                     </div>
-                  </fieldset>
-                </div>
-                {(historialPresion.length > 0 || historialSignos.length > 0) && (
-                  <div className="vs-columna vs-columna-historial">
-                    {historialPresion.length > 0 && <BpHistoryTable rows={historialPresion} titulo="Presión arterial" />}
-                    {historialSignos.length > 0 && <VitalsHistoryTable rows={historialSignos} pediatrico={!!patient.is_pediatric} />}
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-weight">Peso (kg)</label>
+                      <input id="vs-weight" className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-height">Talla (cm)</label>
+                      <input id="vs-height" className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
+                    </div>
+                    {patient.is_pediatric && (
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-hc">Perímetro cefálico (cm)</label>
+                        <input id="vs-hc" className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
+                      </div>
+                    )}
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-hr">Frecuencia cardíaca (lpm)</label>
+                      <input id="vs-hr" className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-rr">Frecuencia respiratoria (rpm)</label>
+                      <input id="vs-rr" className="form-input" type="number" name="respiratory_rate" placeholder="Ej. 16" defaultValue={preclinical?.respiratory_rate ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-spo2">SpO₂ (%)</label>
+                      <input id="vs-spo2" className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
+                    </div>
                   </div>
-                )}
+                </fieldset>
+                <VitalsHistoryTable rows={historialSignos} pediatrico={!!patient.is_pediatric} />
               </div>
             </div>
 

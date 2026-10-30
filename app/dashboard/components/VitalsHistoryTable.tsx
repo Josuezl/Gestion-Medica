@@ -3,7 +3,7 @@ import { formatDateShortHN } from '@/utils/datetime'
 import type { VitalsHistoryRow } from '@/utils/historialSignos'
 
 /**
- * Historial de «Otros signos vitales» en Nueva Consulta: mismo formato que el de presión (5 filas
+ * Historial de «Otros signos vitales» en Nueva Consulta: mismo formato que el de presión (3 filas
  * visibles, el resto con scroll y encabezado fijo). Perímetro cefálico solo en pediátricos.
  */
 export default function VitalsHistoryTable({ rows, pediatrico }: { rows: VitalsHistoryRow[]; pediatrico: boolean }) {
@@ -11,8 +11,9 @@ export default function VitalsHistoryTable({ rows, pediatrico }: { rows: VitalsH
   return (
     <section className="bp-historial" aria-label="Historial de otros signos vitales">
       <div className="bp-historial-cabecera">
-        <span className="bp-historial-titulo">Otros signos vitales</span>
+        <span className="bp-historial-titulo">Históricos · Otros signos</span>
       </div>
+      {rows.length === 0 ? <p className="bp-historial-vacio">Sin registros anteriores.</p> : (
       <div className="bp-historial-scroll">
         <table className="vs-historial-tabla">
           <thead>
@@ -43,6 +44,7 @@ export default function VitalsHistoryTable({ rows, pediatrico }: { rows: VitalsH
           </tbody>
         </table>
       </div>
+      )}
     </section>
   )
 }

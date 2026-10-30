@@ -7,8 +7,8 @@ import { formatDateShortHN } from '@/utils/datetime'
  * los tenants; con `required` (clínica con require_bp_arm y paciente no pediátrico) se marca como
  * obligatoria, pero la regla la valida el servidor.
  *
- * Con `history` (Nueva Consulta) muestra al lado el historial de tomas del paciente: se ven las 5
- * más recientes y las anteriores con scroll dentro de la tarjeta.
+ * Con `history` muestra al lado el historial de tomas (Nueva Consulta usa BpHistoryTable aparte,
+ * alineada con este campo): se ven las 3 más recientes y las anteriores con scroll.
  *
  * Campos NO controlados a propósito: el borrador local y la pre-clínica en vivo escriben directo
  * en el DOM. Mostrar/ocultar según «ambos brazos» lo hace el CSS (:has) en globals.css.
@@ -89,6 +89,7 @@ export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistory
           <span><i className="bp-marca bp-marca-alta" aria-hidden="true" />≥ 140/90</span>
         </span>
       </div>
+      {rows.length === 0 ? <p className="bp-historial-vacio">Sin registros anteriores.</p> : (
       <div className="bp-historial-scroll">
         <table>
           <thead>
@@ -111,6 +112,7 @@ export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistory
           </tbody>
         </table>
       </div>
+      )}
     </section>
   )
 }
