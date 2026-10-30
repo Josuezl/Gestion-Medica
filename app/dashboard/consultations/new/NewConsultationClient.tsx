@@ -884,28 +884,35 @@ export default function NewConsultationClient({
                 Prescribir Receta Médica
               </h3>
 
-              {/* Medicamentos en TEXTO LIBRE: un medicamento por línea */}
-              <div style={styles.medAddForm}>
-                <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-                  <label className="form-label" style={{ margin: 0 }}>Medicamentos</label>
-                  {lastPrescription && (
-                    <button type="button" onClick={loadLastPrescription} className="btn" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem", backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}>
-                      <Clipboard size={14} /> Importar última receta
-                    </button>
-                  )}
+              {/* Medicamentos en TEXTO LIBRE (un medicamento por línea), con la última receta a la par. */}
+              <div className="dx-layout">
+                <div className="dx-campo">
+                  <div className="dx-campo-cabecera">
+                    <label htmlFor="receta-medicamentos" className="evo-label">Medicamentos</label>
+                  </div>
+                  <textarea
+                    id="receta-medicamentos"
+                    className="form-input auto-crece"
+                    value={medicinesText}
+                    onChange={(e) => setMedicinesText(e.target.value)}
+                    onInput={autoCrecer}
+                    placeholder={`Escribe un medicamento por línea. Ejemplo:\nCARDIOASPIRINA 81 MG VO CADA DIA. 12 MD\nLIPITOR 40 MG VO CADA DIA. 6 PM\nEUTIROX NF 50 MCG VO 1 TABLETA CADA DIA, EN AYUNO`}
+                    rows={9}
+                  />
                 </div>
-                <textarea
-                  className="form-input"
-                  value={medicinesText}
-                  onChange={(e) => setMedicinesText(e.target.value)}
-                  placeholder={`Escribe un medicamento por línea. Ejemplo:\nCARDIOASPIRINA 81 MG VO CADA DIA. 12 MD\nLIPITOR 40 MG VO CADA DIA. 6 PM\nEUTIROX NF 50 MCG VO 1 TABLETA CADA DIA, EN AYUNO`}
-                  rows={9}
-                  style={{ resize: "vertical", fontSize: "0.9rem", lineHeight: 1.5 }}
+                <ReferenciaAnterior
+                  titulo="Última receta"
+                  fecha={lastPrescription?.created_at}
+                  valor={lastPrescription
+                    ? [medicinesToText(lastPrescription.medicines || []), lastPrescription.notes ? `Notas: ${lastPrescription.notes}` : '']
+                        .filter(Boolean).join('\n\n')
+                    : null}
+                  onUsar={loadLastPrescription}
                 />
-                <p style={{ margin: "0.4rem 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                  Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
-                </p>
               </div>
+              <p style={{ margin: "0.4rem 0 1rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
+              </p>
 
               {/* Indicaciones de la receta */}
               <div className="form-group" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
@@ -1282,13 +1289,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #fcd34d',
     borderRadius: '10px',
     color: '#92400e',
-  },
-  medAddForm: {
-    backgroundColor: 'var(--bg-input)',
-    padding: '1rem',
-    borderRadius: '8px',
-    border: '1px solid var(--border-color)',
-    marginBottom: '1rem',
   },
   medsListWrapper: {
     flex: 1,
