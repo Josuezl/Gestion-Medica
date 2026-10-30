@@ -2155,6 +2155,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .vs-layout > .bp-field { margin: 0; }
 .vs-layout > .bp-historial { margin-top: 10px; }
+/* En dos columnas el historial no agranda la fila: toma la altura de su formulario y lo demás va con scroll. */
+@media (min-width: 1001px) {
+  .vs-layout > .bp-historial { contain: size; display: flex; flex-direction: column; }
+  .vs-layout > .bp-historial > .bp-historial-scroll { flex: 1; min-height: 0; max-height: none; }
+}
 .bp-opcional { font-weight: 500; color: #64748b; }
 
 @media (max-width: 1000px) {
