@@ -35,13 +35,23 @@ function statusLocal() {
   return status
 }
 
-const { API_URL: url, SERVICE_ROLE_KEY: serviceKey } = statusLocal()
+const { API_URL: url, SERVICE_ROLE_KEY: serviceKey, ANON_KEY: anonKey } = statusLocal()
 if (!esUrlLocal(url) || !serviceKey) {
   console.error('Supabase local no está corriendo: npm run db:local')
   process.exit(1)
 }
 
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+
+/**
+ * ¿La contraseña de prueba ya sirve? Cambiarla (aunque sea a la misma) hace que Supabase cierre
+ * todas las sesiones del usuario, incluida la del dev del puerto 2000; por eso solo se cambia si hace falta.
+ */
+async function claveVigente(email) {
+  const cliente = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
+  const { error } = await cliente.auth.signInWithPassword({ email, password: PASSWORD })
+  return !error
+}
 
 async function buscarPorEmail(email) {
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
@@ -78,8 +88,10 @@ async function main() {
       const existente = await buscarPorEmail(u.email)
       if (!existente) throw new Error(`${u.email}: ${error.message}`)
       id = existente.id
-      const { error: updErr } = await admin.auth.admin.updateUserById(id, { password: PASSWORD, email_confirm: true })
-      if (updErr) throw new Error(`${u.email}: ${updErr.message}`)
+      if (!(await claveVigente(u.email))) {
+        const { error: updErr } = await admin.auth.admin.updateUserById(id, { password: PASSWORD, email_confirm: true })
+        if (updErr) throw new Error(`${u.email}: ${updErr.message}`)
+      }
     } else {
       id = data.user.id
     }
