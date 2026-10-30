@@ -16,13 +16,14 @@ import {
   Loader2,
   Printer,
   FlaskConical,
+  FileText,
   ClipboardList
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
 import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
-import { LastValueRef } from './LastValueRef'
+import { TextoAmpliable, ReferenciaAnterior } from './DiagnosticoCampos'
 import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
@@ -35,6 +36,7 @@ import BloodPressureField, { BpHistoryTable } from '../../components/BloodPressu
 import VitalsHistoryTable from '../../components/VitalsHistoryTable'
 import { vitalsHistory } from '@/utils/historialSignos'
 import AntecedentesEditor from '../../components/AntecedentesEditor'
+import NotaClinica from '../../components/NotaClinica'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -799,86 +801,79 @@ export default function NewConsultationClient({
                 Evolución Clínica
               </h3>
               
-              <div className="form-group">
-                <label className="form-label">Motivo de Consulta *</label>
-                <textarea 
-                  className="form-input" 
-                  name="reason_for_visit" 
-                  placeholder="Por qué asiste el paciente..." 
-                  rows={2} 
-                  required 
-                />
-              </div>
+              <p className="evo-intro">Registra la información de esta consulta.</p>
 
               <div className="form-group">
-                <label className="form-label">Sintomatología / Anamnesis</label>
-                <textarea 
-                  className="form-input" 
-                  name="symptoms" 
-                  placeholder="Detalles sobre los síntomas informados..." 
-                  rows={2} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Resultados de exámenes de laboratorios/estudios</label>
+                <label className="evo-label" htmlFor="evo-motivo">Motivo de consulta <span className="evo-requerido">*</span></label>
+                <span className="evo-ayuda">Razón principal de la visita.</span>
                 <textarea
+                  id="evo-motivo"
                   className="form-input"
+                  name="reason_for_visit"
+                  placeholder="¿Por qué consulta el paciente?"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              {/* Mitad y mitad; se apilan en pantallas angostas. */}
+              <div className="evo-notas">
+                <NotaClinica
+                  name="symptoms"
+                  titulo="Sintomatología / Anamnesis"
+                  descripcion="Inicio • Duración • Evolución • Síntomas asociados"
+                  placeholder="Describe los síntomas y su evolución…"
+                  icono={<FileText size={22} color="var(--primary)" aria-hidden="true" />}
+                />
+                <NotaClinica
                   name="physical_exam"
-                  placeholder="Resultados o notas sobre estudios o exámenes médicos..."
-                  rows={2}
+                  titulo="Resultados de estudios"
+                  descripcion="Laboratorio, imágenes y otros exámenes."
+                  placeholder="Anota la fecha, el estudio y los hallazgos relevantes…"
+                  icono={<FlaskConical size={22} color="var(--primary)" aria-hidden="true" />}
                 />
               </div>
 
 
             </div>
 
-            {/* 3. Diagnóstico y Plan */}
+            {/* 3. Diagnóstico y Plan: cada campo con su referencia de la consulta anterior a la par. */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
-                <Clipboard size={18} color="var(--primary)" />
+                <FileText size={18} color="var(--primary)" />
                 Diagnóstico y Tratamiento
               </h3>
-              
-              <div className="form-group">
-                <label className="form-label">Diagnóstico *</label>
-                <textarea
-                  className="form-input"
-                  name="diagnosis"
-                  value={diagnosisText}
-                  onChange={(e) => setDiagnosisText(e.target.value)}
-                  placeholder="Diagnóstico clínico (CIE-10 o descripción detallada)..."
-                  rows={2}
-                  required
-                  style={{ borderLeft: '3px solid var(--primary)' }}
-                />
-                {lastConsultation?.diagnosis && (
-                  <LastValueRef
-                    label={`Último diagnóstico · ${formatDateHN(lastConsultation.created_at)}`}
-                    value={lastConsultation.diagnosis}
-                    onUse={() => setDiagnosisText(lastConsultation.diagnosis || '')}
-                  />
-                )}
-              </div>
+              <p className="evo-intro">Registra el diagnóstico y las indicaciones de esta consulta.</p>
 
-              <div className="form-group">
-                <label className="form-label">Plan de Tratamiento / Recomendaciones *</label>
-                <textarea
-                  className="form-input"
-                  name="treatment_plan"
-                  value={treatmentText}
-                  onChange={(e) => setTreatmentText(e.target.value)}
-                  placeholder="Instrucciones generales de cuidado, reposo, dieta..."
-                  rows={3}
-                  required
+              <div className="dx-layout">
+                <h4 className="vs-subtitulo">Consulta actual</h4>
+                <h4 className="vs-subtitulo dx-subtitulo-ref">Referencia anterior</h4>
+                <TextoAmpliable
+                  name="diagnosis"
+                  etiqueta="Diagnóstico"
+                  placeholder="Diagnóstico clínico: CIE-10 o descripción…"
+                  value={diagnosisText}
+                  onChange={setDiagnosisText}
                 />
-                {lastConsultation?.treatment_plan && (
-                  <LastValueRef
-                    label={`Último plan de tratamiento · ${formatDateHN(lastConsultation.created_at)}`}
-                    value={lastConsultation.treatment_plan}
-                    onUse={() => setTreatmentText(lastConsultation.treatment_plan || '')}
-                  />
-                )}
+                <ReferenciaAnterior
+                  titulo="Último diagnóstico"
+                  fecha={lastConsultation?.created_at}
+                  valor={lastConsultation?.diagnosis}
+                  onUsar={() => setDiagnosisText(lastConsultation?.diagnosis || '')}
+                />
+                <TextoAmpliable
+                  name="treatment_plan"
+                  etiqueta="Plan de tratamiento / Recomendaciones"
+                  placeholder="Describe el tratamiento, las recomendaciones y el seguimiento…"
+                  value={treatmentText}
+                  onChange={setTreatmentText}
+                />
+                <ReferenciaAnterior
+                  titulo="Último plan de tratamiento"
+                  fecha={lastConsultation?.created_at}
+                  valor={lastConsultation?.treatment_plan}
+                  onUsar={() => setTreatmentText(lastConsultation?.treatment_plan || '')}
+                />
               </div>
             </div>
 
