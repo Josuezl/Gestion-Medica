@@ -2155,11 +2155,23 @@ h1, h2, h3, h4, h5, h6 {
 
 .vs-layout > .bp-field { margin: 0; }
 .vs-layout > .bp-historial { margin-top: 10px; }
-/* En dos columnas el historial tiene altura fija (3 tomas y un asomo de la 4.ª): la fila no cambia
-   con la cantidad de registros y lo demás va con scroll. */
+/* En dos columnas el historial toma la altura de su formulario (la fila no cambia con la cantidad de
+   registros) y su título va sobre el borde, como la leyenda del formulario: así caben 3 tomas. */
 @media (min-width: 1001px) {
-  .vs-layout > .bp-historial { contain: size; min-height: 214px; display: flex; flex-direction: column; }
-  .vs-layout > .bp-historial > .bp-historial-scroll { flex: 1; min-height: 0; max-height: none; }
+  .vs-layout > .bp-historial { contain: size; display: flex; flex-direction: column; overflow: visible; position: relative; }
+  .vs-layout > .bp-historial > .bp-historial-scroll { flex: 1; min-height: 0; max-height: none; border-radius: var(--radius-md); }
+  .vs-layout > .bp-historial > .bp-historial-cabecera { display: contents; }
+  /* Título arriba a la izquierda y clave de colores abajo a la derecha, ambos sobre el borde. */
+  .vs-layout .bp-historial-titulo,
+  .vs-layout .bp-historial-leyenda {
+    position: absolute; z-index: 2; padding: 0 0.25rem; line-height: 20px; white-space: nowrap; background: #ffffff;
+  }
+  .vs-layout .bp-historial-titulo { top: -11px; left: calc(0.75rem - 1px); }
+  .vs-layout .bp-historial-leyenda { bottom: -11px; right: 0.75rem; flex-wrap: nowrap; }
+  .vs-layout .bp-historial-titulo { font-size: 0.875rem; }
+  .vs-layout .bp-historial th { padding-top: 0.65rem; padding-bottom: 0.4rem; }
+  .vs-layout .bp-historial td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+  .vs-layout .bp-historial-scroll.hay-mas { mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
 }
 .bp-opcional { font-weight: 500; color: #64748b; }
 
