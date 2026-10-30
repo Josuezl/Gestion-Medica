@@ -848,8 +848,6 @@ export default function NewConsultationClient({
               <p className="evo-intro">Registra el diagnóstico y las indicaciones de esta consulta.</p>
 
               <div className="dx-layout">
-                <h4 className="vs-subtitulo">Consulta actual</h4>
-                <h4 className="vs-subtitulo dx-subtitulo-ref">Referencia anterior</h4>
                 <TextoConsulta
                   name="diagnosis"
                   etiqueta="Diagnóstico"

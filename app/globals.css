@@ -2253,7 +2253,6 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 900px) {
   .dx-layout { grid-template-columns: minmax(0, 1fr); }
-  .dx-subtitulo-ref { display: none; }
   .dx-layout > .dx-ref { margin-top: 0; }
 }
 
