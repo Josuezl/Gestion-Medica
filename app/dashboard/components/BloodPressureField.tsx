@@ -1,6 +1,7 @@
 import React, { useId } from 'react'
 import { BP_FORM_MARKER, bpFormFieldsFromRow, bpLevel, type BpHistoryRow } from '@/utils/bloodPressure'
 import { formatDateShortHN } from '@/utils/datetime'
+import HistorialScroll from './HistorialScroll'
 
 /**
  * Presión arterial con brazo (izquierdo/derecho) y la opción «Tomar en ambos brazos». Para todos
@@ -90,7 +91,7 @@ export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistory
         </span>
       </div>
       {rows.length === 0 ? <p className="bp-historial-vacio">Sin registros anteriores.</p> : (
-      <div className="bp-historial-scroll">
+      <HistorialScroll total={rows.length}>
         <table>
           <thead>
             <tr>
@@ -111,7 +112,7 @@ export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistory
             ))}
           </tbody>
         </table>
-      </div>
+      </HistorialScroll>
       )}
     </section>
   )

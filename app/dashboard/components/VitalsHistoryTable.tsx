@@ -1,5 +1,6 @@
 import React from 'react'
 import { formatDateShortHN } from '@/utils/datetime'
+import HistorialScroll from './HistorialScroll'
 import type { VitalsHistoryRow } from '@/utils/historialSignos'
 
 /**
@@ -14,7 +15,7 @@ export default function VitalsHistoryTable({ rows, pediatrico }: { rows: VitalsH
         <span className="bp-historial-titulo">Históricos · Otros signos</span>
       </div>
       {rows.length === 0 ? <p className="bp-historial-vacio">Sin registros anteriores.</p> : (
-      <div className="bp-historial-scroll">
+      <HistorialScroll total={rows.length}>
         <table className="vs-historial-tabla">
           <thead>
             <tr>
@@ -43,7 +44,7 @@ export default function VitalsHistoryTable({ rows, pediatrico }: { rows: VitalsH
             ))}
           </tbody>
         </table>
-      </div>
+      </HistorialScroll>
       )}
     </section>
   )
