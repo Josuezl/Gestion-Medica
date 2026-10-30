@@ -22,8 +22,9 @@ import {
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
-import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
+import { formatDateTimeHN } from '@/utils/datetime'
 import { TextoConsulta, ReferenciaAnterior } from './DiagnosticoCampos'
+import SolicitudCard from './SolicitudCard'
 import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
@@ -950,115 +951,49 @@ export default function NewConsultationClient({
                 Laboratorio y Estudios
               </h3>
 
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Orden de Laboratorio</div>
+              <p className="evo-intro">Gestiona las solicitudes de esta consulta.</p>
 
               <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
-
-              {labOrderCount === 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setShowLabModal(true)}
-                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
-                  >
-                    <FlaskConical size={16} />
-                    Generar Nueva Orden de Laboratorio
-                  </button>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Selecciona los exámenes que el paciente debe realizarse.
-                  </p>
-                </>
-              ) : (
-                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
-                      <FlaskConical size={16} />
-                      {labOrderCount} {labOrderCount === 1 ? 'examen seleccionado' : 'exámenes seleccionados'}
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowLabModal(true)}>Editar</button>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setLabOrder({ tests: [], otherTests: '' })}>Quitar</button>
-                    </div>
-                  </div>
-                  <LabOrderList tests={labOrder.tests} otherTests={labOrder.otherTests} />
-                </div>
-              )}
-
-              {/* Referencia: última orden de laboratorio del paciente (cita anterior) */}
-              {lastLabOrder && Array.isArray(lastLabOrder.tests) && (lastLabOrder.tests.length > 0 || (lastLabOrder.other_tests || '').trim()) && (
-                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0f766e', backgroundColor: 'rgba(13,148,136,0.12)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                      Última orden · {formatDateHN(lastLabOrder.created_at)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setLabOrder({ tests: lastLabOrder.tests || [], otherTests: lastLabOrder.other_tests || '' })}
-                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Importar
-                    </button>
-                  </div>
-                  <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />
-                </div>
-              )}
-
-              {/* Solicitud de Estudios (misma tarjeta, debajo del laboratorio) */}
-              <div style={{ height: '1px', background: 'var(--border-color)', margin: '1.25rem 0' }} />
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Solicitud de Estudios</div>
-
               <input type="hidden" name="study_request" value={JSON.stringify(studyRequest)} />
 
-              {studyRequestCount === 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setShowStudyModal(true)}
-                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
-                  >
-                    <ClipboardList size={16} />
-                    Generar Solicitud de Estudios
-                  </button>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Selecciona los estudios que el paciente debe realizarse (radiología, cardiología, etc.).
-                  </p>
-                </>
-              ) : (
-                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
-                      <ClipboardList size={16} />
-                      {studyRequestCount} {studyRequestCount === 1 ? 'estudio seleccionado' : 'estudios seleccionados'}
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowStudyModal(true)}>Editar</button>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setStudyRequest({ studies: [], otherStudies: '', manualToCatalog: [] })}>Quitar</button>
-                    </div>
-                  </div>
-                  <StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />
-                </div>
-              )}
-
-              {/* Referencia: última solicitud de estudios del paciente (cita anterior) */}
-              {lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) && (
-                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0f766e', backgroundColor: 'rgba(13,148,136,0.12)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                      Última solicitud · {formatDateHN(lastStudyRequest.created_at)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] })}
-                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Importar
-                    </button>
-                  </div>
-                  <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />
-                </div>
-              )}
+              <div className="sol-grid">
+                <SolicitudCard
+                  icono={<FlaskConical size={22} />}
+                  titulo="Laboratorio"
+                  descripcion="Exámenes y análisis clínicos."
+                  vacio="Sin exámenes seleccionados."
+                  botonTexto="Seleccionar exámenes"
+                  cantidad={labOrderCount}
+                  unidades={['examen seleccionado', 'exámenes seleccionados']}
+                  onAbrir={() => setShowLabModal(true)}
+                  onQuitar={() => setLabOrder({ tests: [], otherTests: '' })}
+                  lista={<LabOrderList tests={labOrder.tests} otherTests={labOrder.otherTests} />}
+                  ultima={lastLabOrder && Array.isArray(lastLabOrder.tests) && (lastLabOrder.tests.length > 0 || (lastLabOrder.other_tests || '').trim()) ? {
+                    fecha: lastLabOrder.created_at,
+                    etiqueta: 'Última orden',
+                    lista: <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />,
+                    onImportar: () => setLabOrder({ tests: lastLabOrder.tests || [], otherTests: lastLabOrder.other_tests || '' }),
+                  } : null}
+                />
+                <SolicitudCard
+                  icono={<ClipboardList size={22} />}
+                  titulo="Estudios"
+                  descripcion="Radiología, cardiología y otros estudios."
+                  vacio="Sin estudios seleccionados."
+                  botonTexto="Seleccionar estudios"
+                  cantidad={studyRequestCount}
+                  unidades={['estudio seleccionado', 'estudios seleccionados']}
+                  onAbrir={() => setShowStudyModal(true)}
+                  onQuitar={() => setStudyRequest({ studies: [], otherStudies: '', manualToCatalog: [] })}
+                  lista={<StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />}
+                  ultima={lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) ? {
+                    fecha: lastStudyRequest.created_at,
+                    etiqueta: 'Última solicitud',
+                    lista: <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />,
+                    onImportar: () => setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] }),
+                  } : null}
+                />
+              </div>
             </div>
 
             {/* 6. Incapacidad Médica */}
