@@ -30,7 +30,11 @@ import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRo
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { readFormField, writeFormField } from '@/utils/formFields'
 import { bpFormValuesFromFormData, bpHistory, validateBloodPressure } from '@/utils/bloodPressure'
-import BloodPressureField from '../../components/BloodPressureField'
+import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
+import BloodPressureField, { BpHistoryTable } from '../../components/BloodPressureField'
+import VitalsHistoryTable from '../../components/VitalsHistoryTable'
+import { vitalsHistory } from '@/utils/historialSignos'
+import AntecedentesEditor from '../../components/AntecedentesEditor'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -138,6 +142,8 @@ export default function NewConsultationClient({
   // un ítem { name }. La consulta previa más reciente sirve de referencia / para reusar.
   const lastPrescription = prescriptions[0]
   const lastConsultation = consultations[0]
+  const historialPresion = bpHistory(consultations)
+  const historialSignos = vitalsHistory(consultations)
   const [medicinesText, setMedicinesText] = useState('')
   const [prescriptionNotes, setPrescriptionNotes] = useState('')
   const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
@@ -347,9 +353,10 @@ export default function NewConsultationClient({
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
 
-    // Aviso inmediato; el servidor vuelve a validar la misma regla.
+    // Aviso inmediato; el servidor vuelve a validar las mismas reglas.
     const bpValues = bpFormValuesFromFormData(formData)
-    const bpError = bpValues ? validateBloodPressure(bpValues, requireBloodPressure) : null
+    const bpError = (bpValues ? validateBloodPressure(bpValues, requireBloodPressure) : null)
+      ?? antecedentesDesdeFormulario(formData).error
     if (bpError) {
       setError(bpError)
       setLoading(false)
@@ -727,38 +734,53 @@ export default function NewConsultationClient({
                   </div>
                 </div>
               )}
-              <BloodPressureField required={requireBloodPressure} defaults={preclinical} history={bpHistory(consultations)} />
-              <div style={styles.vitalsGrid}>
-                <div className="form-group">
-                  <label className="form-label">Temperatura (°C)</label>
-                  <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
+              {/* Registro actual a la izquierda; historiales del paciente a la derecha (se apila en pantallas angostas). */}
+              <div className={historialPresion.length || historialSignos.length ? 'vs-layout' : 'vs-layout vs-layout--sin-historial'}>
+                <div className="vs-columna">
+                  <h4 className="vs-subtitulo">Registro actual</h4>
+                  <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
+                  <fieldset className="bp-field">
+                    <legend className="bp-legend">Otros signos vitales</legend>
+                    <div className="vs-campos">
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-temperature">Temperatura (°C)</label>
+                        <input id="vs-temperature" className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-weight">Peso (kg)</label>
+                        <input id="vs-weight" className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-height">Talla (cm)</label>
+                        <input id="vs-height" className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
+                      </div>
+                      {patient.is_pediatric && (
+                        <div className="form-group">
+                          <label className="form-label" htmlFor="vs-hc">Perímetro cefálico (cm)</label>
+                          <input id="vs-hc" className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
+                        </div>
+                      )}
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-hr">Frecuencia cardíaca (lpm)</label>
+                        <input id="vs-hr" className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-rr">Frecuencia respiratoria (rpm)</label>
+                        <input id="vs-rr" className="form-input" type="number" name="respiratory_rate" placeholder="Ej. 16" defaultValue={preclinical?.respiratory_rate ?? ''} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-spo2">SpO₂ (%)</label>
+                        <input id="vs-spo2" className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
+                      </div>
+                    </div>
+                  </fieldset>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Peso (kg)</label>
-                  <input className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Talla (cm)</label>
-                  <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
-                </div>
-                {patient.is_pediatric && (
-                  <div className="form-group">
-                    <label className="form-label">Perímetro Cefálico (cm)</label>
-                    <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
+                {(historialPresion.length > 0 || historialSignos.length > 0) && (
+                  <div className="vs-columna vs-columna-historial">
+                    {historialPresion.length > 0 && <BpHistoryTable rows={historialPresion} titulo="Presión arterial" />}
+                    {historialSignos.length > 0 && <VitalsHistoryTable rows={historialSignos} pediatrico={!!patient.is_pediatric} />}
                   </div>
                 )}
-                <div className="form-group">
-                  <label className="form-label">Ritmo Cardiaco (bpm)</label>
-                  <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Frecuencia Respiratoria (rpm)</label>
-                  <input className="form-input" type="number" name="respiratory_rate" placeholder="Ref. 12-20" defaultValue={preclinical?.respiratory_rate ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">SpO2 (%)</label>
-                  <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
-                </div>
               </div>
             </div>
 
@@ -769,26 +791,9 @@ export default function NewConsultationClient({
                 Antecedentes del Paciente
               </h3>
               <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Información actual del expediente. Edítala si hay cambios; lo que dejes aquí se guardará en el expediente del paciente al registrar la consulta.
+                Revisa y actualiza la información. Se guardará al registrar la consulta.
               </p>
-              <div className="form-group">
-                <label className="form-label">Alergias</label>
-                {/* "Ninguna conocida" era el valor por defecto antiguo: se trata como vacío para mostrar
-                    el ejemplo. Cualquier otro texto del médico (incluido "Ninguna" o "No") sí se conserva. */}
-                <textarea className="form-input" name="allergies" rows={2} defaultValue={patient.allergies === 'Ninguna conocida' ? '' : (patient.allergies || '')} placeholder="Especifica medicamentos, alimentos, polen, etc." />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Patológicos</label>
-                <textarea className="form-input" name="pathological_history" rows={2} defaultValue={patient.pathological_history || ''} placeholder="Enfermedades, cirugías, hospitalizaciones…" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes No Patológicos</label>
-                <textarea className="form-input" name="non_pathological_history" rows={2} defaultValue={patient.non_pathological_history || ''} placeholder="Hábitos, tabaco, alcohol, alimentación…" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Heredofamiliares</label>
-                <textarea className="form-input" name="family_history" rows={2} defaultValue={patient.family_history || ''} placeholder="Antecedentes familiares relevantes…" />
-              </div>
+              <AntecedentesEditor patient={patient} />
             </div>
 
             {/* 2. Notas Clínicas */}
@@ -1286,14 +1291,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #fcd34d',
     borderRadius: '10px',
     color: '#92400e',
-  },
-  vitalsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-    gap: '0.75rem',
-    // Alinea los inputs por abajo aunque algún label (Perímetro Cefálico, Ritmo
-    // Cardiaco) ocupe dos líneas y empuje su campo hacia abajo.
-    alignItems: 'end',
   },
   medAddForm: {
     backgroundColor: 'var(--bg-input)',

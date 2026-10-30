@@ -78,11 +78,11 @@ function Lectura({ value }: { value: string | null }) {
   return <span className={nivel ? `bp-hist-valor bp-nivel-${nivel}` : 'bp-hist-valor'}>{value}</span>
 }
 
-function BpHistoryTable({ rows }: { rows: BpHistoryRow[] }) {
+export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistoryRow[]; titulo?: string }) {
   return (
     <section className="bp-historial" aria-label="Historial de presión arterial">
       <div className="bp-historial-cabecera">
-        <span className="bp-historial-titulo">Historial</span>
+        <span className="bp-historial-titulo">{titulo}</span>
         <span className="bp-historial-leyenda">
           <span><i className="bp-marca bp-marca-normal" aria-hidden="true" />&lt; 120/80</span>
           <span><i className="bp-marca bp-marca-elevada" aria-hidden="true" />120–139 / 80–89</span>

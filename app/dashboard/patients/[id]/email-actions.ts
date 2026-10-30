@@ -6,6 +6,7 @@ import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import type { DoctorRef, LabTestItem, StudyRequestItem } from '@/utils/clinicalTypes'
+import { antecedenteParaMostrar } from '@/utils/antecedentes'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -52,10 +53,11 @@ export async function sendMedicalRecordByEmail(patientId: string) {
       phone: patient.phone,
       email: patient.email,
       bloodType: patient.blood_type,
-      allergies: patient.allergies,
-      pathologicalHistory: patient.pathological_history,
-      nonPathologicalHistory: patient.non_pathological_history,
-      familyHistory: patient.family_history,
+      // Ya resueltos: «Sin registrar», «Niega», «Niega · obs.» o el detalle.
+      allergies: antecedenteParaMostrar(patient.allergies_status, patient.allergies),
+      pathologicalHistory: antecedenteParaMostrar(patient.pathological_history_status, patient.pathological_history),
+      nonPathologicalHistory: antecedenteParaMostrar(patient.non_pathological_history_status, patient.non_pathological_history),
+      familyHistory: antecedenteParaMostrar(patient.family_history_status, patient.family_history),
     },
     clinicName,
     doctorName
