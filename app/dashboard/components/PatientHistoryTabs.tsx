@@ -23,7 +23,6 @@ import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
-import ConsultVitalsChips from './ConsultVitalsChips'
 import { antecedenteParaMostrar } from '@/utils/antecedentes'
 import type {
   PatientRow,
@@ -205,7 +204,7 @@ export default function PatientHistoryTabs({
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                             </div>
-                            <ConsultVitalsChips consult={consult} />
+                            {/* Sin signos aquí: en Nueva Consulta ya están en las tablas de historial. */}
                           </div>
 
                           {isExpanded && (
