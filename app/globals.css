@@ -2161,17 +2161,11 @@ h1, h2, h3, h4, h5, h6 {
   .vs-layout > .bp-historial { contain: size; display: flex; flex-direction: column; overflow: visible; position: relative; }
   .vs-layout > .bp-historial > .bp-historial-scroll { flex: 1; min-height: 0; max-height: none; border-radius: var(--radius-md); }
   .vs-layout > .bp-historial > .bp-historial-cabecera { display: contents; }
-  /* Título y clave de colores sobre el borde superior; si la tarjeta es angosta, la clave baja al inferior. */
+  /* Título sobre el borde superior; la clave de colores aparte, encima de la tarjeta a la derecha. */
   .vs-layout .bp-historial-titulo,
-  .vs-layout .bp-historial-leyenda {
-    position: absolute; z-index: 2; padding: 0 0.25rem; line-height: 20px; white-space: nowrap; background: #ffffff;
-  }
-  .vs-layout .bp-historial-titulo { top: -11px; left: calc(0.75rem - 1px); }
-  .vs-layout > .bp-historial { container-type: inline-size; }
-  .vs-layout .bp-historial-leyenda { bottom: -11px; right: 0.75rem; flex-wrap: nowrap; }
-  @container (min-width: 470px) {
-    .vs-layout .bp-historial-leyenda { top: -11px; bottom: auto; }
-  }
+  .vs-layout .bp-historial-leyenda { position: absolute; z-index: 2; line-height: 20px; white-space: nowrap; }
+  .vs-layout .bp-historial-titulo { top: -11px; left: calc(0.75rem - 1px); padding: 0 0.25rem; background: #ffffff; }
+  .vs-layout .bp-historial-leyenda { bottom: calc(100% + 14px); right: 0; flex-wrap: nowrap; }
   .vs-layout .bp-historial-titulo { font-size: 0.875rem; }
   .vs-layout .bp-historial th { padding-top: 0.65rem; padding-bottom: 0.4rem; }
   .vs-layout .bp-historial td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
