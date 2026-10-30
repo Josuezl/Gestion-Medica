@@ -742,7 +742,7 @@ export default function NewConsultationClient({
                 <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
                 <BpHistoryTable rows={historialPresion} titulo="Históricos · Presión arterial" />
                 <fieldset className="bp-field">
-                  <legend className="bp-legend">Otros signos vitales</legend>
+                  <legend className="bp-legend">Otros signos vitales <span className="bp-opcional">(opcional)</span></legend>
                   <div className="vs-campos">
                     <div className="form-group">
                       <label className="form-label" htmlFor="vs-temperature">Temperatura (°C)</label>
