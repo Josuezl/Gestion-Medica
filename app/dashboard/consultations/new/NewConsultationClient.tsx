@@ -804,7 +804,7 @@ export default function NewConsultationClient({
               
               <p className="evo-intro">Registra la información de esta consulta.</p>
 
-              <div className="form-group">
+              <div className="form-group nota-clinica">
                 <label className="evo-label" htmlFor="evo-motivo">Motivo de consulta <span className="evo-requerido">*</span></label>
                 <span className="evo-ayuda">Razón principal de la visita.</span>
                 <textarea
