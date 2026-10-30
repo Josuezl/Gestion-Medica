@@ -168,3 +168,16 @@ describe('bpHistory', () => {
     expect(h[1]).toMatchObject({ sinBrazo: '118/76', izquierdo: null, derecho: null })
   })
 })
+
+describe('vitalsHistory', () => {
+  it('ordena, convierte a texto y omite consultas sin signos', async () => {
+    const { vitalsHistory } = await import('@/utils/historialSignos')
+    const h = vitalsHistory([
+      { id: 'a', created_at: '2026-05-22T15:00:00Z', temperature: 36.6, weight: 71.2, heart_rate: 76 },
+      { id: 'b', created_at: '2026-06-29T15:00:00Z', temperature: 36.8, oxygen_saturation: 98 },
+      { id: 'c', created_at: '2026-07-01T15:00:00Z', blood_pressure: '120/80' },
+    ])
+    expect(h.map((r) => r.id)).toEqual(['b', 'a'])
+    expect(h[1]).toMatchObject({ temperatura: '36.6', peso: '71.2', fc: '76', talla: null })
+  })
+})

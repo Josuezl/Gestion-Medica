@@ -1,14 +1,15 @@
 import React, { useId } from 'react'
 import { BP_FORM_MARKER, bpFormFieldsFromRow, bpLevel, type BpHistoryRow } from '@/utils/bloodPressure'
 import { formatDateShortHN } from '@/utils/datetime'
+import HistorialScroll from './HistorialScroll'
 
 /**
  * Presión arterial con brazo (izquierdo/derecho) y la opción «Tomar en ambos brazos». Para todos
  * los tenants; con `required` (clínica con require_bp_arm y paciente no pediátrico) se marca como
  * obligatoria, pero la regla la valida el servidor.
  *
- * Con `history` (Nueva Consulta) muestra al lado el historial de tomas del paciente: se ven las 5
- * más recientes y las anteriores con scroll dentro de la tarjeta.
+ * Con `history` muestra al lado el historial de tomas (Nueva Consulta usa BpHistoryTable aparte,
+ * alineada con este campo): se ven las 3 más recientes y las anteriores con scroll.
  *
  * Campos NO controlados a propósito: el borrador local y la pre-clínica en vivo escriben directo
  * en el DOM. Mostrar/ocultar según «ambos brazos» lo hace el CSS (:has) en globals.css.
@@ -28,6 +29,7 @@ export default function BloodPressureField({ required, defaults, history }: {
         Presión Arterial
         {required && <span className="bp-required" aria-hidden="true"> *</span>}
         {required && <span className="bp-hint">Obligatoria en adultos</span>}
+        {!required && <span className="bp-opcional"> (opcional)</span>}
       </legend>
 
       <div className="bp-captura">
@@ -78,18 +80,19 @@ function Lectura({ value }: { value: string | null }) {
   return <span className={nivel ? `bp-hist-valor bp-nivel-${nivel}` : 'bp-hist-valor'}>{value}</span>
 }
 
-function BpHistoryTable({ rows }: { rows: BpHistoryRow[] }) {
+export function BpHistoryTable({ rows, titulo = 'Historial' }: { rows: BpHistoryRow[]; titulo?: string }) {
   return (
     <section className="bp-historial" aria-label="Historial de presión arterial">
       <div className="bp-historial-cabecera">
-        <span className="bp-historial-titulo">Historial</span>
+        <span className="bp-historial-titulo">{titulo}</span>
         <span className="bp-historial-leyenda">
           <span><i className="bp-marca bp-marca-normal" aria-hidden="true" />&lt; 120/80</span>
           <span><i className="bp-marca bp-marca-elevada" aria-hidden="true" />120–139 / 80–89</span>
           <span><i className="bp-marca bp-marca-alta" aria-hidden="true" />≥ 140/90</span>
         </span>
       </div>
-      <div className="bp-historial-scroll">
+      {rows.length === 0 ? <p className="bp-historial-vacio">Sin registros anteriores.</p> : (
+      <HistorialScroll total={rows.length}>
         <table>
           <thead>
             <tr>
@@ -110,7 +113,8 @@ function BpHistoryTable({ rows }: { rows: BpHistoryRow[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </HistorialScroll>
+      )}
     </section>
   )
 }

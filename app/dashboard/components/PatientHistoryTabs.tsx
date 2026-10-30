@@ -23,7 +23,7 @@ import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
-import ConsultVitalsChips from './ConsultVitalsChips'
+import { antecedenteParaMostrar } from '@/utils/antecedentes'
 import type {
   PatientRow,
   ConsultationRow,
@@ -204,7 +204,7 @@ export default function PatientHistoryTabs({
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                             </div>
-                            <ConsultVitalsChips consult={consult} />
+                            {/* Sin signos aquí: en Nueva Consulta ya están en las tablas de historial. */}
                           </div>
 
                           {isExpanded && (
@@ -364,18 +364,18 @@ export default function PatientHistoryTabs({
             <div style={styles.formGrid} className="grid-2">
               <div className="card" style={styles.historyBlock}>
                 <h4 style={styles.historyBlockTitle}>Patológicos (Enfermedades y Cirugías)</h4>
-                <p style={styles.historyBlockText}>{patient.pathological_history || 'No declarados'}</p>
+                <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.pathological_history_status, patient.pathological_history)}</p>
               </div>
 
               <div className="card" style={styles.historyBlock}>
                 <h4 style={styles.historyBlockTitle}>No Patológicos (Hábitos y Vacunas)</h4>
-                <p style={styles.historyBlockText}>{patient.non_pathological_history || 'No declarados'}</p>
+                <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.non_pathological_history_status, patient.non_pathological_history)}</p>
               </div>
             </div>
 
             <div className="card" style={{ ...styles.historyBlock, marginTop: '1.5rem' }}>
               <h4 style={styles.historyBlockTitle}>Antecedentes Heredofamiliares</h4>
-              <p style={styles.historyBlockText}>{patient.family_history || 'No declarados'}</p>
+              <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.family_history_status, patient.family_history)}</p>
             </div>
           </div>
         )}

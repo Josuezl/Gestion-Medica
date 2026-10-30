@@ -56,7 +56,9 @@ import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
 import ConsultVitalsChips from '../../components/ConsultVitalsChips'
+import AntecedentesEditor from '../../components/AntecedentesEditor'
 import { escapeHtml } from '@/utils/escapeHtml'
+import { antecedenteParaMostrar } from '@/utils/antecedentes'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -606,7 +608,7 @@ export default function PatientDetailsClient({
             <!-- ===== ALERGIAS ===== -->
             <div class="allergy-box">
               <label>⚠ Alergias conocidas</label>
-              <span>${escapeHtml(patient.allergies) || 'Ninguna conocida'}</span>
+              <span>${escapeHtml(antecedenteParaMostrar(patient.allergies_status, patient.allergies))}</span>
             </div>
 
             <!-- ===== ANTECEDENTES ===== -->
@@ -614,15 +616,15 @@ export default function PatientDetailsClient({
             <div class="bg-grid">
               <div class="bg-card">
                 <label>Patológicos</label>
-                <p>${escapeHtml(patient.pathological_history) || 'No declarados'}</p>
+                <p>${escapeHtml(antecedenteParaMostrar(patient.pathological_history_status, patient.pathological_history))}</p>
               </div>
               <div class="bg-card">
                 <label>No Patológicos</label>
-                <p>${escapeHtml(patient.non_pathological_history) || 'No declarados'}</p>
+                <p>${escapeHtml(antecedenteParaMostrar(patient.non_pathological_history_status, patient.non_pathological_history))}</p>
               </div>
               <div class="bg-card">
                 <label>Heredofamiliares</label>
-                <p>${escapeHtml(patient.family_history) || 'No declarados'}</p>
+                <p>${escapeHtml(antecedenteParaMostrar(patient.family_history_status, patient.family_history))}</p>
               </div>
             </div>
 
@@ -958,7 +960,7 @@ export default function PatientDetailsClient({
         <div style={styles.allergiesRibbon}>
           <AlertCircle size={16} color="#ef4444" />
           <span style={styles.allergiesLabel}>Alergias:</span>
-          <span style={styles.allergiesValue}>{patient.allergies || 'Ninguna conocida'}</span>
+          <span style={styles.allergiesValue}>{antecedenteParaMostrar(patient.allergies_status, patient.allergies)}</span>
         </div>
 
       </div>
@@ -1055,27 +1057,10 @@ export default function PatientDetailsClient({
             {/* Datos clínicos: solo personal clínico (médico/admin). Asistente y enfermera editan
                 únicamente datos personales (no ven ni modifican el expediente). */}
             {canClinical && (
-              <>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: '#ef4444' }}>Alergias</label>
-                  <textarea className="form-input" name="allergies" defaultValue={patient.allergies ?? ''} rows={2} style={{ borderLeft: '3px solid #ef4444' }} />
-                </div>
-
-                <div style={styles.formGrid}>
-                  <div className="form-group">
-                    <label className="form-label">Antecedentes Patológicos</label>
-                    <textarea className="form-input" name="pathological_history" defaultValue={patient.pathological_history ?? ''} rows={3} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Antecedentes No Patológicos</label>
-                    <textarea className="form-input" name="non_pathological_history" defaultValue={patient.non_pathological_history ?? ''} rows={3} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Antecedentes Heredofamiliares</label>
-                  <textarea className="form-input" name="family_history" defaultValue={patient.family_history ?? ''} rows={3} />
-                </div>
-              </>
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>Antecedentes</h4>
+                <AntecedentesEditor patient={patient} />
+              </div>
             )}
 
             <div style={styles.editActions}>
@@ -1396,18 +1381,18 @@ export default function PatientDetailsClient({
               <div style={styles.formGrid} className="grid-2">
                 <div className="card" style={styles.historyBlock}>
                   <h4 style={styles.historyBlockTitle}>Patológicos (Enfermedades y Cirugías)</h4>
-                  <p style={styles.historyBlockText}>{patient.pathological_history || 'No declarados'}</p>
+                  <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.pathological_history_status, patient.pathological_history)}</p>
                 </div>
 
                 <div className="card" style={styles.historyBlock}>
                   <h4 style={styles.historyBlockTitle}>No Patológicos (Hábitos y Vacunas)</h4>
-                  <p style={styles.historyBlockText}>{patient.non_pathological_history || 'No declarados'}</p>
+                  <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.non_pathological_history_status, patient.non_pathological_history)}</p>
                 </div>
               </div>
 
               <div className="card" style={{ ...styles.historyBlock, marginTop: '1.5rem' }}>
                 <h4 style={styles.historyBlockTitle}>Antecedentes Heredofamiliares</h4>
-                <p style={styles.historyBlockText}>{patient.family_history || 'No declarados'}</p>
+                <p style={styles.historyBlockText}>{antecedenteParaMostrar(patient.family_history_status, patient.family_history)}</p>
               </div>
             </div>
           )}

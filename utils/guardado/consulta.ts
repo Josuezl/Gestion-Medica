@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { generateVerificationCode } from '@/utils/verification-code'
 import { validateVitals } from '@/utils/validation'
+import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
 import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
@@ -140,6 +141,11 @@ export async function guardarConsulta(
   }
   const bpColumns = bpValues ? bpRecordFromForm(bpValues) : { blood_pressure: bp, blood_pressure_left: null, blood_pressure_right: null }
 
+  // 2.d Antecedentes (Sin registrar / Niega / Refiere): se validan ANTES de crear la consulta para
+  //     no dejarla guardada con un «Refiere» sin detalle.
+  const antecedentes = antecedentesDesdeFormulario(formData)
+  if (antecedentes.error) return { error: antecedentes.error }
+
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
     .from('consultations')
@@ -183,18 +189,10 @@ export async function guardarConsulta(
   //     en el expediente del paciente (sobrescriben lo anterior). Acotado a la clínica. Solo llegan
   //     aquí roles clínicos (requireRole arriba), así que no hace falta otro gate. Si falla, solo avisa.
   try {
-    const antecedentes = {
-      // Se guarda tal cual lo escribió el médico (vacío → null). No se re-aplica "Ninguna conocida":
-      // si el médico escribe "Ninguna", "No" o cualquier texto, se conserva y se muestra la próxima vez.
-      allergies: (formData.get('allergies') as string) || null,
-      pathological_history: (formData.get('pathological_history') as string) || null,
-      non_pathological_history: (formData.get('non_pathological_history') as string) || null,
-      family_history: (formData.get('family_history') as string) || null,
-    }
-    if (formData.has('allergies') || formData.has('pathological_history') || formData.has('non_pathological_history') || formData.has('family_history')) {
+    if (Object.keys(antecedentes.cambios).length > 0) {
       const { error: antErr } = await supabase
         .from('patients')
-        .update(antecedentes)
+        .update(antecedentes.cambios)
         .eq('id', patientId)
         .eq('clinic_id', clinicId)
       if (antErr) {

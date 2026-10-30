@@ -10,6 +10,7 @@ import { safeErrorMessage } from '@/utils/errors'
 import { sanitizePhone } from '@/utils/phone'
 import { findDuplicatePatient } from '@/utils/patientDuplicates'
 import { revalidatePath } from 'next/cache'
+import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
 
 // El N° de expediente debe ser único dentro de la clínica. Devuelve el paciente que YA lo usa
 // (distinto de excludeId, para permitir editar el mismo paciente), o null. Comparación
@@ -170,10 +171,10 @@ export async function actualizarPaciente(id: string, formData: FormData) {
   // servidor NO los modifica para ese rol (no confía en el cliente).
   if (canDoClinical(authProfile.role)) {
     patientData.blood_type = formData.get('blood_type') as string || null
-    patientData.allergies = formData.get('allergies') as string || 'Ninguna conocida'
-    patientData.family_history = formData.get('family_history') as string || null
-    patientData.pathological_history = formData.get('pathological_history') as string || null
-    patientData.non_pathological_history = formData.get('non_pathological_history') as string || null
+    // Antecedentes con estado (Sin registrar / Niega / Refiere): ya no se rellena «Ninguna conocida».
+    const antecedentes = antecedentesDesdeFormulario(formData)
+    if (antecedentes.error) return { error: antecedentes.error }
+    Object.assign(patientData, antecedentes.cambios)
   }
 
   const { data: updated, error } = await supabase

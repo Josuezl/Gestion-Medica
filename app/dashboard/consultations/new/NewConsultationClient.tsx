@@ -16,13 +16,15 @@ import {
   Loader2,
   Printer,
   FlaskConical,
+  FileText,
   ClipboardList
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
 import { parseMedicinesText, medicinesToText } from '@/utils/medicines'
-import { formatDateHN, formatDateTimeHN } from '@/utils/datetime'
-import { LastValueRef } from './LastValueRef'
+import { formatDateTimeHN } from '@/utils/datetime'
+import { TextoConsulta, ReferenciaAnterior } from './DiagnosticoCampos'
+import SolicitudCard from './SolicitudCard'
 import HistorySummaryModals from './HistorySummaryModals'
 import { LabOrderList, LabOrderModal } from './LabOrderModal'
 import { StudyRequestList, StudyRequestModal, type CatalogSection, type StudyRequestValue, type RequestStudy } from './StudyRequestModal'
@@ -30,7 +32,13 @@ import type { PatientRow, ConsultationRow, PrescriptionRow, StudyRow, LabOrderRo
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { readFormField, writeFormField } from '@/utils/formFields'
 import { bpFormValuesFromFormData, bpHistory, validateBloodPressure } from '@/utils/bloodPressure'
-import BloodPressureField from '../../components/BloodPressureField'
+import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
+import BloodPressureField, { BpHistoryTable } from '../../components/BloodPressureField'
+import VitalsHistoryTable from '../../components/VitalsHistoryTable'
+import { vitalsHistory } from '@/utils/historialSignos'
+import AntecedentesEditor from '../../components/AntecedentesEditor'
+import NotaClinica from '../../components/NotaClinica'
+import { autoCrecer } from '@/utils/autoCrecer'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -138,6 +146,8 @@ export default function NewConsultationClient({
   // un ítem { name }. La consulta previa más reciente sirve de referencia / para reusar.
   const lastPrescription = prescriptions[0]
   const lastConsultation = consultations[0]
+  const historialPresion = bpHistory(consultations)
+  const historialSignos = vitalsHistory(consultations)
   const [medicinesText, setMedicinesText] = useState('')
   const [prescriptionNotes, setPrescriptionNotes] = useState('')
   const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
@@ -347,9 +357,10 @@ export default function NewConsultationClient({
     const formData = new FormData(event.currentTarget)
     const medicines = parseMedicinesText(medicinesText)
 
-    // Aviso inmediato; el servidor vuelve a validar la misma regla.
+    // Aviso inmediato; el servidor vuelve a validar las mismas reglas.
     const bpValues = bpFormValuesFromFormData(formData)
-    const bpError = bpValues ? validateBloodPressure(bpValues, requireBloodPressure) : null
+    const bpError = (bpValues ? validateBloodPressure(bpValues, requireBloodPressure) : null)
+      ?? antecedentesDesdeFormulario(formData).error
     if (bpError) {
       setError(bpError)
       setLoading(false)
@@ -727,38 +738,49 @@ export default function NewConsultationClient({
                   </div>
                 </div>
               )}
-              <BloodPressureField required={requireBloodPressure} defaults={preclinical} history={bpHistory(consultations)} />
-              <div style={styles.vitalsGrid}>
-                <div className="form-group">
-                  <label className="form-label">Temperatura (°C)</label>
-                  <input className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Peso (kg)</label>
-                  <input className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Talla (cm)</label>
-                  <input className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
-                </div>
-                {patient.is_pediatric && (
-                  <div className="form-group">
-                    <label className="form-label">Perímetro Cefálico (cm)</label>
-                    <input className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
+              {/* Cada registro con su histórico a la par (presión | histórico de presión; otros | histórico de
+                  otros). En pantallas angostas se apila en ese mismo orden. */}
+              <div className="vs-layout">
+                <h4 className="vs-subtitulo">Registro actual</h4>
+                <span className="vs-subtitulo-vacio" aria-hidden="true" />
+                <BloodPressureField required={requireBloodPressure} defaults={preclinical} />
+                <BpHistoryTable rows={historialPresion} titulo="Históricos · Presión arterial" />
+                <fieldset className="bp-field">
+                  <legend className="bp-legend">Otros signos vitales <span className="bp-opcional">(opcional)</span></legend>
+                  <div className="vs-campos">
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-temperature">Temperatura (°C)</label>
+                      <input id="vs-temperature" className="form-input" type="number" step="0.1" name="temperature" placeholder="Ej. 36.8" defaultValue={preclinical?.temperature ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-weight">Peso (kg)</label>
+                      <input id="vs-weight" className="form-input" type="number" step="0.01" name="weight" placeholder="Ej. 70.5" defaultValue={preclinical?.weight ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-height">Talla (cm)</label>
+                      <input id="vs-height" className="form-input" type="number" step="0.1" name="height" placeholder="Ej. 175.5" defaultValue={preclinical?.height ?? ''} />
+                    </div>
+                    {patient.is_pediatric && (
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="vs-hc">Perímetro cefálico (cm)</label>
+                        <input id="vs-hc" className="form-input" type="number" step="0.1" name="head_circumference" placeholder="Ej. 48.5" defaultValue={preclinical?.head_circumference ?? ''} />
+                      </div>
+                    )}
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-hr">Frecuencia cardíaca (lpm)</label>
+                      <input id="vs-hr" className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-rr">Frecuencia respiratoria (rpm)</label>
+                      <input id="vs-rr" className="form-input" type="number" name="respiratory_rate" placeholder="Ej. 16" defaultValue={preclinical?.respiratory_rate ?? ''} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="vs-spo2">SpO₂ (%)</label>
+                      <input id="vs-spo2" className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
+                    </div>
                   </div>
-                )}
-                <div className="form-group">
-                  <label className="form-label">Ritmo Cardiaco (bpm)</label>
-                  <input className="form-input" type="number" name="heart_rate" placeholder="Ej. 72" defaultValue={preclinical?.heart_rate ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Frecuencia Respiratoria (rpm)</label>
-                  <input className="form-input" type="number" name="respiratory_rate" placeholder="Ref. 12-20" defaultValue={preclinical?.respiratory_rate ?? ''} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">SpO2 (%)</label>
-                  <input className="form-input" type="number" name="oxygen_saturation" placeholder="Ej. 98" defaultValue={preclinical?.oxygen_saturation ?? ''} />
-                </div>
+                </fieldset>
+                <VitalsHistoryTable rows={historialSignos} pediatrico={!!patient.is_pediatric} />
               </div>
             </div>
 
@@ -766,29 +788,12 @@ export default function NewConsultationClient({
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
                 <Clipboard size={18} color="var(--primary)" />
-                Antecedentes del Paciente
+                Antecedentes del Paciente <span className="bp-opcional">(opcional)</span>
               </h3>
               <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Información actual del expediente. Edítala si hay cambios; lo que dejes aquí se guardará en el expediente del paciente al registrar la consulta.
+                Revisa y actualiza la información. Se guardará al registrar la consulta.
               </p>
-              <div className="form-group">
-                <label className="form-label">Alergias</label>
-                {/* "Ninguna conocida" era el valor por defecto antiguo: se trata como vacío para mostrar
-                    el ejemplo. Cualquier otro texto del médico (incluido "Ninguna" o "No") sí se conserva. */}
-                <textarea className="form-input" name="allergies" rows={2} defaultValue={patient.allergies === 'Ninguna conocida' ? '' : (patient.allergies || '')} placeholder="Especifica medicamentos, alimentos, polen, etc." />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Patológicos</label>
-                <textarea className="form-input" name="pathological_history" rows={2} defaultValue={patient.pathological_history || ''} placeholder="Enfermedades, cirugías, hospitalizaciones…" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes No Patológicos</label>
-                <textarea className="form-input" name="non_pathological_history" rows={2} defaultValue={patient.non_pathological_history || ''} placeholder="Hábitos, tabaco, alcohol, alimentación…" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Antecedentes Heredofamiliares</label>
-                <textarea className="form-input" name="family_history" rows={2} defaultValue={patient.family_history || ''} placeholder="Antecedentes familiares relevantes…" />
-              </div>
+              <AntecedentesEditor patient={patient} />
             </div>
 
             {/* 2. Notas Clínicas */}
@@ -798,86 +803,78 @@ export default function NewConsultationClient({
                 Evolución Clínica
               </h3>
               
-              <div className="form-group">
-                <label className="form-label">Motivo de Consulta *</label>
-                <textarea 
-                  className="form-input" 
-                  name="reason_for_visit" 
-                  placeholder="Por qué asiste el paciente..." 
-                  rows={2} 
-                  required 
-                />
-              </div>
+              <p className="evo-intro">Registra la información de esta consulta.</p>
 
-              <div className="form-group">
-                <label className="form-label">Sintomatología / Anamnesis</label>
-                <textarea 
-                  className="form-input" 
-                  name="symptoms" 
-                  placeholder="Detalles sobre los síntomas informados..." 
-                  rows={2} 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Resultados de exámenes de laboratorios/estudios</label>
+              <div className="form-group nota-clinica">
+                <label className="evo-label" htmlFor="evo-motivo">Motivo de consulta <span className="evo-requerido">*</span></label>
+                <span className="evo-ayuda">Razón principal de la visita.</span>
                 <textarea
-                  className="form-input"
+                  id="evo-motivo"
+                  className="form-input auto-crece"
+                  name="reason_for_visit"
+                  placeholder="¿Por qué consulta el paciente?"
+                  rows={3}
+                  required
+                  onInput={autoCrecer}
+                />
+              </div>
+
+              {/* Mitad y mitad; se apilan en pantallas angostas. */}
+              <div className="evo-notas">
+                <NotaClinica
+                  name="symptoms"
+                  titulo="Sintomatología / Anamnesis"
+                  descripcion="Inicio • Duración • Evolución • Síntomas asociados"
+                  placeholder="Describe los síntomas y su evolución…"
+                  icono={<FileText size={22} color="var(--primary)" aria-hidden="true" />}
+                />
+                <NotaClinica
                   name="physical_exam"
-                  placeholder="Resultados o notas sobre estudios o exámenes médicos..."
-                  rows={2}
+                  titulo="Resultados de estudios"
+                  descripcion="Laboratorio, imágenes y otros exámenes."
+                  placeholder="Anota la fecha, el estudio y los hallazgos relevantes…"
+                  icono={<FlaskConical size={22} color="var(--primary)" aria-hidden="true" />}
                 />
               </div>
 
 
             </div>
 
-            {/* 3. Diagnóstico y Plan */}
+            {/* 3. Diagnóstico y Plan: cada campo con su referencia de la consulta anterior a la par. */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
-                <Clipboard size={18} color="var(--primary)" />
+                <FileText size={18} color="var(--primary)" />
                 Diagnóstico y Tratamiento
               </h3>
-              
-              <div className="form-group">
-                <label className="form-label">Diagnóstico *</label>
-                <textarea
-                  className="form-input"
-                  name="diagnosis"
-                  value={diagnosisText}
-                  onChange={(e) => setDiagnosisText(e.target.value)}
-                  placeholder="Diagnóstico clínico (CIE-10 o descripción detallada)..."
-                  rows={2}
-                  required
-                  style={{ borderLeft: '3px solid var(--primary)' }}
-                />
-                {lastConsultation?.diagnosis && (
-                  <LastValueRef
-                    label={`Último diagnóstico · ${formatDateHN(lastConsultation.created_at)}`}
-                    value={lastConsultation.diagnosis}
-                    onUse={() => setDiagnosisText(lastConsultation.diagnosis || '')}
-                  />
-                )}
-              </div>
+              <p className="evo-intro">Registra el diagnóstico y las indicaciones de esta consulta.</p>
 
-              <div className="form-group">
-                <label className="form-label">Plan de Tratamiento / Recomendaciones *</label>
-                <textarea
-                  className="form-input"
-                  name="treatment_plan"
-                  value={treatmentText}
-                  onChange={(e) => setTreatmentText(e.target.value)}
-                  placeholder="Instrucciones generales de cuidado, reposo, dieta..."
-                  rows={3}
-                  required
+              <div className="dx-layout">
+                <TextoConsulta
+                  name="diagnosis"
+                  etiqueta="Diagnóstico"
+                  placeholder="Diagnóstico clínico: CIE-10 o descripción…"
+                  value={diagnosisText}
+                  onChange={setDiagnosisText}
                 />
-                {lastConsultation?.treatment_plan && (
-                  <LastValueRef
-                    label={`Último plan de tratamiento · ${formatDateHN(lastConsultation.created_at)}`}
-                    value={lastConsultation.treatment_plan}
-                    onUse={() => setTreatmentText(lastConsultation.treatment_plan || '')}
-                  />
-                )}
+                <ReferenciaAnterior
+                  titulo="Último diagnóstico"
+                  fecha={lastConsultation?.created_at}
+                  valor={lastConsultation?.diagnosis}
+                  onUsar={() => setDiagnosisText(lastConsultation?.diagnosis || '')}
+                />
+                <TextoConsulta
+                  name="treatment_plan"
+                  etiqueta="Plan de tratamiento / Recomendaciones"
+                  placeholder="Describe el tratamiento, las recomendaciones y el seguimiento…"
+                  value={treatmentText}
+                  onChange={setTreatmentText}
+                />
+                <ReferenciaAnterior
+                  titulo="Último plan de tratamiento"
+                  fecha={lastConsultation?.created_at}
+                  valor={lastConsultation?.treatment_plan}
+                  onUsar={() => setTreatmentText(lastConsultation?.treatment_plan || '')}
+                />
               </div>
             </div>
 
@@ -888,28 +885,35 @@ export default function NewConsultationClient({
                 Prescribir Receta Médica
               </h3>
 
-              {/* Medicamentos en TEXTO LIBRE: un medicamento por línea */}
-              <div style={styles.medAddForm}>
-                <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "1rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-                  <label className="form-label" style={{ margin: 0 }}>Medicamentos</label>
-                  {lastPrescription && (
-                    <button type="button" onClick={loadLastPrescription} className="btn" style={{ padding: "0.3rem 0.7rem", fontSize: "0.78rem", display: "flex", alignItems: "center", gap: "0.35rem", backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}>
-                      <Clipboard size={14} /> Importar última receta
-                    </button>
-                  )}
+              {/* Medicamentos en TEXTO LIBRE (un medicamento por línea), con la última receta a la par. */}
+              <div className="dx-layout">
+                <div className="dx-campo">
+                  <div className="dx-campo-cabecera">
+                    <label htmlFor="receta-medicamentos" className="evo-label">Medicamentos</label>
+                  </div>
+                  <textarea
+                    id="receta-medicamentos"
+                    className="form-input auto-crece"
+                    value={medicinesText}
+                    onChange={(e) => setMedicinesText(e.target.value)}
+                    onInput={autoCrecer}
+                    placeholder={`Escribe un medicamento por línea. Ejemplo:\nCARDIOASPIRINA 81 MG VO CADA DIA. 12 MD\nLIPITOR 40 MG VO CADA DIA. 6 PM\nEUTIROX NF 50 MCG VO 1 TABLETA CADA DIA, EN AYUNO`}
+                    rows={9}
+                  />
                 </div>
-                <textarea
-                  className="form-input"
-                  value={medicinesText}
-                  onChange={(e) => setMedicinesText(e.target.value)}
-                  placeholder={`Escribe un medicamento por línea. Ejemplo:\nCARDIOASPIRINA 81 MG VO CADA DIA. 12 MD\nLIPITOR 40 MG VO CADA DIA. 6 PM\nEUTIROX NF 50 MCG VO 1 TABLETA CADA DIA, EN AYUNO`}
-                  rows={9}
-                  style={{ resize: "vertical", fontSize: "0.9rem", lineHeight: 1.5 }}
+                <ReferenciaAnterior
+                  titulo="Última receta"
+                  fecha={lastPrescription?.created_at}
+                  valor={lastPrescription
+                    ? [medicinesToText(lastPrescription.medicines || []), lastPrescription.notes ? `Notas: ${lastPrescription.notes}` : '']
+                        .filter(Boolean).join('\n\n')
+                    : null}
+                  onUsar={loadLastPrescription}
                 />
-                <p style={{ margin: "0.4rem 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                  Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
-                </p>
               </div>
+              <p style={{ margin: "0.4rem 0 1rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
+              </p>
 
               {/* Indicaciones de la receta */}
               <div className="form-group" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
@@ -947,115 +951,49 @@ export default function NewConsultationClient({
                 Laboratorio y Estudios
               </h3>
 
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Orden de Laboratorio</div>
+              <p className="evo-intro">Gestiona las solicitudes de esta consulta.</p>
 
               <input type="hidden" name="lab_order" value={JSON.stringify(labOrder)} />
-
-              {labOrderCount === 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setShowLabModal(true)}
-                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
-                  >
-                    <FlaskConical size={16} />
-                    Generar Nueva Orden de Laboratorio
-                  </button>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Selecciona los exámenes que el paciente debe realizarse.
-                  </p>
-                </>
-              ) : (
-                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
-                      <FlaskConical size={16} />
-                      {labOrderCount} {labOrderCount === 1 ? 'examen seleccionado' : 'exámenes seleccionados'}
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowLabModal(true)}>Editar</button>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setLabOrder({ tests: [], otherTests: '' })}>Quitar</button>
-                    </div>
-                  </div>
-                  <LabOrderList tests={labOrder.tests} otherTests={labOrder.otherTests} />
-                </div>
-              )}
-
-              {/* Referencia: última orden de laboratorio del paciente (cita anterior) */}
-              {lastLabOrder && Array.isArray(lastLabOrder.tests) && (lastLabOrder.tests.length > 0 || (lastLabOrder.other_tests || '').trim()) && (
-                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0f766e', backgroundColor: 'rgba(13,148,136,0.12)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                      Última orden · {formatDateHN(lastLabOrder.created_at)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setLabOrder({ tests: lastLabOrder.tests || [], otherTests: lastLabOrder.other_tests || '' })}
-                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Importar
-                    </button>
-                  </div>
-                  <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />
-                </div>
-              )}
-
-              {/* Solicitud de Estudios (misma tarjeta, debajo del laboratorio) */}
-              <div style={{ height: '1px', background: 'var(--border-color)', margin: '1.25rem 0' }} />
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Solicitud de Estudios</div>
-
               <input type="hidden" name="study_request" value={JSON.stringify(studyRequest)} />
 
-              {studyRequestCount === 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setShowStudyModal(true)}
-                    style={{ gap: '0.45rem', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', fontWeight: 600 }}
-                  >
-                    <ClipboardList size={16} />
-                    Generar Solicitud de Estudios
-                  </button>
-                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Selecciona los estudios que el paciente debe realizarse (radiología, cardiología, etc.).
-                  </p>
-                </>
-              ) : (
-                <div style={{ padding: '0.85rem 1rem', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.6rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: '#0f766e' }}>
-                      <ClipboardList size={16} />
-                      {studyRequestCount} {studyRequestCount === 1 ? 'estudio seleccionado' : 'estudios seleccionados'}
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setShowStudyModal(true)}>Editar</button>
-                      <button type="button" className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }} onClick={() => setStudyRequest({ studies: [], otherStudies: '', manualToCatalog: [] })}>Quitar</button>
-                    </div>
-                  </div>
-                  <StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />
-                </div>
-              )}
-
-              {/* Referencia: última solicitud de estudios del paciente (cita anterior) */}
-              {lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) && (
-                <div style={{ marginTop: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0f766e', backgroundColor: 'rgba(13,148,136,0.12)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                      Última solicitud · {formatDateHN(lastStudyRequest.created_at)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] })}
-                      style={{ flexShrink: 0, background: 'none', border: '1px solid #99f6e4', color: '#0d9488', borderRadius: '6px', padding: '0.15rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Importar
-                    </button>
-                  </div>
-                  <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />
-                </div>
-              )}
+              <div className="sol-grid">
+                <SolicitudCard
+                  icono={<FlaskConical size={22} />}
+                  titulo="Laboratorio"
+                  descripcion="Exámenes y análisis clínicos."
+                  vacio="Sin exámenes seleccionados."
+                  botonTexto="Seleccionar exámenes"
+                  cantidad={labOrderCount}
+                  unidades={['examen seleccionado', 'exámenes seleccionados']}
+                  onAbrir={() => setShowLabModal(true)}
+                  onQuitar={() => setLabOrder({ tests: [], otherTests: '' })}
+                  lista={<LabOrderList tests={labOrder.tests} otherTests={labOrder.otherTests} />}
+                  ultima={lastLabOrder && Array.isArray(lastLabOrder.tests) && (lastLabOrder.tests.length > 0 || (lastLabOrder.other_tests || '').trim()) ? {
+                    fecha: lastLabOrder.created_at,
+                    etiqueta: 'Última orden',
+                    lista: <LabOrderList tests={lastLabOrder.tests} otherTests={lastLabOrder.other_tests} />,
+                    onImportar: () => setLabOrder({ tests: lastLabOrder.tests || [], otherTests: lastLabOrder.other_tests || '' }),
+                  } : null}
+                />
+                <SolicitudCard
+                  icono={<ClipboardList size={22} />}
+                  titulo="Estudios"
+                  descripcion="Radiología, cardiología y otros estudios."
+                  vacio="Sin estudios seleccionados."
+                  botonTexto="Seleccionar estudios"
+                  cantidad={studyRequestCount}
+                  unidades={['estudio seleccionado', 'estudios seleccionados']}
+                  onAbrir={() => setShowStudyModal(true)}
+                  onQuitar={() => setStudyRequest({ studies: [], otherStudies: '', manualToCatalog: [] })}
+                  lista={<StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />}
+                  ultima={lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) ? {
+                    fecha: lastStudyRequest.created_at,
+                    etiqueta: 'Última solicitud',
+                    lista: <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />,
+                    onImportar: () => setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] }),
+                  } : null}
+                />
+              </div>
             </div>
 
             {/* 6. Incapacidad Médica */}
@@ -1286,21 +1224,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #fcd34d',
     borderRadius: '10px',
     color: '#92400e',
-  },
-  vitalsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-    gap: '0.75rem',
-    // Alinea los inputs por abajo aunque algún label (Perímetro Cefálico, Ritmo
-    // Cardiaco) ocupe dos líneas y empuje su campo hacia abajo.
-    alignItems: 'end',
-  },
-  medAddForm: {
-    backgroundColor: 'var(--bg-input)',
-    padding: '1rem',
-    borderRadius: '8px',
-    border: '1px solid var(--border-color)',
-    marginBottom: '1rem',
   },
   medsListWrapper: {
     flex: 1,

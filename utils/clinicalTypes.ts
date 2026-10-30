@@ -31,6 +31,11 @@ export interface PatientRow {
   family_history?: string | null
   pathological_history?: string | null
   non_pathological_history?: string | null
+  /** 'sin_registrar' | 'niega' | 'refiere'; NULL = deducir del texto (utils/antecedentes.ts). */
+  allergies_status?: string | null
+  pathological_history_status?: string | null
+  non_pathological_history_status?: string | null
+  family_history_status?: string | null
   record_number?: string | null
   is_pediatric?: boolean | null
   father_name?: string | null
