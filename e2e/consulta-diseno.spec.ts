@@ -87,7 +87,7 @@ test('nueva consulta: histórico de exámenes, farmacias e incapacidad/referenci
   })
 
   await page.goto(`/consultations/${consulta.id}/print`)
-  await expect(page.getByRole('heading', { name: 'Constancia médica de incapacidad temporal' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Constancia médica de incapacidad', exact: true })).toBeVisible()
   await expect(page.getByText('3 días calendario')).toBeVisible()
   await expect(page.getByText('02/11/2026')).toBeVisible()
   await expect(page.getByText('04/11/2026')).toBeVisible()

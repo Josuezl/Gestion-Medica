@@ -58,7 +58,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   const c = consultation
-  // Incapacidad con inicio y días: hoja propia («Constancia médica de incapacidad temporal»).
+  // Incapacidad con inicio y días: hoja propia («Constancia médica de incapacidad»).
   if (!isReferral && c.leave_start_date && c.leave_days) {
     return (
       <ConstanciaIncapacidad

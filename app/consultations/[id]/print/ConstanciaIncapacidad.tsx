@@ -11,7 +11,7 @@ function fechaSinDia(value: string): string {
 }
 
 /**
- * «Constancia médica de incapacidad temporal»: hoja propia para las incapacidades con inicio y días
+ * «Constancia médica de incapacidad»: hoja propia para las incapacidades con inicio y días
  * (las de solo texto siguen con el formato de resumen de consulta). El período va destacado; el
  * diagnóstico es el de la constancia, no el de la consulta. Si falta la identidad del paciente, se
  * avisa en pantalla y no se imprime «N/A».
@@ -25,7 +25,6 @@ export default function ConstanciaIncapacidad({ c, patient, doctor, clinic, qrDa
 }) {
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const specialty = doctor.specialty || 'Medicina General'
-  const cmh = doctor.professional_id?.trim()
   const logoUrl = doctor.practice_logo_url || clinic.logo_url
   const clinicName = doctor.practice_name || clinic.name
   const contacto = [doctor.practice_address || clinic.address, (doctor.practice_phone || clinic.phone) && `Tel. ${doctor.practice_phone || clinic.phone}`]
@@ -126,11 +125,11 @@ export default function ConstanciaIncapacidad({ c, patient, doctor, clinic, qrDa
             </div>
             <div className="head-der">
               <strong>{docName}</strong><br />
-              {specialty}{cmh ? ` · ${cmh}` : ''}
+              {specialty}
             </div>
           </div>
 
-          <h1 className="titulo">Constancia médica de incapacidad temporal</h1>
+          <h1 className="titulo">Constancia médica de incapacidad</h1>
           <p className="codigo">{c.verification_code}</p>
 
           <p className="texto">
@@ -171,7 +170,6 @@ export default function ConstanciaIncapacidad({ c, patient, doctor, clinic, qrDa
               <div className="firma-linea">
                 <p className="firma-nombre">{docName}</p>
                 <p className="firma-dato">{specialty}</p>
-                {cmh && <p className="firma-dato">{cmh}</p>}
               </div>
             </div>
           </div>
