@@ -2,6 +2,7 @@ import React from 'react'
 import QRCode from 'qrcode'
 import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
+import ConstanciaIncapacidad from './ConstanciaIncapacidad'
 import { loadPublicDocument } from '@/utils/publicDocument'
 import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 import { doctorShortName } from '@/utils/doctorName'
@@ -57,11 +58,21 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
   const c = consultation
+  // Incapacidad con inicio y días: hoja propia («Constancia médica de incapacidad temporal»).
+  if (!isReferral && c.leave_start_date && c.leave_days) {
+    return (
+      <ConstanciaIncapacidad
+        c={{ ...c, leave_start_date: c.leave_start_date, leave_days: c.leave_days }}
+        patient={patient} doctor={doctor} clinic={clinic} qrDataUrl={qrDataUrl}
+      />
+    )
+  }
   const hc = c.head_circumference
   const hasVitals = c.weight || c.height || bpReadings(c).length > 0 || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
   const sections = (isReferral
     ? [
+        { title: 'Dirigido a', value: c.referral_to },
         { title: 'Motivo de Consulta', value: c.reason_for_visit },
         { title: 'Motivo de Referencia', value: c.referral },
       ]

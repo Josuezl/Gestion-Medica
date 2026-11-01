@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
 import { generateVerificationCode } from '@/utils/verification-code'
 import { validateVitals } from '@/utils/validation'
+import { leaveFromFormData, validateLeave } from '@/utils/incapacidad'
 import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
 import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
@@ -107,6 +108,7 @@ export async function guardarConsulta(
   const physicalExam = formData.get('physical_exam') as string || null
   const medicalLeave = formData.get('medical_leave') as string || null
   const referral = formData.get('referral') as string || null
+  const referralTo = String(formData.get('referral_to') ?? '').trim() || null
   const diagnosis = formData.get('diagnosis') as string
   const treatmentPlan = formData.get('treatment_plan') as string
 
@@ -146,6 +148,12 @@ export async function guardarConsulta(
   const antecedentes = antecedentesDesdeFormulario(formData)
   if (antecedentes.error) return { error: antecedentes.error }
 
+  // 2.e Incapacidad con inicio y días (formularios viejos solo traen el texto: se guarda igual).
+  const leave = leaveFromFormData(formData)
+  const leaveError = validateLeave(leave)
+  if (leaveError) return { error: leaveError }
+  if (referralTo && !(referral && referral.trim())) return { error: 'Referencia: escribe el motivo.' }
+
   // 3. Insertar la consulta
   const { data: consultation, error: consultError } = await supabase
     .from('consultations')
@@ -161,6 +169,11 @@ export async function guardarConsulta(
       physical_exam: physicalExam,
       medical_leave: medicalLeave,
       referral,
+      // Solo si vienen: así el insert no depende de columnas nuevas cuando no se usan.
+      ...(leave.startDate
+        ? { leave_start_date: leave.startDate, leave_days: leave.days, leave_diagnosis: leave.diagnosis, leave_issued_at: new Date().toISOString() }
+        : {}),
+      ...(referralTo ? { referral_to: referralTo } : {}),
       diagnosis,
       treatment_plan: treatmentPlan,
       ...bpColumns,

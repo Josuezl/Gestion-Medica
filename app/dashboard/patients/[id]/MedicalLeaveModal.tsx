@@ -5,11 +5,14 @@ import { FileText, X, Loader2, Printer, CheckCircle2 } from 'lucide-react'
 import { updateConsultationMedicalLeave } from '@/app/dashboard/consultations/actions'
 import { doctorShortName } from '@/utils/doctorName'
 import type { ConsultationRow, PatientRow } from '@/utils/clinicalTypes'
+import { CamposIncapacidad, type LeaveValue } from '../../components/CamposIncapacidad'
+import { validateLeave } from '@/utils/incapacidad'
+import { ymdHN } from '@/utils/datetime'
 
 /**
  * Modal para EMITIR (o corregir) la incapacidad médica sobre la ÚLTIMA consulta del paciente, sin
  * editar ningún otro dato clínico. Caso de uso: el médico ya guardó la consulta y el paciente luego
- * pide una incapacidad. Solo se escribe el texto de la incapacidad; el resto de la consulta es de
+ * pide una incapacidad. Solo se escriben inicio, días y motivo; el resto de la consulta es de
  * solo lectura. Si la consulta ya tenía incapacidad, se puede corregir y queda auditado (old→new).
  */
 export default function MedicalLeaveModal({ consultation, patient, onClose, onSaved }: {
@@ -20,7 +23,13 @@ export default function MedicalLeaveModal({ consultation, patient, onClose, onSa
   onSaved?: () => void
 }) {
   const hadLeave = !!(consultation?.medical_leave && String(consultation.medical_leave).trim() !== '')
-  const [text, setText] = useState<string>(consultation?.medical_leave || '')
+  // Una incapacidad vieja (solo texto) se corrige con los campos nuevos: el texto pasa a ser el motivo.
+  const [leave, setLeave] = useState<LeaveValue>({
+    start: consultation?.leave_start_date || ymdHN(new Date()),
+    days: consultation?.leave_days ? String(consultation.leave_days) : '',
+    diagnosis: consultation?.leave_diagnosis || '',
+    reason: consultation?.medical_leave || '',
+  })
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -35,10 +44,13 @@ export default function MedicalLeaveModal({ consultation, patient, onClose, onSa
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
-    const value = text.trim()
-    if (!value) { setError('Escribe el texto de la incapacidad.'); return }
+    const value = leave.reason.trim()
+    const days = Number(leave.days)
+    const invalid = validateLeave({ startDate: leave.start || null, days: leave.days ? days : null, reason: value || null, diagnosis: leave.diagnosis.trim() || null })
+      ?? (!leave.start ? 'Incapacidad: indica la fecha de inicio y los días.' : null)
+    if (invalid) { setError(invalid); return }
     startTransition(async () => {
-      const res = await updateConsultationMedicalLeave(consultation.id, value)
+      const res = await updateConsultationMedicalLeave(consultation.id, value, { startDate: leave.start, days, diagnosis: leave.diagnosis })
       if (res?.error) { setError(res.error); return }
       setSaved(true)
       onSaved?.() // refresca el expediente (pestaña Incapacidades / botón Última Incapacidad)
@@ -95,7 +107,7 @@ export default function MedicalLeaveModal({ consultation, patient, onClose, onSa
 
             {consultation?.diagnosis && String(consultation.diagnosis).trim() !== '' && (
               <div style={{ marginBottom: '12px', padding: '0.6rem 0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8', marginBottom: '0.2rem' }}>Diagnóstico (solo lectura)</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8', marginBottom: '0.2rem' }}>Diagnóstico de la consulta</div>
                 <div style={{ fontSize: '0.85rem', color: '#475569' }}>{consultation.diagnosis}</div>
               </div>
             )}
@@ -112,17 +124,7 @@ export default function MedicalLeaveModal({ consultation, patient, onClose, onSa
               </div>
             )}
 
-            <div className="form-group">
-              <label className="form-label">Incapacidad médica</label>
-              <textarea
-                className="form-input"
-                rows={5}
-                placeholder="Ej. Se extiende incapacidad por 3 días a partir de la fecha, por motivo de…"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                autoFocus
-              />
-            </div>
+            <CamposIncapacidad value={leave} onChange={setLeave} diagnosticoConsulta={consultation?.diagnosis} />
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
               <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isPending}>Cancelar</button>

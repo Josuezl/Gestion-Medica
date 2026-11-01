@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useId } from 'react'
+import React, { useEffect, useId, useRef } from 'react'
 import { Shield, Stethoscope, PersonStanding, Users, Check, PlusCircle } from 'lucide-react'
 import { ANTECEDENTES, estadoEfectivo, textoInicial, type CampoAntecedente, type EstadoAntecedente } from '@/utils/antecedentes'
 import type { PatientRow } from '@/utils/clinicalTypes'
+import { autoCrecer, ajustarAutoCrece } from '@/utils/autoCrecer'
 
 const ICONOS: Record<CampoAntecedente, React.ReactNode> = {
   allergies: <Shield size={22} color="#d97706" aria-hidden="true" />,
@@ -27,8 +28,12 @@ const OPCIONES: { valor: EstadoAntecedente; texto: string }[] = [
  */
 export default function AntecedentesEditor({ patient }: { patient: PatientRow }) {
   const id = useId()
+  // Los detalles vienen escritos del expediente: el cuadro se abre ya del tamaño del texto.
+  const gridRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { ajustarAutoCrece(gridRef.current) }, [])
   return (
-    <div className="ant-grid">
+    // Cambiar de opción puede mostrar un cuadro que estaba oculto: se ajusta en ese momento.
+    <div className="ant-grid" ref={gridRef} onChange={(e) => ajustarAutoCrece(e.currentTarget)}>
       {ANTECEDENTES.map((def) => {
         const texto = patient[def.campo]
         const estado = estadoEfectivo(patient[`${def.campo}_status`], texto)
@@ -75,7 +80,7 @@ export default function AntecedentesEditor({ patient }: { patient: PatientRow })
                 <span className="ant-solo-refiere">{def.detalle} <span className="ant-requerido">*</span></span>
                 <span className="ant-solo-niega">Observación</span>
               </label>
-              <textarea id={`${base}-texto`} className="form-input" name={def.campo} rows={2} defaultValue={inicial} placeholder={def.placeholder} />
+              <textarea id={`${base}-texto`} className="form-input auto-crece" name={def.campo} rows={2} defaultValue={inicial} placeholder={def.placeholder} onInput={autoCrecer} />
               <span className="ant-ayuda ant-solo-refiere">Completa los detalles para registrar este antecedente.</span>
             </div>
           </fieldset>

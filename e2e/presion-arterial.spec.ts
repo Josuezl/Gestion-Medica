@@ -75,8 +75,11 @@ test.describe('presión arterial por brazo', () => {
     expect(await ultimaConsulta('Pedro')).toEqual({
       blood_pressure: '120/80', blood_pressure_left: '120/80', blood_pressure_right: '125/82',
     })
-    await expect(page.locator('.vital-chip', { hasText: 'PA izq.' }).filter({ hasText: '120/80' }).first()).toBeVisible()
-    await expect(page.locator('.vital-chip', { hasText: 'PA der.' }).filter({ hasText: '125/82' }).first()).toBeVisible()
+    // Los signos se ven al abrir la consulta en el expediente, cada brazo con su lectura.
+    await page.locator('.consulta-tarjeta').first().click()
+    const signos = page.getByRole('region', { name: 'Signos vitales de la consulta' }).first()
+    await expect(signos.locator('.vs-dato', { hasText: 'Brazo izquierdo' })).toContainText('120/80')
+    await expect(signos.locator('.vs-dato', { hasText: 'Brazo derecho' })).toContainText('125/82')
   })
 
   test('adulto: un solo brazo queda en su columna', async ({ comoMedico: page }) => {

@@ -48,6 +48,7 @@ import {
   ChevronUp,
   Baby,
   Stethoscope,
+  CheckCircle2,
 } from 'lucide-react'
 import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
@@ -55,10 +56,12 @@ const PediatricGrowthChart = nextDynamic(() => import('../../components/Pediatri
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
-import ConsultVitalsChips from '../../components/ConsultVitalsChips'
+import SignosConsultaDetalle from '../../components/SignosConsultaDetalle'
 import AntecedentesEditor from '../../components/AntecedentesEditor'
 import { escapeHtml } from '@/utils/escapeHtml'
-import { antecedenteParaMostrar } from '@/utils/antecedentes'
+import { leavePeriodText } from '@/utils/incapacidad'
+import { antecedenteParaMostrar, estadoEfectivo } from '@/utils/antecedentes'
+import DocumentosMenu from './DocumentosMenu'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -114,6 +117,7 @@ export default function PatientDetailsClient({
   const canTakeVitals = canEnterVitals(currentUserRole)
   // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
   const lastConsult: ConsultationRow | null = consultations && consultations.length > 0 ? consultations[0] : null
+  const alergiasEstado = estadoEfectivo(patient.allergies_status, patient.allergies)
   const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
@@ -779,8 +783,10 @@ export default function PatientDetailsClient({
           </div>
         </div>
       )}
-      {/* Patient Profile Header Card */}
+      {/* Encabezado del expediente: datos + acciones principales arriba; acciones secundarias,
+          documentos y alergias abajo. En móvil (.action-row ≤480px) los botones se apilan. */}
       <div className="card-glass" style={styles.headerCard}>
+        <div className="exp-cabecera-arriba">
         <div style={styles.headerLayout}>
           <div style={styles.avatar}>
             {patient.first_name.charAt(0)}{patient.last_name.charAt(0)}
@@ -795,45 +801,41 @@ export default function PatientDetailsClient({
                 </span>
               )}
             </div>
-            
-            <p style={{ ...styles.demographicsSub, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+
+            <p className="exp-demografia" style={styles.demographicsSub}>
               {patient.dob_status === 'unknown' ? (
                 <span style={{ color: '#b45309', fontWeight: 700 }}>⚠️ Fecha de nacimiento por confirmar</span>
               ) : (
-                <>{calculateAge(patient.birth_date)} años{patient.dob_status === 'estimated' ? ' (estimada)' : ''} • Nacido el {patient.birth_date ? parseLocalDate(patient.birth_date).toLocaleDateString('es-HN') : '—'}</>
-              )} •
-              Género:
-              <select
-                value={patient.gender || ''}
-                disabled={isUpdatingGender}
-                onChange={(e) => {
-                  startGenderTransition(async () => {
-                    await updatePatientGender(patient.id, e.target.value)
-                  })
-                }}
-                style={{
-                  appearance: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
-                  color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
-                  border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
-                  borderRadius: '999px',
-                  padding: '0.2rem 0.75rem',
-                  fontSize: '0.8rem',
-                  fontWeight: '700',
-                  letterSpacing: '0.02em',
-                  outline: 'none',
-                  opacity: isUpdatingGender ? 0.6 : 1
-                }}
-              >
-                <option value="">Sin especificar</option>
-                <option value="M">Masculino</option>
-                <option value="F">Femenino</option>
-                {patient.gender === 'O' && <option value="O">Otro</option>}
-              </select>
+                <>
+                  <span>{calculateAge(patient.birth_date)} años{patient.dob_status === 'estimated' ? ' (estimada)' : ''}</span>
+                  <span aria-hidden="true">•</span>
+                  <span>Nacimiento: {patient.birth_date ? parseLocalDate(patient.birth_date).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+                </>
+              )}
+              <span aria-hidden="true">•</span>
+              {/* El género se corrige aquí mismo; se ve como texto. */}
+              <label className="nc-genero">
+                <span className="sr-only">Género</span>
+                <select
+                  value={patient.gender || ''}
+                  disabled={isUpdatingGender}
+                  onChange={(e) => {
+                    startGenderTransition(async () => {
+                      await updatePatientGender(patient.id, e.target.value)
+                    })
+                  }}
+                  style={{ opacity: isUpdatingGender ? 0.6 : 1 }}
+                >
+                  <option value="">Sin especificar</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                  {patient.gender === 'O' && <option value="O">Otro</option>}
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </label>
             </p>
 
-            <div style={styles.contactRow}>
+            <div className="exp-contacto" style={styles.contactRow}>
               <span style={styles.contactItem}>
                 <Phone size={14} />
                 <span>{patient.phone ? patient.phone : <em style={{ color: 'var(--text-muted)' }}>Sin teléfono</em>}</span>
@@ -856,113 +858,76 @@ export default function PatientDetailsClient({
               ) : null}
             </div>
           </div>
+        </div>
 
-          </div>
-
-          {/* Acciones del expediente: fila propia (debajo de los datos) para que el nombre quepa en
-              una sola línea. En móvil (.action-row ≤480px) los botones se apilan a todo el ancho. */}
-          <div className="action-row" style={{ ...styles.headerActions, marginTop: '1.25rem' }}>
-            <button className="btn btn-secondary" style={{ gap: '0.4rem' }} onClick={() => setIsEditing(!isEditing)}>
-              <Edit size={16} />
-              {isEditing ? 'Cancelar' : 'Editar Paciente'}
+          {/* Acciones principales a la derecha */}
+          <div className="exp-acciones-principales action-row">
+            {canClinical && (
+              <a href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary exp-accion">
+                <Plus size={18} />
+                Nueva consulta
+              </a>
+            )}
+            <button type="button" className="btn btn-secondary exp-accion" onClick={() => setIsEditing(!isEditing)}>
+              <Edit size={18} />
+              {isEditing ? 'Cancelar' : 'Editar paciente'}
             </button>
+          </div>
+        </div>
+
+        <div className="exp-cabecera-abajo">
+          <div className="exp-acciones action-row">
             {canTakeVitals && (
               <button
                 type="button"
                 onClick={() => setShowVitalsModal(true)}
-                className="btn btn-secondary"
-                style={{ gap: '0.4rem' }}
+                className="btn btn-secondary exp-accion"
                 title="Tomar signos vitales (pre-clínica)"
               >
-                <Stethoscope size={16} />
-                Tomar Signos
-              </button>
-            )}
-            <button onClick={printMedicalRecord} className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none' }}>
-              <Printer size={16} />
-              Imprimir Ficha
-            </button>
-            {prescriptions.length > 0 && (
-              <a href={`/prescriptions/${prescriptions[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última receta emitida">
-                <Printer size={16} />
-                Última Receta
-              </a>
-            )}
-            {labOrders.length > 0 && (
-              <a href={`/lab-orders/${labOrders[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última orden de laboratorio">
-                <Printer size={16} />
-                Última Orden de Lab
-              </a>
-            )}
-            {studyRequests.length > 0 && (
-              <a href={`/study-requests/${studyRequests[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última solicitud de estudios">
-                <Printer size={16} />
-                Última Solicitud de Estudio
-              </a>
-            )}
-            {medicalLeaves.length > 0 && (
-              <a href={`/consultations/${medicalLeaves[0].id}/print`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ gap: '0.4rem', backgroundColor: '#e2e8f0', color: '#0f172a', border: 'none', textDecoration: 'none' }} title="Imprimir la última incapacidad médica">
-                <Printer size={16} />
-                Última Incapacidad
-              </a>
-            )}
-            {canClinical && lastConsult && (
-              <button
-                type="button"
-                onClick={() => setShowLeaveModal(true)}
-                className="btn"
-                style={{
-                  gap: '0.4rem',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  boxShadow: '0 4px 10px rgba(37, 99, 235, 0.3)',
-                }}
-                title="Emitir una incapacidad sobre la última consulta"
-              >
-                <Plus size={16} />
-                <FileText size={16} />
-                Nueva Incapacidad
+                <Stethoscope size={18} />
+                Tomar signos
               </button>
             )}
             {canClinical && lastConsult && (
               <button
                 type="button"
                 onClick={() => setShowPrescriptionModal(true)}
-                className="btn"
-                style={{
-                  gap: '0.4rem',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  boxShadow: '0 4px 10px rgba(124, 58, 237, 0.3)',
-                }}
+                className="btn btn-secondary exp-accion"
                 title="Emitir una receta sobre la última consulta"
               >
-                <Plus size={16} />
-                <Pill size={16} />
-                Nueva Receta
+                <Pill size={18} />
+                Nueva receta
               </button>
             )}
-            {canClinical && (
-              <a
-                href={`/dashboard/consultations/new?patientId=${patient.id}`}
-                className="btn btn-primary"
-                style={{ gap: '0.4rem' }}
+            {canClinical && lastConsult && (
+              <button
+                type="button"
+                onClick={() => setShowLeaveModal(true)}
+                className="btn btn-secondary exp-accion"
+                title="Emitir una incapacidad sobre la última consulta"
               >
-                <Plus size={16} />
-                Nueva Consulta
-              </a>
+                <FileText size={18} />
+                Nueva incapacidad
+              </button>
             )}
+            <DocumentosMenu
+              onImprimirFicha={printMedicalRecord}
+              enlaces={[
+                ...(prescriptions.length > 0 ? [{ etiqueta: 'Última receta', href: `/prescriptions/${prescriptions[0].id}/print`, titulo: 'Imprimir la última receta emitida' }] : []),
+                ...(labOrders.length > 0 ? [{ etiqueta: 'Última orden de laboratorio', href: `/lab-orders/${labOrders[0].id}/print`, titulo: 'Imprimir la última orden de laboratorio' }] : []),
+                ...(studyRequests.length > 0 ? [{ etiqueta: 'Última solicitud de estudios', href: `/study-requests/${studyRequests[0].id}/print`, titulo: 'Imprimir la última solicitud de estudios' }] : []),
+                ...(medicalLeaves.length > 0 ? [{ etiqueta: 'Última incapacidad', href: `/consultations/${medicalLeaves[0].id}/print`, titulo: 'Imprimir la última incapacidad médica' }] : []),
+              ]}
+            />
           </div>
 
-        {/* Critical Allergies Ribbon */}
-        <div style={styles.allergiesRibbon}>
-          <AlertCircle size={16} color="#ef4444" />
-          <span style={styles.allergiesLabel}>Alergias:</span>
-          <span style={styles.allergiesValue}>{antecedenteParaMostrar(patient.allergies_status, patient.allergies)}</span>
+          {/* Alergias: verde si niega, rojo si refiere, gris si falta registrarlas */}
+          <div className={`exp-alergias exp-alergias--${alergiasEstado}`}>
+            {alergiasEstado === 'niega' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span className="exp-alergias-etiqueta">Alergias:</span>
+            <span className="exp-alergias-valor">{antecedenteParaMostrar(patient.allergies_status, patient.allergies)}</span>
+          </div>
         </div>
-
       </div>
 
       {/* Edit Mode Panel */}
@@ -1192,8 +1157,8 @@ export default function PatientDetailsClient({
                     return (
                       <div key={consult.id} style={styles.timelineItem}>
                         <div style={styles.timelineBadge}></div>
-                        <div 
-                          className="card" 
+                        <div
+                          className="card consulta-tarjeta"
                           style={{
                             ...styles.timelineCard,
                             cursor: 'pointer',
@@ -1219,7 +1184,6 @@ export default function PatientDetailsClient({
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                             </div>
-                            <ConsultVitalsChips consult={consult} />
                           </div>
 
                           {isExpanded && (
@@ -1304,6 +1268,9 @@ export default function PatientDetailsClient({
                                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.treatment_plan}</p>
                                 </div>
                               </div>
+
+                              {/* Signos tomados en esta consulta */}
+                              <SignosConsultaDetalle consult={consult} pediatrico={!!patient.is_pediatric} />
 
                               {/* Medicamentos recetados en esta consulta */}
                               {consult.prescriptions && consult.prescriptions.length > 0 && (
@@ -1645,6 +1612,9 @@ export default function PatientDetailsClient({
                           </div>
                         </div>
 
+                        {leavePeriodText(m.leave_start_date, m.leave_days) && (
+                          <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{leavePeriodText(m.leave_start_date, m.leave_days)}</p>
+                        )}
                         {m.medical_leave && (
                           <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'pre-line', lineHeight: 1.5 }}>{m.medical_leave}</p>
                         )}
@@ -1722,6 +1692,9 @@ export default function PatientDetailsClient({
                           </div>
                         </div>
 
+                        {r.referral_to && (
+                          <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>Dirigido a: {r.referral_to}</p>
+                        )}
                         {r.referral && (
                           <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--text-main)', whiteSpace: 'pre-line', lineHeight: 1.5 }}>{r.referral}</p>
                         )}
@@ -1885,28 +1858,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.4rem',
-  },
-  headerActions: {
-    display: 'flex',
-    gap: '0.75rem',
-    flexWrap: 'wrap',
-  },
-  allergiesRibbon: {
-    marginTop: '1.5rem',
-    paddingTop: '1.25rem',
-    borderTop: '1px solid var(--border-color)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '0.875rem',
-  },
-  allergiesLabel: {
-    fontWeight: '700',
-    color: '#f87171',
-  },
-  allergiesValue: {
-    color: 'var(--text-main)',
-    fontWeight: '600',
   },
   editCard: {
     padding: '2rem',

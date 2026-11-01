@@ -1,4 +1,5 @@
 import React from 'react'
+import { leavePeriodText } from '@/utils/incapacidad'
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList, FlaskConical } from 'lucide-react'
 import { formatDateHN } from '@/utils/datetime'
@@ -17,7 +18,10 @@ interface VerifiableDoc {
   medicines?: Medicine[] | null
   notes?: string | null
   medical_leave?: string | null
+  leave_start_date?: string | null
+  leave_days?: number | null
   referral?: string | null
+  referral_to?: string | null
   reason_for_visit?: string | null
   tests?: { category: string; name: string }[] | null
   other_tests?: string | null
@@ -60,7 +64,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     const { data } = await supabaseAdmin
       .from('consultations')
       .select(`
-        id, created_at, medical_leave, referral, reason_for_visit, verification_code,
+        id, created_at, medical_leave, leave_start_date, leave_days, referral, referral_to, reason_for_visit, verification_code,
         clinics ( name ),
         patients ( first_name, last_name ),
         user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
@@ -191,6 +195,9 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     <ClipboardList size={20} color="#0d9488" /> Referencia Médica
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
+                    {leave?.referral_to && (
+                      <p style={{ margin: '0 0 0.75rem' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Dirigido a:</strong> {leave.referral_to}</p>
+                    )}
                     {leave?.reason_for_visit && (
                       <p style={{ margin: '0 0 0.75rem' }}><strong style={{ color: '#64748b', fontWeight: 600 }}>Motivo de consulta:</strong> {leave?.reason_for_visit}</p>
                     )}
@@ -205,6 +212,9 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     <ClipboardList size={20} color="#0d9488" /> Incapacidad Médica
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '1rem', color: '#0f172a' }}>
+                    {leavePeriodText(leave?.leave_start_date, leave?.leave_days) && (
+                      <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>{leavePeriodText(leave?.leave_start_date, leave?.leave_days)}</p>
+                    )}
                     {leave?.medical_leave && String(leave?.medical_leave).trim() !== ''
                       ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{leave?.medical_leave}</p>
                       : <p style={{ margin: 0, color: '#64748b' }}>Constancia de consulta médica.</p>}

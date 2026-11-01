@@ -80,7 +80,12 @@ export interface ConsultationRow {
   diagnosis?: string | null
   treatment_plan?: string | null
   medical_leave?: string | null
+  leave_start_date?: string | null
+  leave_days?: number | null
+  leave_diagnosis?: string | null
+  leave_issued_at?: string | null
   referral?: string | null
+  referral_to?: string | null
   verification_code?: string | null
   created_at: string
   user_profiles?: DoctorRef | null
@@ -197,6 +202,8 @@ export interface MedicalLeaveRow {
   created_at: string
   verification_code?: string | null
   medical_leave?: string | null
+  leave_start_date?: string | null
+  leave_days?: number | null
   user_profiles?: DoctorRef | null
 }
 
@@ -206,5 +213,6 @@ export interface ReferralRow {
   created_at: string
   verification_code?: string | null
   referral?: string | null
+  referral_to?: string | null
   user_profiles?: DoctorRef | null
 }

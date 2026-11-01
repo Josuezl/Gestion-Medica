@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useFiltroGuardado } from '@/utils/useFiltroGuardado'
 import { updateAppointmentStatus, deleteAppointment, getPatientAppointmentHistory, getAppointmentsForRange, getAppointmentById } from './actions'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import type { actualizarCita, crearCita } from '@/utils/guardado/cita'
@@ -153,7 +154,12 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
   // ve la de todos. Solo el clínico inicia consultas; el clínico y la enfermera toman signos.
   const isClinician = canDoClinical(currentDoctor.role)
   const canTakeVitals = canEnterVitals(currentDoctor.role)
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string>(isClinician ? currentDoctor.id : 'all')
+  // El doctor elegido se recuerda al ir y volver (abrir una cita, una consulta): cambia solo a mano.
+  const [selectedDoctorId, setSelectedDoctorId] = useFiltroGuardado(
+    `agenda-doctor:${currentDoctor.id}`,
+    isClinician ? currentDoctor.id : 'all',
+    (v) => (v === 'all' ? !isClinician : doctors.some((d) => d.id === v)),
+  )
   // Pacientes con pre-clínica pendiente de hoy (badge "Signos listos") y paciente del modal de signos.
   const router = useRouter()
   // Los ids del servidor son la foto al cargar; Realtime los corrige en vivo (true = signos
@@ -1352,11 +1358,16 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
                 style={{ 
                   display: 'inline-flex', 
                   alignItems: 'center', 
-                  justifyContent: 'center', 
+                  justifyContent: 'center',
+                  gap: '0.5rem',
                   backgroundColor: '#0d9488',
                   color: '#ffffff',
                   border: 'none',
-                  padding: '0 1rem',
+                  padding: '0 1.1rem',
+                  fontFamily: 'inherit',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
                   cursor: 'pointer',
                   transition: 'opacity 0.2s'
                 }}
@@ -1365,7 +1376,8 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
                 onClick={() => handleOpenForm(selectedDate, undefined, undefined)}
                 title="Nueva Cita"
               >
-                <Plus size={20} strokeWidth={3} />
+                <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
+                Nueva cita
               </button>
             </div>
           </div>

@@ -20,9 +20,11 @@ test('la impresión del expediente muestra el HTML como texto y no lo ejecuta', 
   }
 
   await page.goto(`/dashboard/patients/${paciente.id}`)
+  // «Imprimir ficha» vive en el menú «Documentos» del encabezado.
+  await page.getByRole('button', { name: /Documentos/ }).click()
   const [impresion] = await Promise.all([
     page.context().waitForEvent('page'),
-    page.getByRole('button', { name: /Imprimir Ficha/ }).click(),
+    page.getByRole('menuitem', { name: /Imprimir ficha/ }).click(),
   ])
   await impresion.waitForLoadState()
 

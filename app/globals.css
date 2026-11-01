@@ -2366,3 +2366,159 @@ h1, h2, h3, h4, h5, h6 {
   background: none; border: 1px solid #99f6e4; color: #0f766e; border-radius: 6px;
   padding: 0.15rem 0.6rem; font-family: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer;
 }
+
+/* Incapacidad y referencia: dos paneles con interruptor «Incluir» (apagados por defecto). */
+/* Apilados: lado a lado el panel quedaba angosto y las tres cajas de fechas no cabían. */
+.inc-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.inc-panel { min-width: 0; padding: 0.9rem 1.1rem 1.1rem; border: 1px solid #e2e8f0; border-radius: var(--radius-md); background: #f8fafc; }
+.inc-panel-cabecera { display: flex; align-items: center; gap: 0.75rem; }
+.inc-panel-icono { display: inline-flex; color: var(--primary); }
+.inc-panel-titulo { flex: 1; font-size: 1rem; font-weight: 700; color: #0f172a; }
+.inc-panel-cuerpo { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+.inc-panel-cuerpo .form-group { margin-bottom: 0.4rem; }
+.inc-panel-cuerpo textarea { min-height: 110px; resize: vertical; }
+/* Las tres cajas en la misma línea: etiquetas sin partirse y cajas alineadas abajo. */
+.inc-fechas { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+.inc-calculada { white-space: nowrap; }
+.inc-fechas .form-group { margin-bottom: 0; display: flex; flex-direction: column; }
+.inc-fechas .form-label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+/* Misma altura para las tres cajas (el selector de fecha del navegador es más alto que un input normal). */
+.inc-fechas .form-input { height: 44px; margin: 0; padding-top: 0; padding-bottom: 0; }
+.inc-resumen { margin: 0.6rem 0 0.85rem; padding: 0.55rem 0.75rem; border-radius: 8px; background: #e6f6f3; color: #0f172a; font-size: 0.85rem; }
+.inc-dx-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 480px) { .inc-fechas { grid-template-columns: minmax(0, 1fr); } }
+.inc-calculada { background: #f1f5f9; color: #0f172a; display: flex; align-items: center; font-variant-numeric: tabular-nums; }
+.inc-ayuda { margin: 0 0 0.85rem; font-size: 0.78rem; }
+.inc-switch { display: inline-flex; align-items: center; gap: 0.6rem; font-size: 0.88rem; color: #334155; cursor: pointer; position: relative; }
+.inc-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.inc-switch-pista { width: 44px; height: 24px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background 0.15s; flex-shrink: 0; }
+.inc-switch-pista::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2); transition: transform 0.15s; }
+.inc-switch input:checked + .inc-switch-pista { background: var(--primary); }
+.inc-switch input:checked + .inc-switch-pista::after { transform: translateX(20px); }
+.inc-switch input:focus-visible + .inc-switch-pista { outline: 2px solid var(--primary); outline-offset: 2px; }
+.ant-texto textarea { min-height: 70px; }
+/* La regla `.nota-clinica-cabecera > div` estira los hijos: el extremo derecho no debe crecer. */
+.nota-clinica-cabecera > .nota-clinica-extremo { flex: 0 0 auto; align-items: flex-end; gap: 0.4rem; }
+.nota-clinica-accion {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; border: 1px solid #99f6e4;
+  border-radius: 8px; background: #ffffff; color: #0f766e; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.nota-clinica-accion:hover { background: #f0fdfa; }
+.nota-clinica-accion:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Histórico de exámenes (modal) */
+.hx-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
+.hx-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; border: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15); padding: 24px; }
+.hx-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.hx-cabecera h3 { margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 700; color: #0f172a; }
+.hx-cerrar { background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; }
+.hx-vacio { margin: 0; color: #64748b; font-size: 0.9rem; }
+.hx-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.hx-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.8rem 1rem; background: #f8fafc; }
+.hx-item-cabecera { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.4rem; font-size: 0.85rem; color: #64748b; }
+.hx-item-cabecera strong { color: #0f766e; text-transform: capitalize; }
+.hx-item p { margin: 0; font-size: 0.9rem; color: #0f172a; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Nueva consulta: tarjeta del paciente bajo el título */
+.nc-paciente { display: flex; align-items: center; gap: 1.25rem; }
+.nc-avatar {
+  width: 64px; height: 64px; border-radius: 14px; background: #e6f6f3; color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; flex-shrink: 0;
+}
+.nc-paciente-datos { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.nc-nombre { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: 1.3rem; font-weight: 700; color: #0f172a; overflow-wrap: anywhere; }
+.nc-pediatrico { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; border-radius: 999px; padding: 0.15rem 0.65rem; font-size: 0.75rem; font-weight: 700; }
+.nc-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #64748b; }
+.nc-genero { position: relative; display: inline-flex; align-items: center; gap: 0.15rem; color: #64748b; }
+.nc-genero select {
+  appearance: none; border: none; background: transparent; color: inherit; font: inherit; padding: 0 0.1rem;
+  cursor: pointer; border-radius: 4px;
+}
+.nc-genero select:hover { color: #0f172a; }
+.nc-genero select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* La flecha va ENCIMA del selector (sin recibir clics): así el clic en ella abre la lista. */
+.nc-genero select { padding-right: 1.15rem; }
+.nc-genero svg { position: absolute; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+@media (max-width: 480px) {
+  .nc-avatar { width: 48px; height: 48px; font-size: 1.1rem; }
+  .nc-nombre { font-size: 1.1rem; }
+}
+
+/* Receta: enlaces a farmacias sobre la última receta */
+.receta-lado { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.farmacias { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-height: 32px; }
+.farmacias-titulo { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 700; color: #0f172a; margin-right: 0.25rem; }
+.farmacias-titulo svg { color: var(--primary); }
+.farmacia-enlace {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.9rem; border: 1px solid #0f766e; border-radius: 8px;
+  color: #0f766e; background: #fff; font-size: 0.85rem; font-weight: 600; text-decoration: none;
+}
+.farmacia-enlace:hover { background: #f0fdfa; }
+.farmacia-enlace:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.receta-lado > .dx-ref { flex: 1; }
+
+/* Expediente: signos de una consulta (solo lectura) con sus históricos a la par */
+.vs-detalle { display: flex; flex-direction: column; gap: 0.6rem; }
+.vs-detalle-titulo { margin: 0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+.vs-detalle-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 1rem; align-items: stretch; }
+@media (max-width: 900px) { .vs-detalle-grid { grid-template-columns: minmax(0, 1fr); } }
+.vs-detalle .bp-field { margin: 0; }
+.vs-dato { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.vs-dato-etiqueta { font-size: 0.78rem; color: #64748b; }
+.vs-dato strong { font-size: 0.95rem; color: #0f172a; }
+.vs-dato-unidad { font-size: 0.78rem; font-weight: 500; color: #64748b; }
+.vs-pa--normal { color: #15803d !important; }
+.vs-pa--elevada { color: #b45309 !important; }
+.vs-pa--alta { color: #b91c1c !important; }
+
+/* Expediente: encabezado (datos + acciones principales | acciones, documentos y alergias) */
+.exp-cabecera-arriba { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+.exp-cabecera-arriba > :first-child { flex: 1 1 420px; min-width: 0; }
+.exp-acciones-principales { display: flex; flex-direction: column; gap: 0.75rem; width: 220px; }
+.exp-acciones-principales .exp-accion { width: 100%; justify-content: center; }
+.exp-demografia { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.exp-contacto > * + *::before { content: ''; width: 1px; height: 1rem; background: #cbd5e1; margin-right: 1.1rem; }
+.exp-contacto > * { gap: 0.4rem; }
+.exp-cabecera-abajo {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);
+}
+.exp-acciones { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.exp-accion { gap: 0.5rem; text-decoration: none; }
+.exp-alergias { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.9rem; }
+.exp-alergias-etiqueta { color: #64748b; }
+.exp-alergias-valor { color: #0f172a; font-weight: 700; }
+.exp-alergias--niega svg { color: var(--primary); }
+.exp-alergias--refiere { background: #fef2f2; border-color: #fecaca; }
+.exp-alergias--refiere svg, .exp-alergias--refiere .exp-alergias-etiqueta { color: #b91c1c; }
+.exp-alergias--sin_registrar svg { color: #b45309; }
+@media (max-width: 760px) {
+  .exp-acciones-principales { width: 100%; }
+  .exp-alergias { width: 100%; }
+}
+
+.docs-menu { position: relative; }
+.docs-menu-chevron { margin-left: 0.25rem; }
+.docs-menu-lista {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 240px; padding: 0.35rem;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+  display: flex; flex-direction: column;
+}
+.docs-menu-lista > a, .docs-menu-lista > button {
+  display: block; width: 100%; text-align: left; padding: 0.6rem 0.75rem; border: none; background: none; border-radius: 6px;
+  font-family: inherit; font-size: 0.9rem; color: #0f172a; text-decoration: none; cursor: pointer;
+}
+.docs-menu-lista > a:hover, .docs-menu-lista > button:hover, .docs-menu-lista > a:focus-visible, .docs-menu-lista > button:focus-visible { background: #f0fdfa; outline: none; }
+/* Ajustes tras revisar capturas */
+.nc-genero select { field-sizing: content; }
+.exp-alergias { margin-left: auto; }
+.farmacias { gap: 0.4rem; }
+.farmacias-titulo { font-size: 0.85rem; margin-right: 0.15rem; }
+.farmacia-enlace { gap: 0.35rem; padding: 0.25rem 0.65rem; font-size: 0.8rem; }
+@media (max-width: 480px) {
+  .exp-acciones > *, .exp-acciones .docs-menu > .btn { width: 100%; justify-content: center; }
+  .docs-menu-lista { right: 0; }
+}
+.vs-detalle-grid > :first-child .vs-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }

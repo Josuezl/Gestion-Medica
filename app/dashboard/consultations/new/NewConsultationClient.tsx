@@ -7,7 +7,6 @@ import { agregarParametros } from '@/utils/camposGuardado'
 import { updatePatientGender } from '../../patients/actions'
 import {
   Heart,
-  Activity,
   Stethoscope,
   Clipboard,
   Pill,
@@ -17,7 +16,13 @@ import {
   Printer,
   FlaskConical,
   FileText,
-  ClipboardList
+  ClipboardList,
+  CalendarDays,
+  FileOutput,
+  History,
+  Store,
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react'
 import PatientHistoryTabs from '../../components/PatientHistoryTabs'
 import { calculateAge } from '@/utils/age'
@@ -38,7 +43,10 @@ import VitalsHistoryTable from '../../components/VitalsHistoryTable'
 import { vitalsHistory } from '@/utils/historialSignos'
 import AntecedentesEditor from '../../components/AntecedentesEditor'
 import NotaClinica from '../../components/NotaClinica'
-import { autoCrecer } from '@/utils/autoCrecer'
+import { autoCrecer, ajustarAutoCrece } from '@/utils/autoCrecer'
+import HistorialExamenesModal from './HistorialExamenesModal'
+import { CamposIncapacidad, CamposReferencia, PanelIncluir, type LeaveValue, type ReferralValue } from '../../components/CamposIncapacidad'
+import { ymdHN } from '@/utils/datetime'
 import { useFormDraft } from '@/utils/useFormDraft'
 import { getPendingPreclinical } from '@/app/dashboard/preclinical/actions'
 import { useRealtimePreclinical, type PreclinicalEventRow } from '@/utils/useRealtimePreclinical'
@@ -80,10 +88,50 @@ interface NewConsultationClientProps {
 const SAVE_TIMEOUT_MS = 15_000
 const SLOW_SAVE_HINT_MS = 5_000
 
+// Enlaces a farmacias de Honduras junto a la receta (consulta de existencias y precios).
+const FARMACIAS = [
+  { nombre: 'Del Ahorro', url: 'https://www.farmaciasdelahorro.hn/' },
+  { nombre: 'Simán', url: 'https://www.farmaciasiman.com/' },
+  { nombre: 'Kielsa', url: 'https://kielsa.com/' },
+]
+
+const LEAVE_VACIA: LeaveValue = { start: '', days: '', diagnosis: '', reason: '' }
+const REFERRAL_VACIA: ReferralValue = { to: '', reason: '' }
+
+/**
+ * En escritorio la farmacia se abre en una ventana aparte, al costado, para ver la consulta y la
+ * farmacia a la vez (no en un modal: Simán prohíbe mostrarse dentro de otra página). Se corta el
+ * vínculo con la consulta (`opener`) para que la página externa no pueda redirigirla; por eso cada
+ * clic abre su propia ventana (el navegador no deja reutilizarla sin ese vínculo). En teléfono, o si
+ * el navegador bloquea la ventana, sigue el enlace normal (pestaña nueva).
+ */
+function abrirFarmacia(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
+  if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return // el médico pidió pestaña/ventana a su manera
+  if (!window.matchMedia('(min-width: 1000px) and (pointer: fine)').matches) return
+  const ancho = Math.min(1000, window.screen.availWidth)
+  const alto = Math.min(800, window.screen.availHeight)
+  const izquierda = window.screenX + window.outerWidth - ancho
+  const arriba = window.screenY + 60
+  // En blanco primero (mismo origen) para poder cortar `opener` y saber si el navegador la bloqueó.
+  const ventana = window.open('', '_blank', `popup,width=${ancho},height=${alto},left=${izquierda},top=${arriba}`)
+  if (!ventana) return // ventana bloqueada: el enlace abre la pestaña de siempre
+  e.preventDefault()
+  ventana.opener = null
+  ventana.location.href = url
+}
+
 // Campos que se restauran vía estado de React (controlados u ocultos); el resto se escribe
 // directo en los inputs no controlados del formulario por su atributo name.
 const DRAFT_STATE_FIELDS = new Set([
   'medicines_text',
+  'include_medical_leave',
+  'include_referral',
+  'leave_start_date',
+  'leave_days',
+  'leave_diagnosis',
+  'medical_leave',
+  'referral_to',
+  'referral',
   'include_diagnosis',
   'prescription_notes',
   'diagnosis',
@@ -153,6 +201,12 @@ export default function NewConsultationClient({
   const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
   const [diagnosisText, setDiagnosisText] = useState('')
   const [treatmentText, setTreatmentText] = useState('')
+  // Incapacidad y referencia: apagadas por defecto; apagadas no viajan en el formulario.
+  const [includeLeave, setIncludeLeave] = useState(false)
+  const [leave, setLeave] = useState<LeaveValue>(LEAVE_VACIA)
+  const [includeReferral, setIncludeReferral] = useState(false)
+  const [referralValue, setReferralValue] = useState<ReferralValue>(REFERRAL_VACIA)
+  const [showExamHistory, setShowExamHistory] = useState(false)
 
   const formRef = useRef<HTMLFormElement | null>(null)
   const errorRef = useRef<HTMLDivElement | null>(null)
@@ -166,6 +220,8 @@ export default function NewConsultationClient({
     const fields = form ? formDataToFields(new FormData(form)) : {}
     fields.medicines_text = medicinesText
     fields.include_diagnosis = includeDiagnosis ? 'on' : ''
+    fields.include_medical_leave = includeLeave ? 'on' : ''
+    fields.include_referral = includeReferral ? 'on' : ''
     return fields
   }
 
@@ -280,7 +336,10 @@ export default function NewConsultationClient({
       return
     }
     scheduleSave()
-  }, [medicinesText, prescriptionNotes, includeDiagnosis, diagnosisText, treatmentText, labOrder, studyRequest, scheduleSave])
+  }, [medicinesText, prescriptionNotes, includeDiagnosis, diagnosisText, treatmentText, labOrder, studyRequest, includeLeave, leave, includeReferral, referralValue, scheduleSave])
+
+  // Al abrir, los cuadros con texto ya escrito (antecedentes, borrador) toman su tamaño.
+  useEffect(() => { ajustarAutoCrece(formRef.current) }, [])
 
   // El error puede aparecer lejos del botón Guardar (el alert vive arriba del formulario):
   // llevarlo a la vista para que el médico sí lo vea. Aplica igual a la guía de reintento.
@@ -309,6 +368,11 @@ export default function NewConsultationClient({
     setMedicinesText(fields.medicines_text ?? '')
     setPrescriptionNotes(fields.prescription_notes ?? '')
     setIncludeDiagnosis(fields.include_diagnosis === 'on')
+    // Un borrador de antes de los interruptores trae solo el texto: si hay texto, se enciende.
+    setIncludeLeave(fields.include_medical_leave === 'on' || !!fields.medical_leave?.trim())
+    setLeave({ start: fields.leave_start_date ?? '', days: fields.leave_days ?? '', diagnosis: fields.leave_diagnosis ?? '', reason: fields.medical_leave ?? '' })
+    setIncludeReferral(fields.include_referral === 'on' || !!fields.referral?.trim())
+    setReferralValue({ to: fields.referral_to ?? '', reason: fields.referral ?? '' })
     try {
       if (fields.lab_order) {
         const parsed = JSON.parse(fields.lab_order) as { tests?: { category: string; name: string }[]; otherTests?: string }
@@ -337,6 +401,8 @@ export default function NewConsultationClient({
       }
     }
     resolvePendingDraft()
+    // Los cuadros controlados se pintan en el próximo render: ajustar después.
+    setTimeout(() => ajustarAutoCrece(formRef.current), 0)
   }
 
   // Cargar los medicamentos (y notas) de la última receta del paciente al textarea.
@@ -461,6 +527,10 @@ export default function NewConsultationClient({
       {/* Pregunta de resumen del historial (solo si el paciente ya tiene consultas previas) */}
       <HistorySummaryModals patient={patient} consultations={consultations} />
 
+      {showExamHistory && (
+        <HistorialExamenesModal consultations={consultations} onClose={() => setShowExamHistory(false)} />
+      )}
+
       {/* Modal de orden de laboratorio */}
       {showLabModal && (
         <LabOrderModal
@@ -560,82 +630,45 @@ export default function NewConsultationClient({
         </div>
       )}
 
-      {/* Header */}
+      {/* Encabezado: volver, título y tarjeta del paciente */}
       <div style={styles.headerRow}>
         <Link href={`/dashboard/patients/${patient.id}`} style={styles.backLink}>
           <ChevronLeft size={16} />
-          Volver al Expediente del Paciente
+          Volver al expediente
         </Link>
-        <h2 style={styles.title}>Nueva Consulta Clínica</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <p style={{ ...styles.subtitle, fontSize: '1.1rem', margin: 0 }}>
-            Paciente: <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{patient.first_name} {patient.last_name}</strong>
-          </p>
-          {patient.is_pediatric && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-              backgroundColor: '#dcfce7',
-              color: '#166534',
-              border: '1px solid #bbf7d0',
-              borderRadius: '999px',
-              padding: '0.2rem 0.75rem',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              letterSpacing: '0.02em',
-              whiteSpace: 'nowrap',
-            }}>
-              Pediátrico
-            </span>
-          )}
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            backgroundColor: '#e2e8f0',
-            color: '#334155',
-            border: '1px solid #cbd5e1',
-            borderRadius: '999px',
-            padding: '0.2rem 0.75rem',
-            fontSize: '0.8rem',
-            fontWeight: '700',
-            letterSpacing: '0.02em',
-            whiteSpace: 'nowrap',
-          }}>
-            {patientAge} años
-          </span>
+        <h2 style={styles.title}>Nueva consulta clínica</h2>
+      </div>
+      <div className="card nc-paciente">
+        <div className="nc-avatar" aria-hidden="true">
+          {patient.first_name.charAt(0)}{patient.last_name.charAt(0)}
+        </div>
+        <div className="nc-paciente-datos">
+          <div className="nc-nombre">
+            {patient.first_name} {patient.last_name}
+            {patient.is_pediatric && <span className="nc-pediatrico">Pediátrico</span>}
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)' }}>Género:</span>
-            <select
-              value={patient.gender || 'O'}
-              disabled={isUpdatingGender}
-              onChange={(e) => {
-                startGenderTransition(async () => {
-                  await updatePatientGender(patient.id, e.target.value)
-                })
-              }}
-              style={{
-                appearance: 'none',
-                cursor: 'pointer',
-                backgroundColor: patient.gender === 'F' ? '#fdf2f8' : patient.gender === 'M' ? '#eff6ff' : '#f8fafc',
-                color: patient.gender === 'F' ? '#be185d' : patient.gender === 'M' ? '#1d4ed8' : '#475569',
-                border: `1px solid ${patient.gender === 'F' ? '#fbcfe8' : patient.gender === 'M' ? '#bfdbfe' : '#e2e8f0'}`,
-                borderRadius: '999px',
-                padding: '0.2rem 0.75rem',
-                fontSize: '0.8rem',
-                fontWeight: '700',
-                letterSpacing: '0.02em',
-                outline: 'none',
-                opacity: isUpdatingGender ? 0.6 : 1
-              }}
-            >
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
-              <option value="O">Otro</option>
-            </select>
+          <div className="nc-meta">
+            <span>{patientAge} años</span>
+            <span aria-hidden="true">·</span>
+            {/* El género se sigue pudiendo corregir aquí; se ve como texto. */}
+            <label className="nc-genero">
+              <span className="sr-only">Género</span>
+              <select
+                value={patient.gender || 'O'}
+                disabled={isUpdatingGender}
+                onChange={(e) => {
+                  startGenderTransition(async () => {
+                    await updatePatientGender(patient.id, e.target.value)
+                  })
+                }}
+                style={{ opacity: isUpdatingGender ? 0.6 : 1 }}
+              >
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
           </div>
         </div>
       </div>
@@ -834,6 +867,11 @@ export default function NewConsultationClient({
                   descripcion="Laboratorio, imágenes y otros exámenes."
                   placeholder="Anota la fecha, el estudio y los hallazgos relevantes…"
                   icono={<FlaskConical size={22} color="var(--primary)" aria-hidden="true" />}
+                  accion={
+                    <button type="button" className="nota-clinica-accion" onClick={() => setShowExamHistory(true)}>
+                      <History size={14} aria-hidden="true" /> Ver histórico de exámenes
+                    </button>
+                  }
                 />
               </div>
 
@@ -901,6 +939,16 @@ export default function NewConsultationClient({
                     rows={9}
                   />
                 </div>
+                {/* Farmacias a la altura de la etiqueta; la última receta, a la altura del cuadro. */}
+                <div className="receta-lado">
+                <div className="farmacias">
+                  <span className="farmacias-titulo"><Store size={20} aria-hidden="true" /> Farmacias</span>
+                  {FARMACIAS.map((f) => (
+                    <a key={f.nombre} href={f.url} target="_blank" rel="noopener noreferrer" className="farmacia-enlace" onClick={(e) => abrirFarmacia(e, f.url)}>
+                      {f.nombre} <ExternalLink size={14} aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
                 <ReferenciaAnterior
                   titulo="Última receta"
                   fecha={lastPrescription?.created_at}
@@ -910,6 +958,7 @@ export default function NewConsultationClient({
                     : null}
                   onUsar={loadLastPrescription}
                 />
+                </div>
               </div>
               <p style={{ margin: "0.4rem 0 1rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
                 Un medicamento por línea (nombre, dosis, frecuencia, duración). Se numeran solos en la receta.
@@ -996,37 +1045,34 @@ export default function NewConsultationClient({
               </div>
             </div>
 
-            {/* 6. Incapacidad Médica */}
+            {/* 6. Incapacidad y referencia: cada una con su interruptor «Incluir» (apagadas por defecto). */}
             <div className="card" style={{ marginBottom: '1.5rem' }}>
               <h3 style={styles.sectionTitle}>
-                <Activity size={18} color="var(--primary)" />
-                Incapacidad Médica
+                <FileText size={18} color="var(--primary)" />
+                Incapacidad y referencia
               </h3>
-              
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <textarea
-                  className="form-input"
-                  name="medical_leave"
-                  placeholder="Días de incapacidad y motivo (si aplica)..."
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            {/* 7. Referencia Médica (referir a otro médico/hospital) */}
-            <div className="card" style={{ marginBottom: '1.5rem' }}>
-              <h3 style={styles.sectionTitle}>
-                <Activity size={18} color="var(--primary)" />
-                Referencia Médica
-              </h3>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <textarea
-                  className="form-input"
-                  name="referral"
-                  placeholder="Motivo de la referencia y a quién/dónde se refiere (si aplica)..."
-                  rows={3}
-                />
+              <p className="evo-intro">Activa los apartados que apliquen a esta consulta.</p>
+              <div className="inc-grid">
+                <PanelIncluir
+                  icono={<CalendarDays size={22} />}
+                  titulo="Incapacidad médica"
+                  incluido={includeLeave}
+                  onIncluir={(v) => {
+                    setIncludeLeave(v)
+                    // Al encender, la fecha de inicio arranca en hoy (editable).
+                    if (v && !leave.start) setLeave({ ...leave, start: ymdHN(new Date()) })
+                  }}
+                >
+                  <CamposIncapacidad value={leave} onChange={setLeave} diagnosticoConsulta={diagnosisText} />
+                </PanelIncluir>
+                <PanelIncluir
+                  icono={<FileOutput size={22} />}
+                  titulo="Referencia médica"
+                  incluido={includeReferral}
+                  onIncluir={setIncludeReferral}
+                >
+                  <CamposReferencia value={referralValue} onChange={setReferralValue} />
+                </PanelIncluir>
               </div>
             </div>
 
@@ -1108,8 +1154,8 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '0.5rem',
   },
   title: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
+    fontSize: '1.75rem',
+    fontWeight: '800',
   },
   subtitle: {
     fontSize: '0.85rem',

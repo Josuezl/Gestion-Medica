@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { leavePeriodText } from '@/utils/incapacidad'
 import { sendMedicalRecordEmail, sendPrescriptionEmail, sendDocumentLinkEmail } from '@/utils/email'
 import { generatePrescriptionPDF } from '@/utils/pdf-generator'
 import { doctorShortName } from '@/utils/doctorName'
@@ -402,7 +403,12 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
     date: formatDateTimeHN(consultation.created_at),
     verificationCode: consultation.verification_code,
     verifyUrl: `${siteUrl}/consultations/${consultationId}/print?code=${consultation.verification_code}`,
-    summary: [{ label: 'Incapacidad médica', value: consultation.medical_leave }],
+    summary: [
+      ...(leavePeriodText(consultation.leave_start_date, consultation.leave_days)
+        ? [{ label: 'Periodo', value: leavePeriodText(consultation.leave_start_date, consultation.leave_days) as string }]
+        : []),
+      { label: 'Incapacidad médica', value: consultation.medical_leave },
+    ],
   })
 
   if (!result.success) return { error: result.error || 'Error al enviar correo.' }
@@ -461,6 +467,7 @@ export async function sendReferralByEmail(patientId: string, consultationId: str
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
   const summary: { label: string; value: string }[] = []
+  if (consultation.referral_to) summary.push({ label: 'Dirigido a', value: consultation.referral_to })
   if (consultation.reason_for_visit) summary.push({ label: 'Motivo de consulta', value: consultation.reason_for_visit })
   summary.push({ label: 'Motivo de referencia', value: consultation.referral })
 

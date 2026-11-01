@@ -106,7 +106,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   //    (sin diagnóstico/plan), para no exponer datos clínicos en la lista del expediente.
   const { data: medicalLeaves } = await supabase
     .from('consultations')
-    .select('id, created_at, verification_code, medical_leave, user_profiles(first_name, last_name, gender)')
+    .select('id, created_at, verification_code, medical_leave, leave_start_date, leave_days, user_profiles(first_name, last_name, gender)')
     .eq('patient_id', patientId)
     .not('medical_leave', 'is', null)
     .neq('medical_leave', '')
@@ -116,7 +116,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   //    para todos los roles, solo columnas no sensibles.
   const { data: referrals } = await supabase
     .from('consultations')
-    .select('id, created_at, verification_code, referral, user_profiles(first_name, last_name, gender)')
+    .select('id, created_at, verification_code, referral, referral_to, user_profiles(first_name, last_name, gender)')
     .eq('patient_id', patientId)
     .not('referral', 'is', null)
     .neq('referral', '')

@@ -7,6 +7,7 @@ import { generateVerificationCode } from '@/utils/verification-code'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
 import { guardarConsulta } from '@/utils/guardado/consulta'
+import { validateLeave } from '@/utils/incapacidad'
 
 export async function createConsultation(
   patientId: string,
@@ -24,14 +25,23 @@ export async function createConsultation(
  * incapacidad". NO es una edición de consulta: el `.update()` escribe únicamente `medical_leave`,
  * así que síntomas/diagnóstico/plan/vitales quedan intactos. La corrección (si ya había incapacidad)
  * queda auditada con old->new por el trigger `on_consultation_modified`.
+ * `period` (inicio, días y diagnóstico) es opcional: una pestaña abierta antes de este cambio solo manda el texto.
  */
-export async function updateConsultationMedicalLeave(consultationId: string, medicalLeave: string) {
+export async function updateConsultationMedicalLeave(
+  consultationId: string,
+  medicalLeave: string,
+  period?: { startDate: string; days: number; diagnosis: string },
+) {
   // Solo roles clínicos (igual que createConsultation).
   const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO'])
   if (!ctx) return { error: 'No autorizado. Solo los médicos pueden emitir incapacidades.' }
 
   const text = (medicalLeave || '').trim()
   if (!text) return { error: 'Escribe el texto de la incapacidad.' }
+  if (period) {
+    const periodError = validateLeave({ startDate: period.startDate, days: period.days, reason: text, diagnosis: period.diagnosis.trim() || null })
+    if (periodError) return { error: periodError }
+  }
 
   const supabase = await createClient()
 
@@ -39,7 +49,12 @@ export async function updateConsultationMedicalLeave(consultationId: string, med
   // para revalidar el expediente correcto.
   const { data: updated, error } = await supabase
     .from('consultations')
-    .update({ medical_leave: text })
+    .update(period
+      ? {
+          medical_leave: text, leave_start_date: period.startDate, leave_days: period.days,
+          leave_diagnosis: period.diagnosis.trim(), leave_issued_at: new Date().toISOString(),
+        }
+      : { medical_leave: text })
     .eq('id', consultationId)
     .eq('clinic_id', ctx.clinicId)
     .select('id, patient_id')
