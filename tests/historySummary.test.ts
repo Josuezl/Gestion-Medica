@@ -77,14 +77,15 @@ describe('truncateLabel', () => {
 describe('summarizeRecentConsultations', () => {
   it('toma las primeras N (ya vienen ordenadas desc) y extrae los campos clave', () => {
     const rows = [
-      consult({ created_at: '2026-07-05T10:00:00Z', diagnosis: 'Dx1', symptoms: 'Sx1', treatment_plan: 'Plan1', user_profiles: { first_name: 'Ana', last_name: 'Lopez', gender: 'F' } }),
+      consult({ created_at: '2026-07-05T10:00:00Z', diagnosis: 'Dx1', symptoms: 'Sx1', physical_exam: ' PSA 8.5 ', treatment_plan: 'Plan1', user_profiles: { first_name: 'Ana', last_name: 'Lopez', gender: 'F' } }),
       consult({ created_at: '2026-06-01T10:00:00Z', diagnosis: 'Dx2', symptoms: 'Sx2', treatment_plan: 'Plan2', user_profiles: { first_name: 'Juan', last_name: 'Perez', gender: 'M' } }),
       consult({ created_at: '2026-05-01T10:00:00Z', diagnosis: 'Dx3' }),
     ]
     const out = summarizeRecentConsultations(rows, 2)
     expect(out).toHaveLength(2)
-    expect(out[0]).toMatchObject({ date: '2026-07-05T10:00:00Z', doctorName: 'Dra. Ana Lopez', symptoms: 'Sx1', diagnosis: 'Dx1', plan: 'Plan1' })
+    expect(out[0]).toMatchObject({ date: '2026-07-05T10:00:00Z', doctorName: 'Dra. Ana Lopez', symptoms: 'Sx1', diagnosis: 'Dx1', studies: 'PSA 8.5', plan: 'Plan1' })
     expect(out[1].doctorName).toBe('Dr. Juan Perez')
+    expect(out[1].studies).toBe('')
   })
   it('sin médico asociado usa "Médico"', () => {
     const out = summarizeRecentConsultations([consult({ diagnosis: 'X' })], 5)

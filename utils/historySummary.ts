@@ -66,6 +66,8 @@ export interface ConsultationSummaryItem {
   doctorName: string
   symptoms: string
   diagnosis: string
+  /** «Resultados de estudios» de la consulta (columna physical_exam); '' si no hay. */
+  studies: string
   plan: string
 }
 
@@ -81,6 +83,7 @@ export function summarizeRecentConsultations(consultations: ConsultationRow[], l
       : 'Médico',
     symptoms: (c.symptoms ?? '').trim(),
     diagnosis: (c.diagnosis ?? '').trim(),
+    studies: (c.physical_exam ?? '').trim(),
     plan: (c.treatment_plan ?? '').trim(),
   }))
 }

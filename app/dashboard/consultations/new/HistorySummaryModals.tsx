@@ -65,6 +65,8 @@ export default function HistorySummaryModals({ patient, consultations }: {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <Field label="Diagnóstico" value={c.diagnosis} />
                 <Field label="Síntomas" value={c.symptoms} />
+                {/* Solo si la consulta los tiene: no se llena el resumen de «No registrado». */}
+                {c.studies && <Field label="Resultados de estudios" value={c.studies} />}
                 <Field label="Plan de tratamiento" value={c.plan} />
               </div>
             </div>
@@ -94,7 +96,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 10px' }}>
       <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8', marginBottom: '3px' }}>{label}</div>
-      <div style={{ fontSize: '0.85rem', color: value ? '#334155' : '#cbd5e1', lineHeight: 1.45 }}>{value || 'No registrado'}</div>
+      <div style={{ fontSize: '0.85rem', color: value ? '#334155' : '#cbd5e1', lineHeight: 1.45, whiteSpace: 'pre-line' }}>{value || 'No registrado'}</div>
     </div>
   )
 }

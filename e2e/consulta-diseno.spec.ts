@@ -150,3 +150,20 @@ test('farmacias: en escritorio abren en una ventana al costado, sin vínculo con
     expect(await ventana.evaluate(() => window.outerWidth)).toBeLessThanOrEqual(1000)
   }
 })
+
+test('el resumen del expediente muestra los resultados de estudios de cada consulta', async ({ comoMedico: page }) => {
+  const pacienteId = await prepararPaciente()
+  // Consulta reciente propia (el resumen muestra solo las 5 últimas y la base local acumula corridas).
+  const estudio = `PSA ${Date.now()}`
+  const [medico] = await rest(`user_profiles?select=id&clinic_id=eq.${CLINICA_E2E}&first_name=eq.${encodeURIComponent('Médico')}`)
+  await rest('consultations', {
+    method: 'POST',
+    body: JSON.stringify({
+      clinic_id: CLINICA_E2E, patient_id: pacienteId, doctor_id: medico.id,
+      reason_for_visit: 'Control', diagnosis: 'HPB', treatment_plan: 'Igual', physical_exam: estudio,
+    }),
+  })
+  await page.goto(`/dashboard/consultations/new?patientId=${pacienteId}`)
+  await expect(page.getByText('Resultados de estudios').first()).toBeVisible()
+  await expect(page.getByText(estudio)).toBeVisible()
+})
