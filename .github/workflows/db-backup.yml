@@ -128,7 +128,9 @@ jobs:
           mkdir -p dump
           COMPLETO=no
           if [ "$(date -u +%u)" = 7 ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then COMPLETO=si; fi
-          EXCLUIR="-x storage.buckets_vectors -x storage.vector_indexes"
+          # Tablas internas de Storage que la base local de prueba no tiene (Supabase las agrega en la
+          # nube antes que en el CLI). bucket_lifecycle_states apareció el 2026-11-04 y frenó el respaldo.
+          EXCLUIR="-x storage.buckets_vectors -x storage.vector_indexes -x storage.bucket_lifecycle_states"
           [ "$COMPLETO" = si ] || EXCLUIR="$EXCLUIR -x public.audit_logs"
           echo "Incluye audit_logs: $COMPLETO"
           supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/roles.sql --role-only
