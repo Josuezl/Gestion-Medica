@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { leaveEndDate, formatYmd, validateLeave, leavePeriodText, leaveFromFormData, leaveSummaryText } from '@/utils/incapacidad'
+import { leaveEndDate, formatYmd, validateLeave, leavePeriodText, leaveFromFormData, leaveSummaryText, validateReferral } from '@/utils/incapacidad'
 
 describe('leaveEndDate', () => {
   it('cuenta el día de inicio', () => {
@@ -74,5 +74,18 @@ describe('leaveSummaryText', () => {
   it('null con datos incompletos', () => {
     expect(leaveSummaryText('', 3)).toBeNull()
     expect(leaveSummaryText('2026-10-31', null)).toBeNull()
+  })
+})
+
+describe('validateReferral', () => {
+  it('exige destinatario y motivo', () => {
+    expect(validateReferral({ to: '', reason: 'Dolor lumbar crónico' })).toMatch(/dirigida/)
+    expect(validateReferral({ to: '   ', reason: 'Dolor lumbar crónico' })).toMatch(/dirigida/)
+    expect(validateReferral({ to: 'Ortopedia', reason: '' })).toMatch(/motivo/)
+    expect(validateReferral({ to: 'Ortopedia', reason: '  \n ' })).toMatch(/motivo/)
+  })
+
+  it('acepta una referencia completa', () => {
+    expect(validateReferral({ to: 'Ortopedia', reason: 'Dolor lumbar crónico' })).toBeNull()
   })
 })

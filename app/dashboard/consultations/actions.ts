@@ -7,7 +7,7 @@ import { generateVerificationCode } from '@/utils/verification-code'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
 import { guardarConsulta } from '@/utils/guardado/consulta'
-import { validateLeave } from '@/utils/incapacidad'
+import { validateLeave, validateReferral } from '@/utils/incapacidad'
 
 export async function createConsultation(
   patientId: string,
@@ -62,6 +62,41 @@ export async function updateConsultationMedicalLeave(
 
   if (error) {
     return { error: safeErrorMessage('No se pudo guardar la incapacidad. Inténtalo de nuevo.', 'updateConsultationMedicalLeave', error) }
+  }
+  if (!updated) {
+    return { error: 'No tienes permiso para modificar esta consulta.' }
+  }
+
+  revalidatePath(`/dashboard/patients/${updated.patient_id}`)
+  return { success: true, consultationId: updated.id }
+}
+
+/**
+ * Emite (o corrige) SOLO la referencia médica de una consulta ya guardada, igual que
+ * `updateConsultationMedicalLeave`: el `.update()` escribe únicamente `referral` y `referral_to`,
+ * así que el resto de la consulta queda intacto y la corrección queda auditada por el trigger.
+ * Caso de uso: el médico necesita referir al paciente sin abrir una consulta nueva.
+ */
+export async function updateConsultationReferral(consultationId: string, referralTo: string, referral: string) {
+  const ctx = await requireRole(['ADMIN', 'DOCTOR', 'MEDICO', 'MÉDICO'])
+  if (!ctx) return { error: 'No autorizado. Solo los médicos pueden emitir referencias.' }
+
+  const to = (referralTo || '').trim()
+  const reason = (referral || '').trim()
+  const invalid = validateReferral({ to, reason })
+  if (invalid) return { error: invalid }
+
+  const supabase = await createClient()
+  const { data: updated, error } = await supabase
+    .from('consultations')
+    .update({ referral: reason, referral_to: to })
+    .eq('id', consultationId)
+    .eq('clinic_id', ctx.clinicId)
+    .select('id, patient_id')
+    .single()
+
+  if (error) {
+    return { error: safeErrorMessage('No se pudo guardar la referencia. Inténtalo de nuevo.', 'updateConsultationReferral', error) }
   }
   if (!updated) {
     return { error: 'No tienes permiso para modificar esta consulta.' }

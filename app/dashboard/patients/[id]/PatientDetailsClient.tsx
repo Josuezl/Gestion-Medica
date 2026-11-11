@@ -66,6 +66,7 @@ import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
 import PrescriptionModal from './PrescriptionModal'
+import ReferralModal from './ReferralModal'
 
 // Convierte 'YYYY-MM-DD' a Date en hora LOCAL para evitar el corrimiento de un día que provoca
 // `new Date('YYYY-MM-DD')` (se interpreta como UTC y, en zonas como Honduras UTC-6, retrocede al
@@ -127,6 +128,7 @@ export default function PatientDetailsClient({
   // Modal para emitir/corregir la incapacidad de la última consulta (sin editar lo clínico).
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
+  const [showReferralModal, setShowReferralModal] = useState(false)
   const [showCreatedBanner, setShowCreatedBanner] = useState(justCreated)
   const [expandedConsultations, setExpandedConsultations] = useState<Record<string, boolean>>({})
   const toggleConsultation = (id: string) => {
@@ -908,6 +910,17 @@ export default function PatientDetailsClient({
               >
                 <FileText size={18} />
                 Nueva incapacidad
+              </button>
+            )}
+            {canClinical && lastConsult && (
+              <button
+                type="button"
+                onClick={() => setShowReferralModal(true)}
+                className="btn btn-secondary exp-accion"
+                title="Emitir una referencia médica sobre la última consulta"
+              >
+                <Share2 size={18} />
+                Nueva referencia
               </button>
             )}
             <DocumentosMenu
@@ -1763,6 +1776,15 @@ export default function PatientDetailsClient({
           consultation={lastConsult}
           patient={patient}
           onClose={() => setShowLeaveModal(false)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+
+      {showReferralModal && lastConsult && (
+        <ReferralModal
+          consultation={lastConsult}
+          patient={patient}
+          onClose={() => setShowReferralModal(false)}
           onSaved={() => router.refresh()}
         />
       )}

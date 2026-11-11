@@ -86,3 +86,12 @@ export function leaveSummaryText(start: string | null | undefined, days: number 
   if (days === 1) return `1 día, el ${largo(ini)}.`
   return `${days} días, del ${largo(ini)} al ${largo(fin)}, ambas fechas inclusive.`
 }
+
+export interface ReferralInput { to: string; reason: string }
+
+/** Referencia médica: destinatario y motivo obligatorios. Devuelve el mensaje de error o null. */
+export function validateReferral({ to, reason }: ReferralInput): string | null {
+  if (!to.trim()) return 'Referencia: indica a quién va dirigida.'
+  if (!reason.trim()) return 'Referencia: escribe el motivo.'
+  return null
+}
