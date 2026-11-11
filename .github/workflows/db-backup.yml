@@ -128,9 +128,20 @@ jobs:
           mkdir -p dump
           COMPLETO=no
           if [ "$(date -u +%u)" = 7 ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then COMPLETO=si; fi
-          # Tablas internas de Storage que la base local de prueba no tiene (Supabase las agrega en la
-          # nube antes que en el CLI). bucket_lifecycle_states apareció el 2026-11-04 y frenó el respaldo.
-          EXCLUIR="-x storage.buckets_vectors -x storage.vector_indexes -x storage.bucket_lifecycle_states"
+          EXCLUIR="-x storage.buckets_vectors -x storage.vector_indexes"
+          # Tablas internas de auth/storage que la nube ya tiene y la base local de prueba todavía no
+          # (Supabase las agrega en la nube antes que en el CLI). Sin esto la restauración falla y no
+          # sube nada: pasó del 2026-11-04 al 11-10 con storage.bucket_lifecycle_states y
+          # storage.lifecycle_abandoned_artifacts. Se excluyen solas y quedan avisadas en el resumen.
+          LISTAR="select table_schema||'.'||table_name from information_schema.tables
+                  where table_schema in ('auth','storage') and table_type='BASE TABLE' order by 1"
+          docker exec supabase_db_restaurar psql -U postgres -d postgres -At -c "$LISTAR" | LC_ALL=C sort > /tmp/tablas-local.txt
+          docker exec supabase_db_restaurar psql "$SUPABASE_DB_URL" -At -c "$LISTAR" | LC_ALL=C sort > /tmp/tablas-prod.txt
+          test -s /tmp/tablas-local.txt && test -s /tmp/tablas-prod.txt || { echo "No se pudieron listar las tablas internas"; exit 1; }
+          for t in $(LC_ALL=C comm -13 /tmp/tablas-local.txt /tmp/tablas-prod.txt); do
+            echo "::warning::Tabla interna nueva en producción, excluida del respaldo de datos: $t"
+            EXCLUIR="$EXCLUIR -x $t"
+          done
           [ "$COMPLETO" = si ] || EXCLUIR="$EXCLUIR -x public.audit_logs"
           echo "Incluye audit_logs: $COMPLETO"
           supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/roles.sql --role-only
