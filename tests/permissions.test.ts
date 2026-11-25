@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { isAssistant, isNurse, canDoClinical, canEnterVitals } from '@/utils/permissions'
+import { isAssistant, isNurse, canDoClinical, canEnterVitals, puedeGuardarDental } from '@/utils/permissions'
 
 describe('permisos por rol', () => {
+  it('puedeGuardarDental exige que la sesión tenga permiso de odontólogo', () => {
+    expect(puedeGuardarDental({ isDentist: true })).toBe(true)
+    expect(puedeGuardarDental({ isDentist: false })).toBe(false)
+  })
+
   it('isAssistant / isNurse identifican su rol (case-insensitive)', () => {
     expect(isAssistant('ASSISTANT')).toBe(true)
     expect(isAssistant('assistant')).toBe(true)

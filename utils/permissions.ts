@@ -28,6 +28,10 @@ export function canEnterVitals(role?: string | null): boolean {
   return canDoClinical(role) || isNurse(role)
 }
 
+export function puedeGuardarDental(ctx: { isDentist: boolean }): boolean {
+  return ctx.isDentist
+}
+
 // Nota: las recetas son inmutables una vez emitidas (por seguridad / integridad
 // médico-legal). Ningún rol puede modificarlas, por lo que no existe un permiso
 // de edición de recetas.

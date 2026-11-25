@@ -74,6 +74,11 @@ export async function sendInvitation(formData: FormData) {
 
   // Crear cuenta + enviar enlace de fijar contraseña.
   const inviterName = `${ctx.profile.first_name} ${ctx.profile.last_name}`
+  const dentistField = formData.get('isDentist')
+  const isDentist = ctx.odontologiaHabilitada && role === 'DOCTOR' &&
+    (dentistField === 'true' || dentistField === 'false')
+    ? dentistField === 'true'
+    : undefined
   const result = await provisionUserAccount({
     email,
     firstName,
@@ -82,6 +87,7 @@ export async function sendInvitation(formData: FormData) {
     clinicName: ctx.clinicName,
     role,
     isOrgAdmin: false,
+    isDentist,
     specialty: specialty || null,
     gender: gender || null,
     inviterName,
@@ -109,6 +115,7 @@ export interface TeamMemberUpdate {
   practiceAddress: string
   signatureUrl?: string
   role?: string // 'DOCTOR' | 'ASSISTANT' | 'NURSE' (opcional: cambia el rol del miembro)
+  isDentist?: boolean
 }
 
 /**
@@ -196,7 +203,7 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
 
   const gender = ['M', 'F', 'O'].includes(data.gender) ? data.gender : null
 
-  const updates: Record<string, string | null> = {
+  const updates: Record<string, string | boolean | null> = {
     first_name: firstName,
     last_name: lastName,
     specialty: (data.specialty || '').trim() || null,
@@ -213,13 +220,38 @@ export async function updateTeamMember(memberId: string, data: TeamMemberUpdate)
   }
 
   const supabase = await createClient()
+  if (ctx.odontologiaHabilitada) {
+    if (updates.role && updates.role !== 'DOCTOR') {
+      updates.is_dentist = false
+    } else if (typeof data.isDentist === 'boolean') {
+      if (updates.role === 'DOCTOR') {
+        updates.is_dentist = data.isDentist
+      } else {
+        const { data: member, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', memberId)
+          .eq('clinic_id', ctx.clinicId)
+          .maybeSingle()
+
+        if (error) return { error: 'Error al consultar el miembro: ' + error.message }
+        if (member?.role === 'DOCTOR') updates.is_dentist = data.isDentist
+      }
+    }
+  }
+
   // Solo se actualiza si el miembro pertenece a la misma clínica del admin (aislamiento de tenant).
-  const { data: updated, error } = await supabase
+  let updateQuery = supabase
     .from('user_profiles')
     .update(updates)
     .eq('id', memberId)
     .eq('clinic_id', ctx.clinicId)
-    .select('id')
+
+  if (!updates.role && typeof updates.is_dentist === 'boolean') {
+    updateQuery = updateQuery.eq('role', 'DOCTOR')
+  }
+
+  const { data: updated, error } = await updateQuery.select('id')
 
   if (error) return { error: 'Error al actualizar: ' + error.message }
   if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este miembro.' }
