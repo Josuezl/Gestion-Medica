@@ -13,6 +13,7 @@ import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
 import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
+import { insertarReceta } from './receta'
 
 interface CatalogStudyItem { section: string; name: string; description?: string | null; indication?: string | null }
 
@@ -217,45 +218,20 @@ export async function guardarConsulta(
     console.error('Error actualizando antecedentes del paciente:', e)
   }
 
-  // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
+  // 4. Si hay medicamentos agregados, registrar la receta.
   let prescriptionId: string | null = null
   if (medicines && medicines.length > 0) {
-    const verificationCode = generateVerificationCode('MC')
-    const prescriptionNotes = formData.get('prescription_notes') as string || ''
-    // El médico puede pedir que el diagnóstico de la consulta se imprima en la receta
-    // (algunas aseguradoras lo exigen). Se guarda como snapshot solo si marca el check.
-    const includeDiagnosis = formData.get('include_diagnosis') === 'on'
-    const prescriptionDiagnosis = includeDiagnosis ? (diagnosis?.trim() || null) : null
-
-    // La columna `diagnosis` solo se incluye en el insert cuando hay valor, para no romper
-    // la creación de recetas normales si la migración (ALTER TABLE) aún no se ha aplicado.
-    const prescriptionInsert: Record<string, string | Medicine[] | null> = {
-      clinic_id: clinicId,
-      patient_id: patientId,
-      consultation_id: consultation.id,
-      doctor_id: user.id,
+    const receta = await insertarReceta(supabase, {
+      clinicId,
+      patientId,
+      consultationId: consultation.id,
+      doctorId: user.id,
       medicines,
-      notes: prescriptionNotes,
-      verification_code: verificationCode
-    }
-    if (prescriptionDiagnosis) prescriptionInsert.diagnosis = prescriptionDiagnosis
-
-    const { data: prescription, error: prescriptionError } = await supabase
-      .from('prescriptions')
-      .insert([prescriptionInsert])
-      .select()
-      .single()
-
-    if (prescriptionError) {
-      console.error('Error al insertar receta en DB:', prescriptionError)
-      warnings.push('La consulta se guardó, pero la receta no pudo registrarse. Vuelve a generarla desde el expediente.')
-    } else {
-      // Solo se crea el registro de la receta. El PDF NO se genera ni se almacena al guardar:
-      // imprimir usa HTML, y el envío por correo/WhatsApp es una acción manual del médico (el PDF
-      // del correo se genera al vuelo al enviar). Esto evita gastar Storage por cada consulta y
-      // hace el guardado más rápido (sin render de PDF, subida ni llamada a WhatsApp).
-      prescriptionId = prescription.id
-    }
+      diagnosis,
+      formData,
+    })
+    prescriptionId = receta.prescriptionId
+    if (receta.warning) warnings.push(receta.warning)
   }
 
   // 4.b Orden de laboratorio (opcional). Solo se inserta si el médico marcó exámenes,
