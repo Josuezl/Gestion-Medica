@@ -1,6 +1,6 @@
 // Íconos de odontología en SVG puro (sin 'use client'): los usan el odontograma interactivo, la
 // pestaña del expediente, el historial de trabajos y el reporte impreso (componente de servidor).
-import { COLOR_ESTADO, HALLAZGOS, type EstadoMarca, type Hallazgo, type Region } from '@/utils/odontograma'
+import { COLOR_ESTADO, HALLAZGOS, type EstadoMarca, type Hallazgo } from '@/utils/odontograma'
 import { siluetaDe } from './dientes'
 
 type Silueta = ReturnType<typeof siluetaDe>
@@ -62,34 +62,6 @@ export function IconoHallazgo({ hallazgo, estado, size = 20 }: { hallazgo: Halla
       {hallazgo === 'PROTESIS_REMOVIBLE' && (
         <text x="24" y="20" textAnchor="middle" fontWeight="800" fontSize="16" fill={color}>PR</text>
       )}
-    </svg>
-  )
-}
-
-// Arcos de la boca vistos de frente: superior ∩ (centro 14,17) e inferior ∪ (centro 14,3), radio 11,
-// divididos en tres tramos. La izquierda de la pantalla es el lado derecho del paciente (sextantes 1 y 6).
-const TRAMOS: Record<Region, string[]> = {
-  S1: ['M3 17 A11 11 0 0 1 8.5 7.47'],
-  S2: ['M8.5 7.47 A11 11 0 0 1 19.5 7.47'],
-  S3: ['M19.5 7.47 A11 11 0 0 1 25 17'],
-  S6: ['M3 3 A11 11 0 0 0 8.5 12.53'],
-  S5: ['M8.5 12.53 A11 11 0 0 0 19.5 12.53'],
-  S4: ['M19.5 12.53 A11 11 0 0 0 25 3'],
-  AS: ['M3 17 A11 11 0 0 1 25 17'],
-  AI: ['M3 3 A11 11 0 0 0 25 3'],
-}
-const ARCO_SUPERIOR = 'M3 17 A11 11 0 0 1 25 17'
-const ARCO_INFERIOR = 'M3 3 A11 11 0 0 0 25 3'
-const SUPERIORES = new Set<Region>(['S1', 'S2', 'S3', 'AS'])
-
-/** Mini esquema de la arcada con la zona de la región resaltada (color del estado si tiene marca). */
-export function IconoRegion({ region, estado }: { region: Region; estado?: EstadoMarca }) {
-  const color = estado ? COLOR_ESTADO[estado] : 'currentColor'
-  return (
-    <svg viewBox="0 0 28 20" width="28" height="20" fill="none" strokeLinecap="round" aria-hidden="true"
-      style={{ flexShrink: 0 }}>
-      <path d={SUPERIORES.has(region) ? ARCO_SUPERIOR : ARCO_INFERIOR} stroke="var(--border-color)" strokeWidth="2" />
-      {TRAMOS[region].map((d) => <path key={d} d={d} stroke={color} strokeWidth="3" />)}
     </svg>
   )
 }

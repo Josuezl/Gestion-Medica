@@ -36,6 +36,7 @@ interactivo y compartir pacientes e historial con los médicos de la clínica.
   no ve el menú "Odontología", ni la pestaña de odontograma, ni la casilla "Es odontólogo", y la
   base rechaza guardar datos dentales (`is_dentist_now()` también exige la licencia). San Martín
   se enciende desde superadmin al desplegar; las demás clínicas quedan apagadas.
+- **Sextantes y arcadas ocultos (2026-11-25):** Josué decidió quitarlos del odontograma para que sea más simple; los detalles de zona van en las notas/observaciones. El modelo de datos los sigue aceptando (marcas antiguas se muestran en listas y reportes).
 - **Forma de trabajo:** Codex programa, Claude coordina y revisa. **Todo se prueba en local**
   (`npm run dev` con Supabase local) antes de subir a producción.
 

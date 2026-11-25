@@ -3,11 +3,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, NotebookPen, Trash2 } from 'lucide-react'
 import {
-  COLOR_ESTADO, HALLAZGOS, REGIONES, esSuperior, etiquetaRegion, nombreSuperficie, piezasDe,
+  COLOR_ESTADO, HALLAZGOS, esSuperior, etiquetaRegion, nombreSuperficie, piezasDe,
   type Cara, type Denticion, type EstadoMarca, type EstadoOdontograma, type Hallazgo, type Marca, type Region,
 } from '@/utils/odontograma'
 import { siluetaDe } from './dientes'
-import { IconoHallazgo, IconoRegion, SimboloPieza } from './iconos'
+import { IconoHallazgo, SimboloPieza } from './iconos'
 
 type Props = {
   estado: EstadoOdontograma
@@ -273,7 +273,6 @@ function useEscalaParaCaber(piezasPorFila: number) {
 }
 
 export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura, mostrarLeyenda = true }: Props) {
-  const regionDetalleId = useId()
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null)
   const editable = !soloLectura && Boolean(onChange)
   const seleccionar = editable ? setObjetivo : undefined
@@ -364,34 +363,6 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
             </div>
           ))}
         </div>
-      </div>
-
-      <div role="group" aria-label="Regiones dentales" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-        {REGIONES.map((region) => {
-          const marca = estado.regiones[region]
-          const detalle = descripcion(marca, marca?.nota)
-          const detalleId = `${regionDetalleId}-${region}`
-          const etiqueta = etiquetaRegion(region, denticion)
-          return (
-            <button key={region} type="button" aria-disabled={editable ? undefined : true}
-              className="odontograma-control btn-secondary"
-              aria-label={etiqueta} aria-describedby={detalle ? detalleId : undefined}
-              aria-haspopup={editable ? 'dialog' : undefined}
-              title={detalle ?? etiqueta} onClick={seleccionar ? () => seleccionar({ nivel: 'region', region }) : undefined}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.35rem', font: 'inherit', fontSize: '0.8rem',
-                padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',
-                border: `1px solid ${marca ? COLOR_ESTADO[marca.estado] : 'var(--border-color)'}`,
-              }}>
-              <IconoRegion region={region} estado={marca?.estado} />
-              {etiqueta}
-              {marca && <span>
-                · {HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)?.etiqueta}
-              </span>}
-              {detalle && <span hidden id={detalleId}>{detalle}</span>}
-            </button>
-          )
-        })}
       </div>
 
       {editable && objetivo && (
