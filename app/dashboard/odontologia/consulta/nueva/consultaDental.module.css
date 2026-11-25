@@ -254,3 +254,54 @@
 .subtitulo svg {
   color: var(--primary);
 }
+
+/* Modal de consulta guardada (mismo estilo que el de la consulta médica). */
+.modalFondo {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 0.55);
+}
+
+.modalTarjeta {
+  width: 100%;
+  max-width: 440px;
+  padding: 1.75rem;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.3);
+  text-align: center;
+}
+
+.modalIcono {
+  color: #16a34a;
+  margin-bottom: 0.5rem;
+}
+
+.modalTitulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modalTexto {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.modalAcciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.modalAcciones > * {
+  width: 100%;
+  gap: 0.4rem;
+}

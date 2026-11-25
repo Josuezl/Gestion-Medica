@@ -17,6 +17,7 @@ export async function guardarConsultaDental(
   fd: FormData,
 ): Promise<{
   success: true; consultationId: string; warnings?: string[]; studyRequestId: string | null; hasMedicalLeave: boolean
+  prescriptionId: string | null
 } | { error: string }> {
   const ctx = await getAuthContext()
   if (!ctx?.isDentist) return { error: 'Solo los odontólogos pueden guardar consultas dentales.' }
@@ -63,9 +64,10 @@ export async function guardarConsultaDental(
       warnings.push('La consulta se guardó, pero la incapacidad no pudo registrarse. Emítela desde el expediente.')
     }
   }
+  let prescriptionId: string | null = null
   if (medicines.length > 0) {
     try {
-      const { warning } = await insertarReceta(supabase, {
+      const { warning, prescriptionId: recetaId } = await insertarReceta(supabase, {
         clinicId: ctx.clinicId,
         patientId,
         consultationId,
@@ -74,6 +76,7 @@ export async function guardarConsultaDental(
         diagnosis,
         formData: fd,
       })
+      prescriptionId = recetaId
       if (warning) warnings.push(warning)
     } catch (error) {
       warnings.push(safeErrorMessage(AVISO_RECETA, 'guardarConsultaDental: receta', error))
@@ -87,5 +90,5 @@ export async function guardarConsultaDental(
 
   revalidatePath(`/dashboard/patients/${patientId}`)
   revalidatePath('/dashboard')
-  return { success: true, consultationId, warnings, studyRequestId: estudios.studyRequestId, hasMedicalLeave: !!leave.reason }
+  return { success: true, consultationId, warnings, studyRequestId: estudios.studyRequestId, hasMedicalLeave: !!leave.reason, prescriptionId }
 }

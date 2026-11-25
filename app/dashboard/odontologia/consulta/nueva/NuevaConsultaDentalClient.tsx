@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-import { CalendarDays, ChevronLeft, ClipboardList, FileText, History, Save, X } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronLeft, ClipboardList, FileText, History, Printer, Save, X } from 'lucide-react'
 import IconoMuela from '@/app/components/IconoMuela'
 import ConnectionBanner from '@/app/dashboard/components/ConnectionBanner'
 import HistorySummaryModals from '@/app/dashboard/consultations/new/HistorySummaryModals'
@@ -117,7 +117,7 @@ export default function NuevaConsultaDentalClient({
   const [verHistorial, setVerHistorial] = useState(false)
   const historialRef = useRef<HTMLDialogElement>(null)
   const [consultaGuardada, setConsultaGuardada] = useState<{
-    id: string; studyRequestId: string | null; hasMedicalLeave: boolean
+    id: string; studyRequestId: string | null; hasMedicalLeave: boolean; prescriptionId: string | null
   } | null>(null)
   const studyRequestCount = studyRequest.studies.length + (studyRequest.otherStudies.trim() ? 1 : 0)
   const formRef = useRef<HTMLFormElement>(null)
@@ -210,6 +210,7 @@ export default function NuevaConsultaDentalClient({
         id: resultado.consultationId,
         studyRequestId: resultado.studyRequestId ?? null,
         hasMedicalLeave: !!resultado.hasMedicalLeave,
+        prescriptionId: resultado.prescriptionId ?? null,
       })
     } catch {
       setError('No se pudo confirmar el guardado. Revisa tu conexión y verifica en el expediente si la consulta quedó registrada antes de reintentar.')
@@ -219,33 +220,10 @@ export default function NuevaConsultaDentalClient({
 
   const edad = calculateAge(paciente.birth_date)
 
-  if (consultaGuardada) {
-    const impresion = `/consultations/${consultaGuardada.id}/print`
-    return (
-      <section className="card">
-        <TituloSeccion>Consulta dental guardada</TituloSeccion>
-        <div className={styles.actions}>
-          <a className="btn btn-primary" href={`${impresion}/plan-trabajo`} target="_blank" rel="noopener noreferrer">
-            Imprimir reporte para el paciente
-          </a>
-          <a className="btn btn-secondary" href={`${impresion}?doc=dental`} target="_blank" rel="noopener noreferrer">Imprimir consulta</a>
-          {consultaGuardada.studyRequestId && (
-            <a className="btn btn-secondary" href={`/study-requests/${consultaGuardada.studyRequestId}/print`} target="_blank" rel="noopener noreferrer">
-              Imprimir solicitud de estudios
-            </a>
-          )}
-          {consultaGuardada.hasMedicalLeave && (
-            <a className="btn btn-secondary" href={impresion} target="_blank" rel="noopener noreferrer">Imprimir incapacidad</a>
-          )}
-          <Link className="btn btn-secondary" href={expediente}>Ir al expediente</Link>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <div className={styles.page}>
       <ConnectionBanner />
+      {consultaGuardada && <ConsultaGuardadaModal consulta={consultaGuardada} expediente={expediente} />}
       <HistorySummaryModals patient={paciente} consultations={consultas} />
 
       <header className={styles.encabezado}>
@@ -417,6 +395,40 @@ export default function NuevaConsultaDentalClient({
           ))}
         </dialog>
       )}
+    </div>
+  )
+}
+
+/** Confirmación tras guardar (mismo estilo que la consulta médica): documentos para imprimir. */
+function ConsultaGuardadaModal({ consulta, expediente }: {
+  consulta: { id: string; studyRequestId: string | null; hasMedicalLeave: boolean; prescriptionId: string | null }
+  expediente: string
+}) {
+  const impresion = `/consultations/${consulta.id}/print`
+  const documentos = [
+    { texto: 'Imprimir reporte para el paciente', href: `${impresion}/plan-trabajo` },
+    { texto: 'Imprimir consulta', href: `${impresion}?doc=dental` },
+    consulta.prescriptionId && { texto: 'Imprimir receta', href: `/prescriptions/${consulta.prescriptionId}/print` },
+    consulta.studyRequestId && { texto: 'Imprimir solicitud de estudios', href: `/study-requests/${consulta.studyRequestId}/print` },
+    consulta.hasMedicalLeave && { texto: 'Imprimir incapacidad', href: impresion },
+  ].filter((d): d is { texto: string; href: string } => Boolean(d))
+
+  return (
+    <div className={styles.modalFondo}>
+      <div className={styles.modalTarjeta} role="dialog" aria-modal="true" aria-labelledby="consulta-guardada-titulo">
+        <CheckCircle2 size={48} className={styles.modalIcono} aria-hidden="true" />
+        <h3 id="consulta-guardada-titulo" className={styles.modalTitulo}>Consulta guardada exitosamente</h3>
+        <p className={styles.modalTexto}>Imprime los documentos que necesites:</p>
+        <div className={styles.modalAcciones}>
+          {documentos.map(({ texto, href }, indice) => (
+            <a key={href} className={`btn ${indice === 0 ? 'btn-primary' : 'btn-secondary'}`} href={href}
+              target="_blank" rel="noopener noreferrer">
+              <Printer size={16} aria-hidden="true" /> {texto}
+            </a>
+          ))}
+          <Link className="btn btn-secondary" href={expediente}>Ir al expediente</Link>
+        </div>
+      </div>
     </div>
   )
 }
