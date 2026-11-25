@@ -155,6 +155,17 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
     if (elemento && !elemento.open) elemento.showModal()
   }, [])
 
+  // Teclado del grupo de hallazgos (patrón radiogroup): las flechas eligen y enfocan la opción vecina.
+  function moverConFlechas(evento: React.KeyboardEvent<HTMLDivElement>) {
+    const paso = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[evento.key]
+    if (!paso || opciones.length === 0) return
+    evento.preventDefault()
+    const actualIndice = opciones.findIndex(({ codigo }) => codigo === hallazgo)
+    const siguiente = opciones[(Math.max(actualIndice, 0) + (actualIndice < 0 ? 0 : paso) + opciones.length) % opciones.length]
+    setHallazgo(siguiente.codigo)
+    evento.currentTarget.querySelector<HTMLButtonElement>(`[data-hallazgo="${siguiente.codigo}"]`)?.focus()
+  }
+
   function guardar(marca: Marca | undefined, nota?: string) {
     dialogo.current?.close()
     alGuardar(marca, nota)
@@ -175,12 +186,15 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
       <h3 id={tituloId} style={{ marginBottom: '1rem' }}>{ubicacion(objetivo, denticion)}</h3>
       <div className="form-group">
         <span id={`${tituloId}-hallazgo`} className="form-label">Hallazgo</span>
-        <div role="radiogroup" aria-labelledby={`${tituloId}-hallazgo`}
+        <div role="radiogroup" aria-labelledby={`${tituloId}-hallazgo`} onKeyDown={moverConFlechas}
           style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(8.5rem, 1fr))', gap: '0.4rem' }}>
-          {opciones.map(({ codigo, etiqueta }) => {
+          {opciones.map(({ codigo, etiqueta }, indice) => {
             const elegido = hallazgo === codigo
+            // Tabindex itinerante: un solo punto de Tab (la opción elegida, o la primera) y flechas adentro.
+            const enfocable = elegido || (!hallazgo && indice === 0)
             return (
               <button key={codigo} type="button" role="radio" aria-checked={elegido}
+                tabIndex={enfocable ? 0 : -1} data-hallazgo={codigo}
                 onClick={() => setHallazgo(codigo)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.4rem 0.55rem', font: 'inherit',
