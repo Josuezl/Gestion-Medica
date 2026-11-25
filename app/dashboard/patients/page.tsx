@@ -9,6 +9,7 @@ import IconoMuela from '@/app/components/IconoMuela'
 import Pagination from '@/app/dashboard/components/Pagination'
 import PatientVitalsButton from './PatientVitalsButton'
 import { Search, Plus, User, Eye, Phone, Clipboard, Edit } from 'lucide-react'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 // Calcular edad
 function calculateAge(birthDateString: string) {
@@ -47,7 +48,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   const clinicId = profile?.clinic_id
   // Asistente y enfermera no inician consultas: se oculta el botón por fila.
   const clinical = canDoClinical(profile?.role)
-  const isDentist = profile?.is_dentist && profile.odontologia_habilitada
+  // Odontólogo o administrador con licencia: ve el botón de consulta dental.
+  const isDentist = !!profile && puedeRegistrarOdontologia(profile)
   // Enfermera (y médico/admin) pueden tomar signos sin entrar al expediente.
   const canVitals = canEnterVitals(profile?.role)
 

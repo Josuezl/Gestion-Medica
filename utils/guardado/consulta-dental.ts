@@ -20,7 +20,7 @@ export async function guardarConsultaDental(
   prescriptionId: string | null
 } | { error: string }> {
   const ctx = await getAuthContext()
-  if (!ctx?.isDentist) return { error: 'Solo los odontólogos pueden guardar consultas dentales.' }
+  if (!ctx?.puedeRegistrarOdontologia) return { error: 'Solo los odontólogos pueden guardar consultas dentales.' }
 
   const reason = texto(fd, 'reason_for_visit')
   if (!reason) return { error: 'Escribe el motivo de consulta.' }

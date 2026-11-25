@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
 import PatientDetailsClient from './PatientDetailsClient'
 import type { ConsultationRow, MedicalLeaveRow, ReferralRow, StudyRow } from '@/utils/clinicalTypes'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -29,7 +30,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   if (!session?.profile) return null
   const { user, profile } = session
   const odontologiaHabilitada = profile.odontologia_habilitada
-  const isDentist = odontologiaHabilitada && profile.is_dentist
+  const isDentist = puedeRegistrarOdontologia(profile)
 
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase

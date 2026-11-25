@@ -268,3 +268,20 @@ test('la consulta dental solicita una radiografía panorámica y emite incapacid
   expect(solicitudes[0].studies.map((e) => e.name)).toContain('Radiografía panorámica')
   await rest(`study_requests?patient_id=eq.${paciente.id}`, { method: 'DELETE' })
 })
+
+test('el administrador puede guardar una consulta dental aunque no sea odontólogo', async ({ comoAdmin, paciente }) => {
+  await comoAdmin.goto(`/dashboard/patients/${paciente.id}`)
+  await expect(comoAdmin.getByRole('link', { name: 'Consulta dental', exact: true }).first()).toBeVisible()
+  const respuesta = await comoAdmin.request.post(RUTA_GUARDADO, {
+    multipart: {
+      _patientId: paciente.id,
+      _medicines: '[]',
+      _denticion: 'PERMANENTE',
+      _odontograma: JSON.stringify({ version: 1, piezas: {}, regiones: {} }),
+      reason_for_visit: 'Control dental',
+      diagnosis: DIAGNOSTICO_DENTAL,
+      treatment_plan: 'Restauración',
+    },
+  })
+  expect(await respuesta.json()).toMatchObject({ success: true, consultationId: expect.any(String) })
+})

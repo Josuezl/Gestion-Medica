@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { User } from '@supabase/supabase-js'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 /** Fila de user_profiles con el join de clinics usado por el guard (solo columnas consumidas). */
 export interface AuthProfile {
@@ -24,6 +25,8 @@ export interface AuthContext {
   isOrgAdmin: boolean
   odontologiaHabilitada: boolean
   isDentist: boolean
+  /** Odontólogo o administrador, con licencia: puede guardar consultas dentales. */
+  puedeRegistrarOdontologia: boolean
   planCode: string
 }
 
@@ -54,6 +57,10 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     isOrgAdmin: !!profile.is_org_admin,
     odontologiaHabilitada,
     isDentist: odontologiaHabilitada && profile.is_dentist === true,
+    puedeRegistrarOdontologia: puedeRegistrarOdontologia({
+      odontologia_habilitada: odontologiaHabilitada, is_dentist: profile.is_dentist,
+      is_org_admin: profile.is_org_admin, role: profile.role,
+    }),
     planCode: profile.clinics?.plan_code || 'SOLO_MEDICO',
   }
 }

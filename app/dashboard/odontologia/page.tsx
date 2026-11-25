@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getSessionProfile } from '@/utils/session'
 import ListadoConsultas from '@/app/dashboard/components/ListadoConsultas'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -18,7 +19,7 @@ export default async function OdontologiaPage({ searchParams }: PageProps) {
   const searchQuery = (Array.isArray(qParam) ? qParam[0] : qParam) || ''
   const pageParam = resolvedSearchParams.page
   const currentPage = parseInt((Array.isArray(pageParam) ? pageParam[0] : pageParam) || '1', 10) || 1
-  const esOdontologo = profile.is_dentist && profile.odontologia_habilitada
+  const esOdontologo = puedeRegistrarOdontologia(profile)
 
   return (
     <ListadoConsultas

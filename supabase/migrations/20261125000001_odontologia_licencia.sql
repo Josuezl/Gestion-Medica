@@ -30,10 +30,17 @@ as $$
   ), false);
 $$;
 
+-- Puede registrar odontología (consultas dentales y odontogramas): el odontólogo o el administrador
+-- de la clínica (rol ADMIN u org-admin), siempre que la clínica tenga la licencia. Un médico que no es
+-- administrador no puede. El nombre se conserva porque las políticas de la migración anterior lo usan.
 create or replace function public.is_dentist_now() returns boolean
   language sql stable security definer
   set search_path to public
 as $$
-  select coalesce((select is_dentist from public.user_profiles where id = auth.uid()), false)
+  select coalesce((
+    select p.is_dentist or coalesce(p.is_org_admin, false) or upper(trim(coalesce(p.role, ''))) = 'ADMIN'
+    from public.user_profiles p
+    where p.id = auth.uid()
+  ), false)
     and public.odontologia_habilitada_now();
 $$;

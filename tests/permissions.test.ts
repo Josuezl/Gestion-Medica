@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { isAssistant, isNurse, canDoClinical, canEnterVitals, puedeGuardarDental } from '@/utils/permissions'
+import { isAssistant, isNurse, canDoClinical, canEnterVitals, puedeRegistrarOdontologia } from '@/utils/permissions'
 
 describe('permisos por rol', () => {
-  it('puedeGuardarDental exige que la sesión tenga permiso de odontólogo', () => {
-    expect(puedeGuardarDental({ isDentist: true })).toBe(true)
-    expect(puedeGuardarDental({ isDentist: false })).toBe(false)
+  it('puedeRegistrarOdontologia: odontólogo o administrador, y solo con licencia', () => {
+    const conLicencia = { odontologia_habilitada: true }
+    expect(puedeRegistrarOdontologia({ ...conLicencia, role: 'DOCTOR', is_dentist: true })).toBe(true)
+    expect(puedeRegistrarOdontologia({ ...conLicencia, role: 'DOCTOR', is_org_admin: true })).toBe(true)
+    expect(puedeRegistrarOdontologia({ ...conLicencia, role: 'ADMIN' })).toBe(true)
+    expect(puedeRegistrarOdontologia({ ...conLicencia, role: 'DOCTOR' })).toBe(false)
+    expect(puedeRegistrarOdontologia({ ...conLicencia, role: 'ASSISTANT' })).toBe(false)
+    expect(puedeRegistrarOdontologia({ odontologia_habilitada: false, role: 'ADMIN', is_dentist: true })).toBe(false)
   })
 
   it('isAssistant / isNurse identifican su rol (case-insensitive)', () => {

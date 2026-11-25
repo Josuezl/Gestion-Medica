@@ -5,6 +5,7 @@ import { denticionPorEdad, estadoVacio, realizadosNuevos, trabajosPendientes, va
 import { ODONTOLOGIA_STUDY_SECTION } from '@/utils/studyCatalog'
 import type { CatalogSection } from '@/app/dashboard/consultations/new/StudyRequestModal'
 import NuevaConsultaDentalClient from './NuevaConsultaDentalClient'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 interface PageProps {
   searchParams: Promise<{ patientId?: string | string[]; appointmentId?: string | string[] }>
@@ -79,7 +80,7 @@ export default async function NuevaConsultaDentalPage({ searchParams }: PageProp
   if (typeof patientId !== 'string' || !patientId) redirect('/dashboard/patients')
 
   const session = await getSessionProfile()
-  if (!session?.profile?.odontologia_habilitada || !session.profile.is_dentist) {
+  if (!session?.profile || !puedeRegistrarOdontologia(session.profile)) {
     redirect(`/dashboard/patients/${encodeURIComponent(patientId)}`)
   }
 

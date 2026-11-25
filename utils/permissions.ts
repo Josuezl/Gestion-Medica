@@ -28,8 +28,19 @@ export function canEnterVitals(role?: string | null): boolean {
   return canDoClinical(role) || isNurse(role)
 }
 
-export function puedeGuardarDental(ctx: { isDentist: boolean }): boolean {
-  return ctx.isDentist
+/**
+ * Puede registrar consultas dentales y odontogramas: con la licencia de odontología de la clínica,
+ * el odontólogo o el administrador (rol ADMIN u org-admin). Un médico que no es administrador, no.
+ * Misma regla que la función SQL is_dentist_now() de las políticas RLS.
+ */
+export function puedeRegistrarOdontologia(p: {
+  odontologia_habilitada?: boolean | null
+  is_dentist?: boolean | null
+  is_org_admin?: boolean | null
+  role?: string | null
+}): boolean {
+  if (p.odontologia_habilitada !== true) return false
+  return p.is_dentist === true || p.is_org_admin === true || (p.role || '').toUpperCase().trim() === 'ADMIN'
 }
 
 // Nota: las recetas son inmutables una vez emitidas (por seguridad / integridad
