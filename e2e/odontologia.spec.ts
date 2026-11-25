@@ -110,7 +110,7 @@ test('el expediente muestra el odontograma vacío en solo lectura y permite inic
   await expect(nueva).toHaveAttribute('href', `/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
 })
 
-test('la consulta dental queda en el expediente, el historial médico y el plan de trabajo', async ({ comoOdontologo, paciente }) => {
+test('la consulta dental queda en el expediente, el historial médico y el reporte para el paciente', async ({ comoOdontologo, paciente }) => {
   const expediente = `/dashboard/patients/${paciente.id}`
   const consultaId = await test.step('El odontólogo guarda una caries oclusal pendiente en la pieza 36', async () => {
     await comoOdontologo.goto(`/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
@@ -123,6 +123,12 @@ test('la consulta dental queda en el expediente, el historial médico y el plan 
     await editor.getByLabel('Hallazgo').selectOption('CARIES')
     await editor.getByLabel('Estado').selectOption('PENDIENTE')
     await editor.getByRole('button', { name: 'Aplicar' }).click()
+
+    await comoOdontologo.getByRole('button', { name: 'Pieza 18', exact: true }).click()
+    const pieza = comoOdontologo.getByRole('dialog', { name: 'Pieza 18' })
+    await pieza.getByLabel('Hallazgo').selectOption('CORONA')
+    await pieza.getByLabel('Estado').selectOption('REALIZADO')
+    await pieza.getByRole('button', { name: 'Aplicar' }).click()
     const [respuesta] = await Promise.all([
       comoOdontologo.waitForResponse((r) => new URL(r.url()).pathname === RUTA_GUARDADO && r.request().method() === 'POST'),
       comoOdontologo.getByRole('button', { name: 'Finalizar consulta dental' }).click(),
@@ -130,6 +136,12 @@ test('la consulta dental queda en el expediente, el historial médico y el plan 
     expect(respuesta.ok()).toBe(true)
     const guardado = await respuesta.json()
     expect(guardado).toMatchObject({ success: true, consultationId: expect.any(String) })
+    const impresion = `/consultations/${guardado.consultationId}/print`
+    const reporte = comoOdontologo.getByRole('link', { name: 'Imprimir reporte para el paciente', exact: true })
+    await expect(reporte).toHaveAttribute('href', `${impresion}/plan-trabajo`)
+    await expect(reporte).toHaveAttribute('target', '_blank')
+    await expect(comoOdontologo.getByRole('link', { name: 'Imprimir consulta', exact: true })).toHaveAttribute('href', impresion)
+    await comoOdontologo.getByRole('link', { name: 'Ir al expediente', exact: true }).click()
     await expect(comoOdontologo).toHaveURL(expediente)
     await expect(comoOdontologo.locator('.consulta-tarjeta').getByText('Odontología', { exact: true })).toBeVisible()
     return guardado.consultationId as string
@@ -152,13 +164,23 @@ test('la consulta dental queda en el expediente, el historial médico y el plan 
     await expect(medico.getByRole('button', { name: 'Nueva consulta dental' })).toHaveCount(0)
   })
 
-  await test.step('El plan de trabajo imprime la caries de la pieza 36 en la tabla', async () => {
+  await test.step('El reporte incluye los trabajos realizados y pendientes con su código de verificación', async () => {
     await paciente.medico.goto(`/consultations/${consultaId}/print/plan-trabajo`)
-    await expect(paciente.medico.getByRole('heading', { name: 'Plan de trabajo', exact: true })).toBeVisible()
-    const fila = paciente.medico.getByRole('table').getByRole('row').filter({
-      has: paciente.medico.getByRole('cell', { name: 'Pieza 36 · Oclusal', exact: true }),
+    await expect(paciente.medico.getByRole('heading', { name: 'Consulta y plan de tratamiento', exact: true })).toBeVisible()
+    const realizados = paciente.medico.getByRole('region', { name: 'Realizado en esta consulta' })
+    const pendientes = paciente.medico.getByRole('region', { name: 'Plan de trabajo' })
+    await expect(realizados.getByRole('row').filter({ hasText: 'Corona' }).getByRole('cell', { name: '18', exact: true })).toBeVisible()
+    const fila = pendientes.getByRole('row').filter({
+      has: paciente.medico.getByRole('cell', { name: '36', exact: true }),
     })
+    await expect(fila.getByRole('cell', { name: 'Oclusal', exact: true })).toBeVisible()
     await expect(fila.getByRole('cell', { name: 'Caries', exact: true })).toBeVisible()
+    await expect(paciente.medico.getByRole('img', { name: 'Código QR de verificación del documento' })).toBeVisible()
+    const [{ verification_code }] = await rest(`consultations?select=verification_code&id=eq.${consultaId}`)
+    await expect(paciente.medico.locator('.qr-code')).toHaveText(verification_code)
+    await paciente.medico.goto(`/verificar/${verification_code}?doc=dental`)
+    await expect(paciente.medico.getByText('Paciente Odontología E2E', { exact: true })).toBeVisible()
+    await expect(paciente.medico.getByText(DIAGNOSTICO_DENTAL, { exact: true })).toHaveCount(0)
   })
 })
 

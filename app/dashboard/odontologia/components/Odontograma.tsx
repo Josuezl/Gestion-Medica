@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, NotebookPen, Trash2 } from 'lucide-react'
 import {
-  COLOR_ESTADO, HALLAZGOS, piezasDe,
+  COLOR_ESTADO, HALLAZGOS, esSuperior, nombreSuperficie, piezasDe,
   type Cara, type Denticion, type EstadoMarca, type EstadoOdontograma, type Hallazgo, type Marca, type Region,
 } from '@/utils/odontograma'
 import { siluetaDe } from './dientes'
@@ -14,6 +14,7 @@ type Props = {
   onChange?: (estado: EstadoOdontograma) => void
   onDenticionChange?: (denticion: Denticion) => void
   soloLectura?: boolean
+  mostrarLeyenda?: boolean
 }
 
 type Objetivo =
@@ -35,24 +36,12 @@ const SECTORES = [
   { camino: 'M39.56 39.56 A22 22 0 0 1 8.44 39.56 L16 32 H32 Z', x: 24, y: 38 },
 ]
 
-function esSuperior(fdi: number) {
-  const cuadrante = Math.floor(fdi / 10)
-  return cuadrante === 1 || cuadrante === 2 || cuadrante === 5 || cuadrante === 6
-}
-
 export function ubicacion(objetivo: Objetivo): string {
   if (objetivo.nivel === 'region') return REGIONES[objetivo.region]
   if (objetivo.nivel === 'pieza') return `Pieza ${objetivo.fdi}`
 
   const { fdi, cara } = objetivo
-  const nombres: Record<Cara, string> = {
-    V: 'vestibular',
-    L: esSuperior(fdi) ? 'palatina' : 'lingual',
-    M: 'mesial',
-    D: 'distal',
-    O: fdi % 10 <= 3 ? 'incisal' : 'oclusal',
-  }
-  return `Pieza ${fdi}, cara ${nombres[cara]}`
+  return `Pieza ${fdi}, cara ${nombreSuperficie(fdi, cara).toLowerCase()}`
 }
 
 export function descripcion(marca?: Marca, nota?: string): string | undefined {
@@ -249,7 +238,7 @@ function EditorMarca({ objetivo, estado, alGuardar, alCerrar }: {
   )
 }
 
-export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura }: Props) {
+export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura, mostrarLeyenda = true }: Props) {
   const regionDetalleId = useId()
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null)
   const editable = !soloLectura && Boolean(onChange)
@@ -305,7 +294,7 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
         .odontograma-dialogo::backdrop { background: rgb(15 23 42 / 0.55); }
         .odontograma-dialogo button:disabled { opacity: 0.55; cursor: default; transform: none; }
       `}</style>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+      {(mostrarLeyenda || (editable && onDenticionChange)) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
         {editable && onDenticionChange && (
           <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <span className="form-label">Dentición</span>
@@ -315,15 +304,15 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
             </select>
           </label>
         )}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.8rem' }}>
+        {mostrarLeyenda && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.8rem' }}>
           {(Object.keys(ESTADOS) as EstadoMarca[]).map((codigo) => (
             <span key={codigo} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
               <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: '50%', background: COLOR_ESTADO[codigo] }} />
               {ESTADOS[codigo]}
             </span>
           ))}
-        </div>
-      </div>
+        </div>}
+      </div>}
 
       <div role="region" aria-label="Piezas dentales" tabIndex={0}
         style={{ minWidth: 0, overflowX: 'auto', borderRadius: 'var(--radius-sm)' }}>

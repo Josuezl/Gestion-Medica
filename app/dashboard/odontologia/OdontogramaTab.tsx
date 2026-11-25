@@ -65,8 +65,8 @@ export default function OdontogramaTab({ patientId, birthDate, historial, isDent
         )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
           {seleccionado && (
-            <a className="btn btn-secondary" href={`/consultations/${seleccionado.consultaId}/print/plan-trabajo`} target="_blank" rel="noopener noreferrer">
-              Imprimir plan de trabajo
+            <a className="btn btn-primary" href={`/consultations/${seleccionado.consultaId}/print/plan-trabajo`} target="_blank" rel="noopener noreferrer">
+              Imprimir reporte para el paciente
             </a>
           )}
           {isDentist && (

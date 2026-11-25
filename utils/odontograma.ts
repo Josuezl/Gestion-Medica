@@ -84,36 +84,64 @@ const ETIQUETAS_REGION: Record<Region, string> = {
   S4: 'Sextante 4', S5: 'Sextante 5', S6: 'Sextante 6',
   AS: 'Arcada superior', AI: 'Arcada inferior',
 }
-const REGIONES = Object.keys(ETIQUETAS_REGION) as Region[]
+export const REGIONES = Object.keys(ETIQUETAS_REGION) as Region[]
+const RANGOS_SEXTANTES = {
+  S1: ['18–14', '55–54'], S2: ['13–23', '53–63'], S3: ['24–28', '64–65'],
+  S4: ['34–38', '74–75'], S5: ['33–43', '73–83'], S6: ['44–48', '84–85'],
+}
 
-type TrabajoPendiente = { ubicacion: string; hallazgo: Hallazgo; etiqueta: string; nota?: string }
+export function etiquetaRegion(region: Region, denticion: Denticion) {
+  const etiqueta = ETIQUETAS_REGION[region]
+  if (region === 'AS' || region === 'AI') return etiqueta
+  const [permanente, temporal] = RANGOS_SEXTANTES[region]
+  const rango = denticion === 'MIXTA' ? `${permanente} · ${temporal}` : denticion === 'TEMPORAL' ? temporal : permanente
+  return `${etiqueta} (${rango})`
+}
 
-export function trabajosPendientes(estado: EstadoOdontograma): TrabajoPendiente[] {
-  const trabajos: TrabajoPendiente[] = []
+export function esSuperior(fdi: number) {
+  return [1, 2, 5, 6].includes(Math.floor(fdi / 10))
+}
 
-  function agregar(ubicacion: string, marca?: Marca, nota?: string) {
-    if (marca?.estado !== 'PENDIENTE') return
+export function nombreSuperficie(fdi: number, cara: Cara) {
+  const nombres: Record<Cara, string> = {
+    V: 'Vestibular', L: esSuperior(fdi) ? 'Palatina' : 'Lingual',
+    M: 'Mesial', D: 'Distal', O: fdi % 10 <= 3 ? 'Incisal' : 'Oclusal',
+  }
+  return nombres[cara]
+}
+
+type LugarTrabajo = { fdi: number; superficie?: string } | { region: Region }
+export type TrabajoOdontologico = LugarTrabajo & { hallazgo: Hallazgo; etiqueta: string; nota?: string }
+
+export function trabajosPendientes(estado: EstadoOdontograma): TrabajoOdontologico[] {
+  return listarTrabajos(estado, 'PENDIENTE', null)
+}
+
+export function realizadosNuevos(actual: EstadoOdontograma, anterior: EstadoOdontograma | null): TrabajoOdontologico[] {
+  return listarTrabajos(actual, 'REALIZADO', anterior)
+}
+
+function listarTrabajos(estado: EstadoOdontograma, filtro: EstadoMarca, anterior: EstadoOdontograma | null): TrabajoOdontologico[] {
+  const trabajos: TrabajoOdontologico[] = []
+
+  function agregar(lugar: LugarTrabajo, marca?: Marca, nota?: string, previa?: Marca) {
+    if (marca?.estado !== filtro || (previa?.estado === filtro && previa.hallazgo === marca.hallazgo)) return
     const etiqueta = HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)!.etiqueta
-    trabajos.push({ ubicacion, hallazgo: marca.hallazgo, etiqueta, ...(nota !== undefined ? { nota } : {}) })
+    trabajos.push({ ...lugar, hallazgo: marca.hallazgo, etiqueta, ...(nota !== undefined ? { nota } : {}) })
   }
 
-  for (const [fdi, pieza] of Object.entries(estado.piezas).sort(([a], [b]) => Number(a) - Number(b))) {
-    const ubicacion = `Pieza ${fdi}`
-    const superior = ['1', '2', '5', '6'].includes(fdi[0])
-    const nombres: Record<Cara, string> = {
-      V: 'Vestibular', L: superior ? 'Palatina' : 'Lingual',
-      M: 'Mesial', D: 'Distal', O: Number(fdi[1]) <= 3 ? 'Incisal' : 'Oclusal',
-    }
-
-    agregar(ubicacion, pieza.pieza, pieza.nota)
+  for (const fdi of Object.keys(estado.piezas).map(Number).sort((a, b) => a - b)) {
+    const pieza = estado.piezas[fdi]
+    const previa = anterior?.piezas[fdi]
+    agregar({ fdi }, pieza.pieza, pieza.nota, previa?.pieza)
     for (const cara of CARAS) {
-      agregar(`${ubicacion} · ${nombres[cara]}`, pieza.caras?.[cara], pieza.nota)
+      agregar({ fdi, superficie: nombreSuperficie(fdi, cara) }, pieza.caras?.[cara], pieza.nota, previa?.caras?.[cara])
     }
   }
 
   for (const region of REGIONES) {
     const marca = estado.regiones[region]
-    agregar(ETIQUETAS_REGION[region], marca, marca?.nota)
+    agregar({ region }, marca, marca?.nota, anterior?.regiones[region])
   }
 
   return trabajos

@@ -2,7 +2,6 @@
 
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { ChevronLeft, ClipboardList, FileText, History, Save } from 'lucide-react'
 import IconoMuela from '@/app/components/IconoMuela'
 import ConnectionBanner from '@/app/dashboard/components/ConnectionBanner'
@@ -95,8 +94,8 @@ export default function NuevaConsultaDentalClient({
   const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [consultaGuardada, setConsultaGuardada] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
-  const router = useRouter()
   const expediente = `/dashboard/patients/${paciente.id}`
 
   const { pendingDraft, scheduleSave, discardDraft, resolvePendingDraft, clearSavedDraft } = useFormDraft(
@@ -160,8 +159,7 @@ export default function NuevaConsultaDentalClient({
       if (resultado.warnings?.length) {
         window.alert('La consulta se guardó, pero hubo avisos:\n\n• ' + resultado.warnings.join('\n• '))
       }
-      router.replace(expediente)
-      router.refresh()
+      setConsultaGuardada(resultado.consultationId)
     } catch {
       setError('No se pudo confirmar el guardado. Revisa tu conexión y verifica en el expediente si la consulta quedó registrada antes de reintentar.')
       setLoading(false)
@@ -169,6 +167,22 @@ export default function NuevaConsultaDentalClient({
   }
 
   const edad = calculateAge(paciente.birth_date)
+
+  if (consultaGuardada) {
+    const impresion = `/consultations/${consultaGuardada}/print`
+    return (
+      <section className="card">
+        <TituloSeccion>Consulta dental guardada</TituloSeccion>
+        <div className={styles.actions}>
+          <a className="btn btn-primary" href={`${impresion}/plan-trabajo`} target="_blank" rel="noopener noreferrer">
+            Imprimir reporte para el paciente
+          </a>
+          <a className="btn btn-secondary" href={impresion} target="_blank" rel="noopener noreferrer">Imprimir consulta</a>
+          <Link className="btn btn-secondary" href={expediente}>Ir al expediente</Link>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className={styles.page}>

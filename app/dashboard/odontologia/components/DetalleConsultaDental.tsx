@@ -21,7 +21,7 @@ export default function DetalleConsultaDental({ consulta }: {
           Ver odontograma
         </a>
         <a href={`/consultations/${consulta.id}/print/plan-trabajo`} target="_blank" rel="noopener noreferrer">
-          Imprimir plan de trabajo
+          Imprimir reporte para el paciente
         </a>
       </div>
     </div>

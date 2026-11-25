@@ -1,5 +1,4 @@
 import React from 'react'
-import QRCode from 'qrcode'
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
@@ -15,6 +14,7 @@ import PrintHeader from './PrintHeader'
 import PrintOdontograma from './PrintOdontograma'
 import PrintSignature from './PrintSignature'
 import PrintStyles from './PrintStyles'
+import PrintVerification, { generarQrVerificacion } from './PrintVerification'
 import { cargarOdontograma } from './cargarOdontograma'
 
 interface PageProps {
@@ -57,9 +57,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
 
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const verifyUrl = `${SITE_URL}/verificar/${consultation.verification_code}${isReferral ? '?doc=referral' : dental ? '?doc=dental' : ''}`
-  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
+  const qrDataUrl = await generarQrVerificacion(c.verification_code, isReferral ? 'referral' : dental ? 'dental' : undefined)
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
   const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
@@ -199,15 +197,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
 
           {/* Pie: QR de verificación + firma */}
           <div className="sign-area">
-            <div className="qr-box">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="Código QR de verificación del documento" />
-              <div>
-                <p className="qr-cap-title">Documento verificable</p>
-                <p className="qr-cap-text">Escanea el código para validar este documento en su versión digital.</p>
-                <p className="qr-code">{c.verification_code}</p>
-              </div>
-            </div>
+            <PrintVerification codigo={c.verification_code} qrDataUrl={qrDataUrl} />
             <PrintSignature signatureUrl={doctor.signature_url} docName={docName} docSpecialty={docSpecialty} />
           </div>
         </div>

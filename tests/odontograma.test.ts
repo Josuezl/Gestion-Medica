@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { denticionPorEdad, estadoVacio, piezasDe, trabajosPendientes, validarEstado, type Marca } from '@/utils/odontograma'
+import { denticionPorEdad, estadoVacio, piezasDe, realizadosNuevos, trabajosPendientes, validarEstado, type EstadoOdontograma, type Marca } from '@/utils/odontograma'
 
 describe('denticionPorEdad', () => {
   it.each([
@@ -145,14 +145,52 @@ describe('trabajosPendientes', () => {
         S1: { ...puente, estado: 'REALIZADO' },
       },
     })).toEqual([
-      { ubicacion: 'Pieza 21', hallazgo: 'CORONA', etiqueta: 'Corona' },
-      { ubicacion: 'Pieza 36 · Oclusal', hallazgo: 'CARIES', etiqueta: 'Caries', nota: 'Revisar sensibilidad' },
-      { ubicacion: 'Pieza 51 · Incisal', hallazgo: 'CARIES', etiqueta: 'Caries' },
-      { ubicacion: 'Pieza 85', hallazgo: 'CORONA', etiqueta: 'Corona' },
-      { ubicacion: 'Sextante 2', hallazgo: 'PUENTE', etiqueta: 'Puente' },
-      { ubicacion: 'Sextante 6', hallazgo: 'PUENTE', etiqueta: 'Puente' },
-      { ubicacion: 'Arcada superior', hallazgo: 'PUENTE', etiqueta: 'Puente', nota: 'Valorar ajuste' },
-      { ubicacion: 'Arcada inferior', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+      { fdi: 21, hallazgo: 'CORONA', etiqueta: 'Corona' },
+      { fdi: 36, superficie: 'Oclusal', hallazgo: 'CARIES', etiqueta: 'Caries', nota: 'Revisar sensibilidad' },
+      { fdi: 51, superficie: 'Incisal', hallazgo: 'CARIES', etiqueta: 'Caries' },
+      { fdi: 85, hallazgo: 'CORONA', etiqueta: 'Corona' },
+      { region: 'S2', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+      { region: 'S6', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+      { region: 'AS', hallazgo: 'PUENTE', etiqueta: 'Puente', nota: 'Valorar ajuste' },
+      { region: 'AI', hallazgo: 'PUENTE', etiqueta: 'Puente' },
     ])
+  })
+})
+
+describe('realizadosNuevos', () => {
+  const realizado: Marca = { hallazgo: 'OBTURACION', estado: 'REALIZADO' }
+  const pendiente: Marca = { ...realizado, estado: 'PENDIENTE' }
+  const puente: Marca = { hallazgo: 'PUENTE', estado: 'REALIZADO' }
+  const actual: EstadoOdontograma = {
+    version: 1,
+    piezas: {
+      '36': { caras: { O: realizado, V: pendiente }, nota: 'Resina' },
+      '18': { caras: { L: realizado } },
+    },
+    regiones: { S2: puente, AI: { ...puente, estado: 'PENDIENTE' } },
+  }
+  const trabajo36 = { fdi: 36, superficie: 'Oclusal', hallazgo: 'OBTURACION', etiqueta: 'Obturación', nota: 'Resina' }
+  const trabajoS2 = { region: 'S2', hallazgo: 'PUENTE', etiqueta: 'Puente' }
+
+  it('ordena todas las marcas realizadas por FDI y luego región cuando no hay anterior', () => {
+    expect(realizadosNuevos(actual, null)).toEqual([
+      { fdi: 18, superficie: 'Palatina', hallazgo: 'OBTURACION', etiqueta: 'Obturación' },
+      trabajo36,
+      trabajoS2,
+    ])
+  })
+
+  it('incluye cambios a realizado o a otro hallazgo y omite el mismo realizado aunque cambie la nota', () => {
+    const anterior: EstadoOdontograma = {
+      version: 1,
+      piezas: { '36': { caras: { O: pendiente } }, '18': { caras: { L: realizado }, nota: 'Anterior' } },
+      regiones: { S2: { hallazgo: 'PROTESIS_REMOVIBLE', estado: 'REALIZADO' } },
+    }
+    expect(realizadosNuevos(actual, anterior)).toEqual([trabajo36, trabajoS2])
+  })
+
+  it('devuelve una lista vacía sin marcas nuevas', () => {
+    expect(realizadosNuevos(actual, actual)).toEqual([])
+    expect(realizadosNuevos(estadoVacio(), null)).toEqual([])
   })
 })
