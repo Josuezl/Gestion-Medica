@@ -8,7 +8,7 @@ export default function PrintOdontograma({ odontograma }: {
     <div className="section odontograma-impreso" id="odontograma">
       <h3 className="section-title">Odontograma</h3>
       {odontograma
-        ? <Odontograma estado={odontograma.estado} denticion={odontograma.denticion} soloLectura />
+        ? <Odontograma estado={odontograma.estado} denticion={odontograma.denticion} soloLectura ampliar={false} />
         : <p className="section-body">—</p>}
     </div>
   )

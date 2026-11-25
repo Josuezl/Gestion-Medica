@@ -15,6 +15,8 @@ type Props = {
   onChange?: (estado: EstadoOdontograma) => void
   onDenticionChange?: (denticion: Denticion) => void
   soloLectura?: boolean
+  /** Agrandar hasta llenar el ancho disponible (en pantalla). En impresión va en false. */
+  ampliar?: boolean
   mostrarLeyenda?: boolean
 }
 
@@ -43,7 +45,7 @@ export function ubicacion(objetivo: Objetivo, denticion: Denticion = 'PERMANENTE
 
 export function descripcion(marca?: Marca, nota?: string): string | undefined {
   const hallazgo = marca && HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)?.etiqueta
-  return [hallazgo, marca && ESTADOS[marca.estado], nota].filter(Boolean).join(' · ') || undefined
+  return [hallazgo, marca && ESTADOS[marca.estado], nota ?? marca?.nota].filter(Boolean).join(' · ') || undefined
 }
 
 function Diente({ fdi, estado, seleccionar }: {
@@ -80,9 +82,9 @@ function Diente({ fdi, estado, seleccionar }: {
           <path d={silueta.cuello} fill="none" stroke="var(--text-muted)" strokeWidth="1" />
           {marca && <SimboloPieza hallazgo={marca.hallazgo} color={COLOR_ESTADO[marca.estado]} silueta={silueta} />}
         </g>
-        {marca?.hallazgo === 'PROTESIS_REMOVIBLE' && (
-          <text x="24" y={superior ? 54 : 17} textAnchor="middle" fontWeight="800" fontSize="13"
-            fill={COLOR_ESTADO[marca.estado]}>PR</text>
+        {(marca?.hallazgo === 'PROTESIS_REMOVIBLE' || marca?.hallazgo === 'OTRO') && (
+          <text x="24" y={superior ? 54 : 17} textAnchor="middle" fontWeight="800" fontSize={marca.hallazgo === 'OTRO' ? 18 : 13}
+            fill={COLOR_ESTADO[marca.estado]}>{marca.hallazgo === 'OTRO' ? '?' : 'PR'}</text>
         )}
       </svg>
       {datos?.nota && (
@@ -144,10 +146,12 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
   const pieza = objetivo.nivel === 'region' ? undefined : estado.piezas[objetivo.fdi]
   const region = objetivo.nivel === 'region' ? estado.regiones[objetivo.region] : undefined
   const actual = objetivo.nivel === 'cara' ? pieza?.caras?.[objetivo.cara] : region ?? pieza?.pieza
-  const notaActual = objetivo.nivel === 'pieza' ? pieza?.nota : region?.nota
+  const notaActual = objetivo.nivel === 'pieza' ? pieza?.nota : objetivo.nivel === 'cara' ? actual?.nota : region?.nota
   const [hallazgo, setHallazgo] = useState<Hallazgo | ''>(actual?.hallazgo ?? '')
   const [estadoMarca, setEstadoMarca] = useState<EstadoMarca>(actual?.estado ?? 'PENDIENTE')
   const [nota, setNota] = useState(notaActual ?? '')
+  // «Otro» no dice nada por sí solo: se exige describirlo en la nota.
+  const faltaNota = hallazgo === 'OTRO' && !nota.trim()
   const opciones = HALLAZGOS.filter(({ niveles }) => niveles.includes(objetivo.nivel))
 
   useEffect(() => {
@@ -216,12 +220,18 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
           <option value="REALIZADO">Realizado</option>
         </select>
       </label>
-      {objetivo.nivel !== 'cara' && (
+      {(objetivo.nivel !== 'cara' || hallazgo === 'OTRO') && (
         <label className="form-group">
-          <span className="form-label">Nota</span>
-          <textarea className="form-input" rows={2} maxLength={500} value={nota}
+          <span className="form-label">Nota{faltaNota && <span className="evo-requerido" aria-hidden="true"> *</span>}</span>
+          <textarea className="form-input" rows={2} maxLength={500} value={nota} required={hallazgo === 'OTRO'}
+            aria-describedby={faltaNota ? `${tituloId}-nota-ayuda` : undefined}
             disabled={objetivo.nivel === 'region' && !hallazgo}
             onChange={(e) => setNota(e.target.value)} style={{ resize: 'vertical' }} />
+          {faltaNota && (
+            <span id={`${tituloId}-nota-ayuda`} style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Describe el hallazgo para poder aplicar «Otro».
+            </span>
+          )}
         </label>
       )}
       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
@@ -232,8 +242,13 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
         )}
         <button type="button" className="btn btn-secondary" onClick={() => dialogo.current?.close()}>Cancelar</button>
         <button type="button" className="btn btn-primary"
-          disabled={!hallazgo && (objetivo.nivel !== 'pieza' || nota.trim() === (notaActual ?? ''))}
-          onClick={() => guardar(hallazgo ? { hallazgo, estado: estadoMarca } : undefined, nota.trim() || undefined)}>
+          disabled={faltaNota || (!hallazgo && (objetivo.nivel !== 'pieza' || nota.trim() === (notaActual ?? '')))}
+          onClick={() => guardar(
+            hallazgo
+              ? { hallazgo, estado: estadoMarca, ...(objetivo.nivel === 'cara' && nota.trim() ? { nota: nota.trim() } : {}) }
+              : undefined,
+            nota.trim() || undefined,
+          )}>
           <Check size={16} aria-hidden="true" /> Aplicar
         </button>
       </div>
@@ -246,12 +261,14 @@ const PADDING_PIEZAS = 4
 // En pantallas táctiles muy angostas no se achica más: los dientes dejarían de poder tocarse
 // y se usa el desplazamiento horizontal como último recurso.
 const ESCALA_MINIMA = 0.6
+// En pantalla se agranda hasta llenar el ancho disponible; en impresión se deja en tamaño natural.
+const ESCALA_MAXIMA = 1.7
 
 /**
  * Escala (CSS zoom) para que la fila más larga de dientes quepa completa en el ancho disponible.
  * zoom, a diferencia de transform, también reduce el espacio que ocupa y los clip-path de las caras.
  */
-function useEscalaParaCaber(piezasPorFila: number) {
+function useEscalaParaCaber(piezasPorFila: number, ampliar: boolean) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [valor, setValor] = useState(1)
 
@@ -261,18 +278,18 @@ function useEscalaParaCaber(piezasPorFila: number) {
     const natural = piezasPorFila * ANCHO_PIEZA + PADDING_PIEZAS * 2
     const medir = () => {
       const disponible = elemento.clientWidth
-      if (disponible > 0) setValor(Math.max(ESCALA_MINIMA, Math.min(1, disponible / natural)))
+      if (disponible > 0) setValor(Math.max(ESCALA_MINIMA, Math.min(ampliar ? ESCALA_MAXIMA : 1, disponible / natural)))
     }
     medir()
     const observador = new ResizeObserver(medir)
     observador.observe(elemento)
     return () => observador.disconnect()
-  }, [piezasPorFila])
+  }, [piezasPorFila, ampliar])
 
   return [contenedor, valor] as const
 }
 
-export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura, mostrarLeyenda = true }: Props) {
+export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura, mostrarLeyenda = true, ampliar = true }: Props) {
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null)
   const editable = !soloLectura && Boolean(onChange)
   const seleccionar = editable ? setObjetivo : undefined
@@ -283,7 +300,7 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
     { etiqueta: 'Arcada inferior temporal', piezas: piezas.filter((fdi) => fdi >= 50 && !esSuperior(fdi)) },
     { etiqueta: 'Arcada inferior permanente', piezas: piezas.filter((fdi) => fdi < 50 && !esSuperior(fdi)) },
   ]
-  const [contenedorPiezas, escala] = useEscalaParaCaber(Math.max(...arcadas.map((arcada) => arcada.piezas.length)))
+  const [contenedorPiezas, escala] = useEscalaParaCaber(Math.max(...arcadas.map((arcada) => arcada.piezas.length)), ampliar)
 
   function guardar(marca: Marca | undefined, nota?: string) {
     if (!editable || !objetivo) return

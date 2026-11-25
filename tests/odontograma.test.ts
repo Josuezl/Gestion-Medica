@@ -194,3 +194,27 @@ describe('realizadosNuevos', () => {
     expect(realizadosNuevos(estadoVacio(), null)).toEqual([])
   })
 })
+
+describe('hallazgo «Otro»', () => {
+  it('exige nota en la pieza', () => {
+    const sinNota = { version: 1, piezas: { '26': { pieza: { hallazgo: 'OTRO', estado: 'PENDIENTE' } } }, regiones: {} }
+    expect(validarEstado(sinNota).ok).toBe(false)
+    const conNota = { ...sinNota, piezas: { '26': { pieza: { hallazgo: 'OTRO', estado: 'PENDIENTE' }, nota: 'Diastema' } } }
+    expect(validarEstado(conNota).ok).toBe(true)
+  })
+
+  it('exige nota en la cara y la conserva', () => {
+    const sinNota = { version: 1, piezas: { '21': { caras: { L: { hallazgo: 'OTRO', estado: 'PENDIENTE' } } } }, regiones: {} }
+    expect(validarEstado(sinNota).ok).toBe(false)
+    const conNota = { version: 1, piezas: { '21': { caras: { L: { hallazgo: 'OTRO', estado: 'PENDIENTE', nota: ' Abfracción ' } } } }, regiones: {} }
+    const resultado = validarEstado(conNota)
+    expect(resultado.ok && resultado.estado.piezas['21'].caras?.L).toEqual({ hallazgo: 'OTRO', estado: 'PENDIENTE', nota: 'Abfracción' })
+  })
+
+  it('lista la nota de la cara como nota del trabajo pendiente', () => {
+    const resultado = validarEstado({ version: 1, piezas: { '21': { caras: { L: { hallazgo: 'OTRO', estado: 'PENDIENTE', nota: 'Abfracción' } } } }, regiones: {} })
+    expect(resultado.ok && trabajosPendientes(resultado.estado)).toEqual([
+      expect.objectContaining({ fdi: 21, hallazgo: 'OTRO', etiqueta: 'Otro', nota: 'Abfracción' }),
+    ])
+  })
+})

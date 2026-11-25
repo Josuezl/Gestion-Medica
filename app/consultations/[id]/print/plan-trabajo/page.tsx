@@ -160,7 +160,7 @@ export default async function ReporteOdontologicoPage({ params }: { params: Prom
               </div>
             </div>
             {odontograma
-              ? <Odontograma estado={odontograma.estado} denticion={denticion} soloLectura mostrarLeyenda={false} />
+              ? <Odontograma estado={odontograma.estado} denticion={denticion} soloLectura ampliar={false} mostrarLeyenda={false} />
               : <p className="section-body">—</p>}
           </section>
 

@@ -40,6 +40,15 @@ export function IconoHallazgo({ hallazgo, estado, size = 20 }: { hallazgo: Halla
   const color = estado ? COLOR_ESTADO[estado] : 'currentColor'
   const comun = { 'aria-hidden': true as const, style: { flexShrink: 0, verticalAlign: 'middle' } }
 
+  if (hallazgo === 'OTRO') {
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="var(--text-muted)" strokeWidth="1.4" {...comun}>
+        <circle cx="12" cy="12" r="10" />
+        <text x="12" y="16.5" textAnchor="middle" fontSize="13" fontWeight="800" fill={color} stroke="none">?</text>
+      </svg>
+    )
+  }
+
   if (NIVEL_CARA.has(hallazgo)) {
     return (
       <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="var(--text-muted)" strokeWidth="1.4" {...comun}>

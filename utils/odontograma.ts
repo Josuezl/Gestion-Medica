@@ -5,9 +5,10 @@ export type Region = 'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6' | 'AS' | 'AI'
 export type Hallazgo =
   | 'CARIES' | 'OBTURACION' | 'SELLANTE' | 'CORONA' | 'ENDODONCIA'
   | 'EXTRACCION_INDICADA' | 'AUSENTE' | 'IMPLANTE' | 'PUENTE' | 'PROTESIS_REMOVIBLE'
-  | 'FRACTURA' | 'MOVILIDAD'
+  | 'FRACTURA' | 'MOVILIDAD' | 'OTRO'
 export type EstadoMarca = 'PENDIENTE' | 'REALIZADO'
-export type Marca = { hallazgo: Hallazgo; estado: EstadoMarca }
+/** `nota` solo se usa en marcas de cara (en la pieza y la región la nota va aparte). */
+export type Marca = { hallazgo: Hallazgo; estado: EstadoMarca; nota?: string }
 export type Pieza = { caras?: Partial<Record<Cara, Marca>>; pieza?: Marca; nota?: string }
 export type Denticion = 'PERMANENTE' | 'TEMPORAL' | 'MIXTA'
 export type EstadoOdontograma = {
@@ -41,6 +42,8 @@ export const HALLAZGOS: { codigo: Hallazgo; etiqueta: string; niveles: Nivel[] }
   { codigo: 'PROTESIS_REMOVIBLE', etiqueta: 'Prótesis removible', niveles: ['pieza', 'region'] },
   { codigo: 'FRACTURA', etiqueta: 'Fractura', niveles: ['cara'] },
   { codigo: 'MOVILIDAD', etiqueta: 'Movilidad', niveles: ['pieza'] },
+  // «Otro» obliga a describir el hallazgo en la nota (validarEstado lo exige).
+  { codigo: 'OTRO', etiqueta: 'Otro', niveles: ['cara', 'pieza'] },
 ]
 
 export const COLOR_ESTADO: Record<EstadoMarca, string> = {
@@ -135,7 +138,8 @@ function listarTrabajos(estado: EstadoOdontograma, filtro: EstadoMarca, anterior
     const previa = anterior?.piezas[fdi]
     agregar({ fdi }, pieza.pieza, pieza.nota, previa?.pieza)
     for (const cara of CARAS) {
-      agregar({ fdi, superficie: nombreSuperficie(fdi, cara) }, pieza.caras?.[cara], pieza.nota, previa?.caras?.[cara])
+      const marcaCara = pieza.caras?.[cara]
+      agregar({ fdi, superficie: nombreSuperficie(fdi, cara) }, marcaCara, marcaCara?.nota ?? pieza.nota, previa?.caras?.[cara])
     }
   }
 
@@ -186,6 +190,9 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
       if (!marcaValida(pieza.pieza, 'pieza')) {
         return { ok: false, error: `La marca de la pieza ${fdi} no es válida.` }
       }
+      if (pieza.pieza.hallazgo === 'OTRO' && !pieza.nota?.trim()) {
+        return { ok: false, error: `Pieza ${fdi}: describe en la nota el hallazgo «Otro».` }
+      }
       limpia.pieza = { hallazgo: pieza.pieza.hallazgo, estado: pieza.pieza.estado }
     }
     if (pieza.caras !== undefined) {
@@ -196,7 +203,14 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
         if (!marcaValida(marca, 'cara')) {
           return { ok: false, error: `La marca en la cara ${cara} de la pieza ${fdi} no es válida.` }
         }
-        caras[cara as Cara] = { hallazgo: marca.hallazgo, estado: marca.estado }
+        if (!notaValida(marca.nota)) {
+          return { ok: false, error: `La nota de la cara ${cara} de la pieza ${fdi} debe ser texto de hasta 500 caracteres.` }
+        }
+        const notaCara = marca.nota?.trim()
+        if (marca.hallazgo === 'OTRO' && !notaCara) {
+          return { ok: false, error: `Pieza ${fdi}, cara ${cara}: describe en la nota el hallazgo «Otro».` }
+        }
+        caras[cara as Cara] = { hallazgo: marca.hallazgo, estado: marca.estado, ...(notaCara ? { nota: notaCara } : {}) }
       }
       if (Object.keys(caras).length > 0) limpia.caras = caras
     }
