@@ -24,7 +24,7 @@ async function main() {
   const cita = randomUUID()
   const usuarios = []
 
-  async function crearUsuario(nombre, clinicId, esDentista = false) {
+  async function crearUsuario(nombre, clinicId, { esDentista = false, esOrgAdmin = false } = {}) {
     const email = `${nombre}-${randomUUID()}@e2e.test`
     const password = randomUUID()
     const { user } = comprobar(await admin.auth.admin.createUser({
@@ -38,6 +38,7 @@ async function main() {
       last_name: 'Prueba RLS',
       role: 'DOCTOR',
       is_dentist: esDentista,
+      is_org_admin: esOrgAdmin,
     }), `Configurar perfil ${nombre}`)
 
     const cliente = createClient(url, anonKey, opciones)
@@ -47,11 +48,12 @@ async function main() {
 
   try {
     comprobar(await admin.from('clinics').insert([
-      { id: clinica, name: 'Prueba RLS odontología', max_doctors_override: 2 },
+      { id: clinica, name: 'Prueba RLS odontología', max_doctors_override: 3 },
       { id: otraClinica, name: 'Prueba RLS otra clínica' },
     ]), 'Crear las clínicas de prueba')
-    const dentista = await crearUsuario('odontologo', clinica, true)
+    const dentista = await crearUsuario('odontologo', clinica, { esDentista: true })
     const medico = await crearUsuario('medico', clinica)
+    const orgAdmin = await crearUsuario('org-admin', clinica, { esOrgAdmin: true })
     const externo = await crearUsuario('externo', otraClinica)
 
     comprobar(await admin.from('patients').insert({
@@ -82,6 +84,18 @@ async function main() {
       p_denticion: 'PERMANENTE',
       p_estado: estado,
     }
+
+    const rpcSinLicencia = await dentista.cliente.rpc('guardar_consulta_dental', parametros)
+    assert.equal(rpcSinLicencia.error?.code, '42501', 'RLS debe rechazar el RPC del odontólogo sin licencia')
+
+    const activacionOrgAdmin = await orgAdmin.cliente.from('clinics')
+      .update({ odontologia_habilitada: true }).eq('id', clinica)
+    assert.equal(activacionOrgAdmin.error?.code, 'P0001', 'El trigger debe impedir que el org-admin active la licencia')
+    const licencia = comprobar(await dentista.cliente.rpc('odontologia_habilitada_now'), 'Verificar licencia apagada por defecto')
+    assert.equal(licencia, false)
+
+    comprobar(await admin.from('clinics').update({ odontologia_habilitada: true }).eq('id', clinica),
+      'Activar la licencia con service role')
 
     const rpcMedico = await medico.cliente.rpc('guardar_consulta_dental', parametros)
     assert.equal(rpcMedico.error?.code, '42501', 'RLS debe rechazar el RPC para el médico')
@@ -145,7 +159,7 @@ async function main() {
 
 try {
   await main()
-  console.log('OK: permisos RLS, consulta médica sin tipo y guardado dental atómico')
+  console.log('OK: licencia de odontología, permisos RLS, consulta médica sin tipo y guardado dental atómico')
 } catch (error) {
   console.error(error.message)
   process.exitCode = 1

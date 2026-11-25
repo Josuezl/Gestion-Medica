@@ -266,6 +266,34 @@ export async function setClinicLimits(clinicId: string, limits: ClinicLimitsInpu
   return { success: true }
 }
 
+export async function setClinicDentalLicense(clinicId: string, enabled: boolean) {
+  let actorUserId: string
+  try {
+    actorUserId = await assertPlatformAdmin()
+  } catch {
+    return { error: 'No autorizado.' }
+  }
+
+  if (!clinicId) return { error: 'Falta la clínica.' }
+  if (typeof enabled !== 'boolean') return { error: 'El estado de la licencia no es válido.' }
+
+  const update = { odontologia_habilitada: enabled }
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('clinics').update(update).eq('id', clinicId).select('id').maybeSingle()
+  if (error) {
+    return { error: safeErrorMessage('No se pudo guardar la licencia de odontología.', 'setClinicDentalLicense', error) }
+  }
+  if (!data) return { error: 'No se encontró la clínica.' }
+
+  await logPlatformEvent(actorUserId, 'SET_CLINIC_DENTAL_LICENSE', {
+    targetClinicId: clinicId,
+    metadata: update,
+  })
+
+  revalidatePath('/superadmin')
+  return { success: true }
+}
+
 /**
  * Reenvía el enlace de activación al dueño de una clínica que aún no fijó su contraseña.
  */
