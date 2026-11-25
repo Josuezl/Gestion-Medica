@@ -427,6 +427,7 @@ function ConsultaGuardadaModal({ consulta, expediente }: {
             </a>
           ))}
           <Link className="btn btn-secondary" href={expediente}>Ir al expediente</Link>
+          <Link className="btn btn-secondary" href="/dashboard">Ir al dashboard</Link>
         </div>
       </div>
     </div>
