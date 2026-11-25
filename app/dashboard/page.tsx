@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import AgendaClient, { type Appointment } from './AgendaClient'
 import DashboardGreeting from './DashboardGreeting'
 import { getPendingPreclinicalPatientIds } from './preclinical/actions'
-import { getSessionProfile } from '@/utils/session'
+import { getAuthContext } from '@/utils/auth-guard'
 
 import { cookies } from 'next/headers'
 
@@ -16,12 +16,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const supabase = await createClient()
   const sp = await searchParams
 
-  // 1. Sesión + perfil memoizados por request (compartidos con layout y greeting, P1-2)
-  const session = await getSessionProfile()
-  if (!session) return null
-  const { profile } = session
-
-  const clinicId = profile?.clinic_id
+  const auth = await getAuthContext()
+  if (!auth) return null
+  const { clinicId, profile, odontologiaHabilitada } = auth
 
   // Si venimos de "crear paciente → agendar cita", pre-seleccionar ese paciente en el modal de cita.
   let preSelectedPatient: { id: string; name: string } | null = null
@@ -60,6 +57,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       duration_minutes,
       doctor_id,
       location_id,
+      user_profiles!doctor_id(is_dentist),
       patients (
         id,
         first_name,
@@ -85,7 +83,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // 4. Obtener doctores de la clínica
   const { data: doctors } = await supabase
     .from('user_profiles')
-    .select('id, first_name, last_name, role, gender')
+    .select('id, first_name, last_name, role, gender, is_dentist')
     .eq('clinic_id', clinicId || '')
     .in('role', ['ADMIN', 'DOCTOR'])
     .order('first_name', { ascending: true })
@@ -109,6 +107,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         loadedRangeStart={rangeStart.toISOString()}
         loadedRangeEnd={rangeEnd.toISOString()}
         doctors={doctors || []}
+        odontologiaHabilitada={odontologiaHabilitada}
         locations={locations || []}
         defaultLocationId={defaultLocationId}
         preclinicalPatientIds={preclinicalPatientIds}

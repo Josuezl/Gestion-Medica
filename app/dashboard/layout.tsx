@@ -1,5 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
+import { getAuthContext } from '@/utils/auth-guard'
 import { getSessionProfile } from '@/utils/session'
 import SidebarLink from './components/SidebarLink'
 import { redirect } from 'next/navigation'
@@ -16,7 +17,8 @@ import {
   Menu,
   Inbox,
   Globe,
-  BookOpen
+  BookOpen,
+  Smile,
 } from 'lucide-react'
 
 export default async function DashboardLayout({
@@ -25,7 +27,7 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   // Sesión + perfil memoizados por request: layout, página y greeting comparten la llamada (P1-2).
-  const session = await getSessionProfile()
+  const [session, auth] = await Promise.all([getSessionProfile(), getAuthContext()])
   if (!session) {
     redirect('/login')
   }
@@ -70,6 +72,9 @@ export default async function DashboardLayout({
         <nav style={styles.navigation}>
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
+          {auth?.odontologiaHabilitada && (
+            <SidebarLink href="/dashboard/odontologia" label="Odontología" icon={<Smile size={20} />} />
+          )}
           {/* Auto-agendamiento: lo gestiona todo el personal (asistentes, médicos y enfermería) */}
           <SidebarLink href="/dashboard/agenda-publica" label="Agenda en línea" icon={<Globe size={20} />} />
           <SidebarLink href="/dashboard/solicitudes" label="Aprobación de Citas" icon={<Inbox size={20} />} badge={pendingBookings || 0} />

@@ -40,7 +40,7 @@ function esSuperior(fdi: number) {
   return cuadrante === 1 || cuadrante === 2 || cuadrante === 5 || cuadrante === 6
 }
 
-function ubicacion(objetivo: Objetivo): string {
+export function ubicacion(objetivo: Objetivo): string {
   if (objetivo.nivel === 'region') return REGIONES[objetivo.region]
   if (objetivo.nivel === 'pieza') return `Pieza ${objetivo.fdi}`
 
@@ -55,7 +55,7 @@ function ubicacion(objetivo: Objetivo): string {
   return `Pieza ${fdi}, cara ${nombres[cara]}`
 }
 
-function descripcion(marca?: Marca, nota?: string): string | undefined {
+export function descripcion(marca?: Marca, nota?: string): string | undefined {
   const hallazgo = marca && HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)?.etiqueta
   return [hallazgo, marca && ESTADOS[marca.estado], nota].filter(Boolean).join(' · ') || undefined
 }
@@ -104,12 +104,12 @@ function Diente({ fdi, estado, seleccionar }: {
     <button
       type="button"
       className="odontograma-control"
-      disabled={!seleccionar}
+      aria-disabled={seleccionar ? undefined : true}
       aria-haspopup={seleccionar ? 'dialog' : undefined}
       aria-label={ubicacion(objetivo)}
       aria-describedby={detallePieza ? detalleId : undefined}
       title={detallePieza ?? ubicacion(objetivo)}
-      onClick={() => seleccionar?.(objetivo)}
+      onClick={seleccionar ? () => seleccionar(objetivo) : undefined}
       style={{ display: 'block', position: 'relative', width: 48, height: 64 }}
     >
       <svg viewBox="0 0 48 64" width="48" height="64" aria-hidden="true">
@@ -145,12 +145,12 @@ function Diente({ fdi, estado, seleccionar }: {
               key={cara}
               type="button"
               className="odontograma-control odontograma-cara"
-              disabled={!seleccionar}
+              aria-disabled={seleccionar ? undefined : true}
               aria-haspopup={seleccionar ? 'dialog' : undefined}
               aria-label={ubicacion(objetivo)}
               aria-describedby={detalle ? caraDetalleId : undefined}
               title={detalle ?? ubicacion(objetivo)}
-              onClick={() => seleccionar?.(objetivo)}
+              onClick={seleccionar ? () => seleccionar(objetivo) : undefined}
               style={{ position: 'absolute', inset: 0, clipPath: `path('${camino}')` }}
             >
               <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
@@ -297,9 +297,10 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
     }}>
       <style>{`
         .odontograma-control { color: inherit; background: transparent; border: 0; padding: 0; }
-        .odontograma-control:enabled { cursor: pointer; }
+        .odontograma-control:not([aria-disabled="true"]) { cursor: pointer; }
+        .odontograma-control[aria-disabled="true"] { cursor: default; }
         .odontograma-control:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-        .odontograma-cara:enabled:hover path,
+        .odontograma-cara:not([aria-disabled="true"]):hover path,
         .odontograma-cara:focus-visible path { stroke: var(--primary); stroke-width: 4; }
         .odontograma-dialogo::backdrop { background: rgb(15 23 42 / 0.55); }
         .odontograma-dialogo button:disabled { opacity: 0.55; cursor: default; transform: none; }
@@ -344,11 +345,11 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
           const detalle = descripcion(marca, marca?.nota)
           const detalleId = `${regionDetalleId}-${region}`
           return (
-            <button key={region} type="button" disabled={!editable}
+            <button key={region} type="button" aria-disabled={editable ? undefined : true}
               className="odontograma-control btn-secondary"
               aria-label={REGIONES[region]} aria-describedby={detalle ? detalleId : undefined}
               aria-haspopup={editable ? 'dialog' : undefined}
-              title={detalle ?? REGIONES[region]} onClick={() => seleccionar?.({ nivel: 'region', region })}
+              title={detalle ?? REGIONES[region]} onClick={seleccionar ? () => seleccionar({ nivel: 'region', region }) : undefined}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem', font: 'inherit', fontSize: '0.8rem',
                 padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',

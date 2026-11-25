@@ -49,6 +49,7 @@ import {
   Baby,
   Stethoscope,
   CheckCircle2,
+  Smile,
 } from 'lucide-react'
 import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
@@ -62,6 +63,7 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import { leavePeriodText } from '@/utils/incapacidad'
 import { antecedenteParaMostrar, estadoEfectivo } from '@/utils/antecedentes'
 import DocumentosMenu from './DocumentosMenu'
+import OdontogramaTab, { type OdontogramaGuardado } from '../../odontologia/OdontogramaTab'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -94,6 +96,9 @@ interface PatientDetailsClientProps {
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
+  odontologiaHabilitada: boolean
+  odontogramas: OdontogramaGuardado[] | null
+  isDentist: boolean
 }
 
 export default function PatientDetailsClient({
@@ -110,7 +115,10 @@ export default function PatientDetailsClient({
   justCreated = false,
   currentUserId,
   currentUserRole,
-  isOrgAdmin
+  isOrgAdmin,
+  odontologiaHabilitada,
+  odontogramas,
+  isDentist,
 }: PatientDetailsClientProps) {
   const appUrl = useAppOrigin()
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
@@ -119,7 +127,7 @@ export default function PatientDetailsClient({
   // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
   const lastConsult: ConsultationRow | null = consultations && consultations.length > 0 ? consultations[0] : null
   const alergiasEstado = estadoEfectivo(patient.allergies_status, patient.allergies)
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics' | 'odontograma'>(canClinical ? 'consultations' : 'prescriptions')
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
@@ -1074,6 +1082,16 @@ export default function PatientDetailsClient({
             </button>
           )}
 
+          {odontologiaHabilitada && (
+            <button
+              style={activeTab === 'odontograma' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('odontograma')}
+            >
+              <Smile size={18} />
+              <span>Odontograma</span>
+            </button>
+          )}
+
           {canClinical && patient.is_pediatric && (
             <button
               style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
@@ -1139,6 +1157,10 @@ export default function PatientDetailsClient({
 
         {/* Tab Contents */}
         <div style={styles.tabContentContainer}>
+          {odontologiaHabilitada && activeTab === 'odontograma' && (
+            <OdontogramaTab patientId={patient.id} historial={odontogramas} isDentist={isDentist} />
+          )}
+
           {/* TAB 1: CONSULTAS */}
           {activeTab === 'consultations' && (
             <div style={styles.tabView}>

@@ -6,6 +6,7 @@ import { updateAppointmentStatus, deleteAppointment, getPatientAppointmentHistor
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
 import type { actualizarCita, crearCita } from '@/utils/guardado/cita'
 import { guardarEnApi } from '@/utils/guardarApi'
+import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
 import { verificarVersion } from '@/utils/versionCheck'
 import {
   Calendar as CalendarIcon,
@@ -41,6 +42,7 @@ export interface Doctor {
   last_name: string
   role: string
   gender?: string | null
+  is_dentist?: boolean | null
 }
 
 export interface Patient {
@@ -65,6 +67,7 @@ export interface Appointment {
   doctor_id: string
   location_id: string | null
   patients: Patient | null
+  user_profiles?: { is_dentist: boolean | null } | null
   // Solicitud del portal público vinculada (solo citas PENDING_REVIEW; join uno-a-muchos).
   booking_requests?: {
     id: string
@@ -87,6 +90,7 @@ interface AgendaClientProps {
   loadedRangeStart: string
   loadedRangeEnd: string
   doctors: Doctor[]
+  odontologiaHabilitada: boolean
   locations: Location[]
   defaultLocationId?: string
   preclinicalPatientIds?: string[]
@@ -144,7 +148,7 @@ const getWeekDays = (date: Date) => {
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-export default function AgendaClient({ initialAppointments, loadedRangeStart, loadedRangeEnd, doctors, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
+export default function AgendaClient({ initialAppointments, loadedRangeStart, loadedRangeEnd, doctors, odontologiaHabilitada, locations, defaultLocationId = 'all', preclinicalPatientIds = [], preSelectedPatient = null, autoOpenAppointment = false, currentDoctor }: AgendaClientProps) {
   // --- State ---
   const [viewMode, setViewMode] = useState<ViewMode>('agenda')
   // Se inicializa al día de HOY en Honduras (no la fecha local del runtime) para que el render
@@ -229,6 +233,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
 
   // Cita que se intentó marcar "Realizada" sin consulta registrada → dispara el modal de bloqueo.
   const [completeBlocked, setCompleteBlocked] = useState<Appointment | null>(null)
+  const blockedPatientId = completeBlocked?.patients?.id
 
   // --- Sincronización en vivo de citas (Realtime) ---
   // Overlay de citas en vivo (Realtime): nuevas/cambiadas sobrescriben por id; canceladas se excluyen.
@@ -365,7 +370,13 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
         // mismo id (reprogramada de vuelta a la ventana antes de que el fade viejo disparara).
         cancelFade(action.id)
         setFadingIds(prev => { if (!prev.has(action.id)) return prev; const n = new Set(prev); n.delete(action.id); return n })
-        setLiveAppointments(prev => new Map(prev).set(action.id, patchAppointment(existing, action.row)))
+        const updated = patchAppointment(existing, action.row)
+        if (existing.doctor_id !== updated.doctor_id) {
+          const doctor = doctors.find(doctor => doctor.id === updated.doctor_id)
+          updated.user_profiles = doctor ? { is_dentist: doctor.is_dentist ?? null } : null
+          queueFetch(action.id)
+        }
+        setLiveAppointments(prev => new Map(prev).set(action.id, updated))
         flashHighlight(action.id)
         return
       }
@@ -895,6 +906,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
               key={app.id}
               app={app}
               doctors={doctors}
+              esOdontologo={odontologiaHabilitada && app.user_profiles?.is_dentist === true}
               isClinician={isClinician}
               canTakeVitals={canTakeVitals}
               isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
@@ -955,6 +967,7 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
               key={app.id}
               app={app}
               doctors={doctors}
+              esOdontologo={odontologiaHabilitada && app.user_profiles?.is_dentist === true}
               isClinician={isClinician}
               canTakeVitals={canTakeVitals}
               isPreclinicalReady={!!app.patients?.id && preclinicalSet.has(app.patients.id)}
@@ -1501,12 +1514,16 @@ export default function AgendaClient({ initialAppointments, loadedRangeStart, lo
               Para marcarla como <strong>«Realizada»</strong> primero registra la consulta, o cambia el estado de la cita.
             </p>
 
-            {isClinician && completeBlocked.patients?.id && (
+            {isClinician && blockedPatientId && (
               <button
                 type="button"
                 className="btn btn-primary"
                 style={{ width: '100%', marginBottom: '1.25rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-                onClick={() => { window.location.href = `/dashboard/consultations/new?patientId=${completeBlocked.patients?.id}&appointmentId=${completeBlocked.id}` }}
+                onClick={() => {
+                  window.location.href = rutaNuevaConsulta(
+                    blockedPatientId, completeBlocked.id, odontologiaHabilitada && completeBlocked.user_profiles?.is_dentist === true,
+                  )
+                }}
               >
                 <Stethoscope size={16} /> Iniciar consulta
               </button>
