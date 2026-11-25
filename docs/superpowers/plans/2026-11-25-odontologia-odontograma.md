@@ -127,9 +127,10 @@ Supabase local).
 - `denticionPorEdad(birthDate: string | null, hoy?: Date): Denticion`.
 - `estadoVacio(): EstadoOdontograma`.
 - `validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma } | { ok: false; error: string }`.
-- `HALLAZGOS: { codigo: Hallazgo; etiqueta: string; nivel: 'cara' | 'pieza' | 'region' }[]`
-  (`CARIES`, `OBTURACION`, `SELLANTE`, `FRACTURA` → cara; `PUENTE`, `PROTESIS_REMOVIBLE` →
-  pieza o región; el resto → pieza).
+- `HALLAZGOS: { codigo: Hallazgo; etiqueta: string; niveles: ('cara' | 'pieza' | 'region')[] }[]`
+  (`CARIES`, `OBTURACION`, `SELLANTE`, `FRACTURA` → `['cara']`; `PUENTE`, `PROTESIS_REMOVIBLE` →
+  `['pieza','region']`; el resto → `['pieza']`). `validarEstado` exige que cada marca esté en
+  un nivel permitido para su hallazgo.
 - `COLOR_ESTADO: Record<EstadoMarca, string>`.
 
 - [ ] **Paso 1:** Tests:
