@@ -9,10 +9,12 @@ export interface SessionProfile {
   last_name: string | null
   role: string | null
   is_org_admin: boolean | null
+  is_dentist: boolean
   specialty: string | null
   gender: string | null
-  /** Join a-uno con clinics (la inferencia del cliente lo reporta como arreglo). */
   clinic_name: string | null
+  odontologia_habilitada: boolean
+  show_record_number: boolean
 }
 
 /**
@@ -32,13 +34,18 @@ export const getSessionProfile = cache(async () => {
 
   const { data } = await supabase
     .from('user_profiles')
-    .select('id, clinic_id, first_name, last_name, role, is_org_admin, specialty, gender, clinics ( name )')
+    .select('id, clinic_id, first_name, last_name, role, is_org_admin, is_dentist, specialty, gender, clinics(name, odontologia_habilitada, show_record_number)')
     .eq('id', user.id)
     .single()
 
   if (!data) return { user, profile: null }
 
-  const clinicRef = data.clinics as unknown as { name?: string | null } | null
+  // Join a-uno con clinics (la inferencia del cliente lo reporta como arreglo).
+  const clinicRef = data.clinics as unknown as {
+    name: string | null
+    odontologia_habilitada: boolean | null
+    show_record_number: boolean | null
+  } | null
   const profile: SessionProfile = {
     id: data.id,
     clinic_id: data.clinic_id,
@@ -46,9 +53,12 @@ export const getSessionProfile = cache(async () => {
     last_name: data.last_name,
     role: data.role,
     is_org_admin: data.is_org_admin,
+    is_dentist: data.is_dentist === true,
     specialty: data.specialty,
     gender: data.gender,
     clinic_name: clinicRef?.name ?? null,
+    odontologia_habilitada: clinicRef?.odontologia_habilitada === true,
+    show_record_number: clinicRef?.show_record_number === true,
   }
   return { user, profile }
 })

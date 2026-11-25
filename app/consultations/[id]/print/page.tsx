@@ -1,5 +1,5 @@
 import React from 'react'
-import QRCode from 'qrcode'
+import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import ConstanciaIncapacidad from './ConstanciaIncapacidad'
@@ -8,8 +8,14 @@ import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { calculateAge } from '@/utils/age'
-import type { ConsultationRow } from '@/utils/clinicalTypes'
+import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
 import { bpReadings } from '@/utils/bloodPressure'
+import PrintHeader from './PrintHeader'
+import PrintOdontograma from './PrintOdontograma'
+import PrintSignature from './PrintSignature'
+import PrintStyles from './PrintStyles'
+import PrintVerification, { generarQrVerificacion } from './PrintVerification'
+import { cargarOdontograma } from './cargarOdontograma'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -22,44 +28,42 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const resolvedSearchParams = searchParams ? await searchParams : {}
   // Modo "referencia": muestra solo Motivo de Consulta + Motivo de Referencia (en vez del resumen completo).
   const isReferral = resolvedSearchParams?.doc === 'referral'
+  const wantsDental = resolvedSearchParams?.doc === 'dental'
   const code = typeof resolvedSearchParams?.code === 'string'
     ? resolvedSearchParams.code
     : Array.isArray(resolvedSearchParams?.code) ? resolvedSearchParams.code[0] : undefined
 
   // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
-  const access = await loadPublicDocument<ConsultationRow>('consultations', consultationId, code)
+  const access = await loadPublicDocument<ConsultaConTipo>('consultations', consultationId, code)
   if (access.status === 'notfound') return notFound()
   if (access.status === 'gate') {
     return (
       <DocumentCodeGate
         basePath={`/consultations/${consultationId}/print`}
-        extraQuery={isReferral ? '&doc=referral' : ''}
+        extraQuery={isReferral ? '&doc=referral' : wantsDental ? '&doc=dental' : ''}
         hasError={!!access.hasError}
-        docLabel={isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}
+        docLabel={isReferral ? 'Referencia Médica' : wantsDental ? 'Consulta de Odontología' : 'Incapacidad Médica'}
       />
     )
   }
   const { doc: consultation, patient, doctor, clinic } = access
   if (!consultation || !patient || !doctor || !clinic) return notFound()
 
+  const c = consultation
+  const hasLeavePeriod = !!(c.leave_start_date && c.leave_days)
+  const dental = !isReferral && (wantsDental || (!hasLeavePeriod && !c.medical_leave?.trim()))
+    ? etiquetaTipoConsulta(c.tipo)
+    : null
+
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
-  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const verifyUrl = `${SITE_URL}/verificar/${consultation.verification_code}${isReferral ? '?doc=referral' : ''}`
-  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
+  const qrDataUrl = await generarQrVerificacion(c.verification_code, isReferral ? 'referral' : dental ? 'dental' : undefined)
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
-  const logoUrl = doctor.practice_logo_url || clinic.logo_url
-  // Si el médico usa SU PROPIO logo, este suele incluir su nombre/especialidad → se ocultan del
-  // encabezado. Con el logo global de la clínica (o sin logo) sí se muestran.
-  const usingOwnLogo = !!doctor.practice_logo_url
-  // Con el logo global de la clínica, acercar la línea de tel/dirección al logo (se ve muy separada).
-  const isGlobalLogo = !!logoUrl && !usingOwnLogo
   const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
-  const c = consultation
   // Incapacidad con inicio y días: hoja propia («Constancia médica de incapacidad»).
-  if (!isReferral && c.leave_start_date && c.leave_days) {
+  if (!dental && !isReferral && c.leave_start_date && c.leave_days) {
     return (
       <ConstanciaIncapacidad
         c={{ ...c, leave_start_date: c.leave_start_date, leave_days: c.leave_days }}
@@ -70,7 +74,15 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const hc = c.head_circumference
   const hasVitals = c.weight || c.height || bpReadings(c).length > 0 || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
-  const sections = (isReferral
+  const sections = (dental
+    ? [
+        { title: 'Motivo de Consulta', value: c.reason_for_visit },
+        { title: 'Examen intraoral', value: c.intraoral_exam?.trim() || '—' },
+        { title: 'Diagnóstico', value: c.diagnosis },
+        { title: 'Procedimientos realizados', value: c.procedures_done?.trim() || '—' },
+        { title: 'Plan de Tratamiento / Recomendaciones', value: c.treatment_plan },
+      ]
+    : isReferral
     ? [
         { title: 'Dirigido a', value: c.referral_to },
         { title: 'Motivo de Consulta', value: c.reason_for_visit },
@@ -85,124 +97,41 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
       ]
   ).filter(s => s.value && String(s.value).trim() !== '')
   // En referencia no se muestran vitales ni la incapacidad.
-  const showVitals = hasVitals && !isReferral
+  const showVitals = hasVitals && !isReferral && !dental
+  // loadPublicDocument ya autorizó el acceso por sesión o código para esta consulta.
+  const odontograma = dental && c.clinic_id
+    ? await cargarOdontograma(
+        createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!),
+        consultationId,
+        c.clinic_id,
+      )
+    : null
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        body {
-          background: #e2e8f0; margin: 0; padding: 0;
-          font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #0f172a;
+      <PrintStyles />
+
+      {dental && <style>{`
+        .sheet-dental .body {
+          display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-content: start; gap: 8px 16px;
         }
-        .page-wrap { display: flex; flex-direction: column; align-items: center; padding: 24px 12px 48px; }
-        .sheet {
-          width: 200mm; min-height: 277mm; background: #ffffff;
-          padding: 14mm 16mm; box-shadow: 0 8px 30px rgba(15,23,42,0.12);
-          display: flex; flex-direction: column;
-        }
-
-        .control-bar {
-          background: #0f172a; color: #fff; padding: 14px 28px;
-          display: flex; justify-content: space-between; align-items: center;
-          position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-        }
-        .control-title { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; margin: 0; }
-        .control-buttons { display: flex; gap: 10px; }
-        .btn-print {
-          display: inline-flex; align-items: center; gap: 8px; background: #0d9488; color: #fff;
-          border: none; padding: 10px 20px; border-radius: 9px; font-size: 13.5px; font-weight: 700;
-          cursor: pointer; font-family: inherit; transition: background .15s, transform .1s;
-        }
-        .btn-print:hover { background: #0f766e; }
-        .btn-print:active { transform: translateY(1px); }
-        .btn-close {
-          display: inline-flex; align-items: center; background: transparent; color: #cbd5e1;
-          border: 1px solid #334155; padding: 10px 18px; border-radius: 9px; font-size: 13.5px;
-          font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s, color .15s;
-        }
-        .btn-close:hover { background: #1e293b; color: #fff; }
-
-        /* Cabecera centrada (igual a la receta) */
-        .header { text-align: center; }
-        .header-logo { display: block; margin: 0 auto 4px; max-height: 125px; max-width: 70%; object-fit: contain; }
-        .clinic-name { margin: 0; font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
-        .clinic-detail { margin: 3px 0 0; font-size: 10px; color: #64748b; }
-        .doc-block { margin-top: 7px; }
-        .doctor-name { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
-        .doctor-specialty { margin: 1px 0 0; font-size: 11px; font-weight: 600; color: #0d9488; }
-
-        .doc-title { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #0d9488; margin: 12px 0 0; }
-        .divider { height: 1px; background: #e2e8f0; margin: 10px 0 12px; }
-
-        /* Paciente + vitales en línea (mismo formato que la receta) */
-        .patient { background: #f8fafc; border: 1px solid #e9eef4; border-radius: 8px; padding: 9px 13px; }
-        .prow { display: flex; justify-content: space-between; gap: 14px; }
-        .prow + .prow { margin-top: 5px; }
-        .plabel { font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
-        .pval { font-size: 13px; font-weight: 600; color: #1e293b; }
-        .ped-tag { margin-left: 8px; font-size: 9px; background: rgba(13,148,136,0.1); color: #0d9488; padding: 1px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
-        .vitals { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 7px; }
-        .vital { font-size: 11px; color: #475569; }
-        .vital strong { color: #0f172a; }
-
-        /* Secciones clínicas */
-        .body { flex: 1; margin-top: 16px; }
-        .section { margin-bottom: 14px; }
-        .section-title { font-size: 13px; font-weight: 700; color: #0d9488; margin: 0 0 5px; padding-bottom: 5px; border-bottom: 1px solid #e2e8f0; }
-        .section-body { font-size: 12px; color: #334155; line-height: 1.55; margin: 0; white-space: pre-line; }
-
-        /* Pie: QR + firma */
-        .sign-area { margin-top: 26px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
-        .qr-box { display: flex; align-items: center; gap: 12px; max-width: 300px; text-align: left; }
-        .qr-box img { width: 84px; height: 84px; }
-        .qr-cap-title { font-size: 11px; font-weight: 700; color: #0f172a; margin: 0; }
-        .qr-cap-text { font-size: 9px; color: #64748b; margin: 2px 0 0; line-height: 1.3; }
-        .qr-code { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; color: #0d9488; margin: 4px 0 0; letter-spacing: 0.04em; }
-        .sign { text-align: center; min-width: 200px; }
-        .sign img { max-height: 135px; max-width: 340px; object-fit: contain; display: block; margin: 0 auto 4px; }
-        .sign-empty { height: 74px; }
-        .sign-line { border-top: 1px solid #334155; padding-top: 4px; }
-        .sign-name { margin: 0; font-size: 12.5px; font-weight: 700; color: #0f172a; }
-        .sign-spec { margin: 1px 0 0; font-size: 10px; color: #475569; }
-        .sign-id { margin: 1px 0 0; font-size: 9.5px; color: #64748b; }
-
+        .sheet-dental .section { margin-bottom: 0; }
+        .odontograma-impreso { grid-column: 1 / -1; scroll-margin-top: 5rem; }
+        .odontograma-impreso section { zoom: 0.72; }
         @media print {
-          body { background: #ffffff; }
-          @page { size: A4; margin: 0; }
-          .no-print { display: none !important; }
-          .page-wrap { padding: 0; display: block; }
-          .sheet { width: 210mm; min-height: 297mm; box-shadow: none; padding: 16mm 16mm; }
-          .section { page-break-inside: avoid; }
-          .patient { page-break-inside: avoid; }
-          .sign-area { page-break-inside: avoid; }
+          .sheet.sheet-dental { min-height: 296mm; padding: 8mm 16mm; }
+          .sheet-dental .sign-area { margin-top: 14px; }
+          .odontograma-impreso section { zoom: 0.68; }
         }
-      `}} />
-
-      <PrintControlBar />
+      `}</style>}
+      <PrintControlBar titulo={dental ? `Consulta de ${dental}` : undefined} />
 
       <div className="page-wrap">
-        <div className="sheet">
-          {/* Cabecera */}
-          <div className="header">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="header-logo" src={logoUrl} alt="Logo" />
-            ) : (
-              <h1 className="clinic-name">{doctor.practice_name || clinic.name}</h1>
-            )}
-            <p className="clinic-detail" style={isGlobalLogo ? { marginTop: '-12px' } : undefined}>Tel: {doctor.practice_phone || clinic.phone || 'N/A'}&nbsp;&nbsp;•&nbsp;&nbsp;{doctor.practice_address || clinic.address || 'Honduras'}</p>
-            {!usingOwnLogo && (
-              <div className="doc-block">
-                <h2 className="doctor-name">{docName}</h2>
-                <p className="doctor-specialty">{docSpecialty}</p>
-              </div>
-            )}
-          </div>
+        <div className={dental ? 'sheet sheet-dental' : 'sheet'}>
+          <PrintHeader clinic={clinic} doctor={doctor} docName={docName} docSpecialty={docSpecialty} />
 
-          <p className="doc-title">{isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}</p>
+          <p className="doc-title">{dental ? `Consulta de ${dental}` : isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}</p>
           <div className="divider" />
 
           {/* Paciente */}
@@ -255,7 +184,10 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
               </div>
             ))}
 
-            {!isReferral && c.medical_leave && String(c.medical_leave).trim() !== '' && (
+            {dental && (
+              <PrintOdontograma odontograma={odontograma} />
+            )}
+            {!dental && !isReferral && c.medical_leave && String(c.medical_leave).trim() !== '' && (
               <div className="section">
                 <h3 className="section-title">Incapacidad Médica</h3>
                 <p className="section-body">{c.medical_leave}</p>
@@ -265,27 +197,8 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
 
           {/* Pie: QR de verificación + firma */}
           <div className="sign-area">
-            <div className="qr-box">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="Código QR de verificación del documento" />
-              <div>
-                <p className="qr-cap-title">Documento verificable</p>
-                <p className="qr-cap-text">Escanea el código para validar este documento en su versión digital.</p>
-                <p className="qr-code">{c.verification_code}</p>
-              </div>
-            </div>
-            <div className="sign">
-              {doctor.signature_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={doctor.signature_url} alt="Firma" />
-              ) : (
-                <div className="sign-empty" />
-              )}
-              <div className="sign-line">
-                <p className="sign-name">{docName}</p>
-                <p className="sign-spec">{docSpecialty}</p>
-              </div>
-            </div>
+            <PrintVerification codigo={c.verification_code} qrDataUrl={qrDataUrl} />
+            <PrintSignature signatureUrl={doctor.signature_url} docName={docName} docSpecialty={docSpecialty} />
           </div>
         </div>
       </div>

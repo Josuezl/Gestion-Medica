@@ -12,6 +12,7 @@ export interface ProvisionParams {
   clinicName: string
   role: 'DOCTOR' | 'ASSISTANT' | 'ADMIN' | 'NURSE'
   isOrgAdmin: boolean
+  isDentist?: boolean
   specialty?: string | null
   professionalId?: string | null
   gender?: string | null
@@ -49,22 +50,23 @@ export async function provisionUserAccount(params: ProvisionParams): Promise<Pro
   const userId = linkData.user.id
   const hashedToken = linkData.properties.hashed_token
 
-  // 2. Enlazar el perfil. El trigger handle_new_user ya creó la fila base; aquí asignamos
-  //    clinic_id/role/is_org_admin (permitido porque la conexión es service_role).
+  // 2. Crear o enlazar el perfil con service_role. Si está instalado el trigger
+  //    handle_new_user, la fila base ya existe.
   const { error: profileError } = await admin
     .from('user_profiles')
-    .update({
+    .upsert({
+      id: userId,
       clinic_id: params.clinicId,
       first_name: params.firstName,
       last_name: params.lastName,
       role: params.role,
       is_org_admin: params.isOrgAdmin,
+      ...(typeof params.isDentist === 'boolean' && { is_dentist: params.isDentist }),
       specialty: params.specialty || null,
       professional_id: params.professionalId || null,
       gender: params.gender || null,
       default_location_id: params.defaultLocationId || null,
-    })
-    .eq('id', userId)
+    }, { onConflict: 'id' })
 
   if (profileError) {
     // Revertir el usuario de Auth para no dejar cuentas huérfanas.

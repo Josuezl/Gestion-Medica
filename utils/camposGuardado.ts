@@ -3,6 +3,7 @@
  * FormData con prefijo `_` para no chocar con los `name` del formulario.
  */
 import type { Medicine } from './medicines'
+import { validarEstado, type Denticion, type EstadoOdontograma } from './odontograma'
 
 export function agregarParametros(fd: FormData, p: Record<string, string | null | boolean | unknown[]>): FormData {
   for (const [clave, valor] of Object.entries(p)) {
@@ -45,4 +46,36 @@ export function leerParametrosConsulta(fd: FormData):
 
 export function leerForce(fd: FormData): boolean {
   return fd.get('_force') === 'true'
+}
+
+export interface ParametrosConsultaDental {
+  patientId: string
+  appointmentId: string | null
+  medicines: Medicine[]
+  denticion: Denticion
+  estado: EstadoOdontograma
+}
+
+export function leerParametrosConsultaDental(fd: FormData): ParametrosConsultaDental | { error: string } {
+  const consulta = leerParametrosConsulta(fd)
+  if ('error' in consulta) return consulta
+  const { patientId, appointmentId, medicines } = consulta
+
+  const denticion = texto(fd, '_denticion')
+  if (denticion !== 'PERMANENTE' && denticion !== 'TEMPORAL' && denticion !== 'MIXTA') {
+    return { error: 'La dentición no es válida.' }
+  }
+
+  const raw = texto(fd, '_odontograma')
+  if (!raw) return { error: 'Falta el odontograma.' }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { error: 'El odontograma no tiene un formato válido.' }
+  }
+
+  const validado = validarEstado(parsed)
+  if (!validado.ok) return { error: validado.error }
+  return { patientId, appointmentId, medicines, denticion, estado: validado.estado }
 }

@@ -126,6 +126,7 @@ export async function getPatientAppointmentHistory(patientId: string) {
       duration_minutes,
       doctor_id,
       location_id,
+      user_profiles!doctor_id(is_dentist),
       patients (
         id,
         first_name,
@@ -175,6 +176,7 @@ export async function getAppointmentsForRange(startISO: string, endISO: string) 
       duration_minutes,
       doctor_id,
       location_id,
+      user_profiles!doctor_id(is_dentist),
       patients (
         id,
         first_name,
@@ -223,6 +225,7 @@ export async function getAppointmentById(id: string) {
       duration_minutes,
       doctor_id,
       location_id,
+      user_profiles!doctor_id(is_dentist),
       patients (
         id,
         first_name,

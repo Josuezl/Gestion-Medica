@@ -1,9 +1,13 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
+import { getSessionProfile } from '@/utils/session'
+import type { OdontogramaGuardado } from '../../odontologia/OdontogramaTab'
+import { validarEstado, type Denticion } from '@/utils/odontograma'
 import { notFound } from 'next/navigation'
 import { canDoClinical } from '@/utils/permissions'
 import PatientDetailsClient from './PatientDetailsClient'
 import type { ConsultationRow, MedicalLeaveRow, ReferralRow, StudyRow } from '@/utils/clinicalTypes'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -17,23 +21,16 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {}
   const isEditing = resolvedSearchParams.edit === 'true'
   const justCreated = resolvedSearchParams.creado === '1'
+  const abrirOdontograma = resolvedSearchParams.tab === 'odontograma'
   
   const supabase = await createClient()
 
   // 1. Validar autenticación
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  // Rol y permisos del usuario actual (para controlar el borrado de estudios)
-  const { data: currentProfile } = await supabase
-    .from('user_profiles')
-    .select('role, is_org_admin, clinics(show_record_number)')
-    .eq('id', user.id)
-    .single()
-  // N° de Expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San Martín).
-  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
-  const profileCfg = currentProfile as unknown as { clinics: { show_record_number: boolean | null } | null } | null
-  const showRecordNumber = !!profileCfg?.clinics?.show_record_number
+  const session = await getSessionProfile()
+  if (!session?.profile) return null
+  const { user, profile } = session
+  const odontologiaHabilitada = profile.odontologia_habilitada
+  const isDentist = puedeRegistrarOdontologia(profile)
 
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase
@@ -55,7 +52,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
 
   // Asistente y enfermera solo gestionan datos del paciente y recetas: no cargamos
   // datos clínicos (consultas/estudios) para no enviarlos al cliente.
-  const clinical = canDoClinical(currentProfile?.role)
+  const clinical = canDoClinical(profile.role)
 
   // 3. Cargar consultas de evolución (con recetas asociadas)
   const { data: consultations } = !clinical
@@ -122,6 +119,8 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
     .neq('referral', '')
     .order('created_at', { ascending: false })
 
+  const odontogramas = odontologiaHabilitada ? await cargarOdontogramas(supabase, patientId) : null
+
   return (
     <PatientDetailsClient
       patient={patient}
@@ -132,12 +131,42 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       studyRequests={studyRequests || []}
       medicalLeaves={(medicalLeaves as unknown as MedicalLeaveRow[]) || []}
       referrals={(referrals as unknown as ReferralRow[]) || []}
-      showRecordNumber={showRecordNumber}
+      showRecordNumber={profile.show_record_number}
       initialEdit={isEditing}
       justCreated={justCreated}
       currentUserId={user.id}
-      currentUserRole={currentProfile?.role || ''}
-      isOrgAdmin={!!currentProfile?.is_org_admin}
+      currentUserRole={profile.role ?? ''}
+      isOrgAdmin={!!profile.is_org_admin}
+      odontologiaHabilitada={odontologiaHabilitada}
+      odontogramas={odontogramas}
+      isDentist={isDentist}
+      initialTab={abrirOdontograma && odontologiaHabilitada ? 'odontograma' : undefined}
     />
   )
+}
+
+async function cargarOdontogramas(supabase: Awaited<ReturnType<typeof createClient>>, patientId: string) {
+  const consulta = supabase.from('odontogramas').select('id, consultation_id, created_at, denticion, estado')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+  const historial: OdontogramaGuardado[] = []
+  const lote = 500
+
+  for (let inicio = 0; ; inicio += lote) {
+    const { data, error } = await consulta.range(inicio, inicio + lote - 1)
+    if (error) return null
+
+    for (const fila of data) {
+      const resultado = validarEstado(fila.estado)
+      historial.push({
+        id: fila.id,
+        consultaId: fila.consultation_id,
+        fecha: fila.created_at,
+        denticion: fila.denticion as Denticion,
+        estado: resultado.ok ? resultado.estado : null,
+      })
+    }
+    if (data.length < lote) return historial
+  }
 }

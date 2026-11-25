@@ -4,9 +4,12 @@ import { createClient } from '@/utils/supabase/server'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { sanitizeSearchTerm } from '@/utils/validation'
 import { getSessionProfile } from '@/utils/session'
+import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
+import IconoMuela from '@/app/components/IconoMuela'
 import Pagination from '@/app/dashboard/components/Pagination'
 import PatientVitalsButton from './PatientVitalsButton'
 import { Search, Plus, User, Eye, Phone, Clipboard, Edit } from 'lucide-react'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 // Calcular edad
 function calculateAge(birthDateString: string) {
@@ -45,6 +48,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
   const clinicId = profile?.clinic_id
   // Asistente y enfermera no inician consultas: se oculta el botón por fila.
   const clinical = canDoClinical(profile?.role)
+  // Odontólogo o administrador con licencia: ve el botón de consulta dental.
+  const isDentist = !!profile && puedeRegistrarOdontologia(profile)
   // Enfermera (y médico/admin) pueden tomar signos sin entrar al expediente.
   const canVitals = canEnterVitals(profile?.role)
 
@@ -197,13 +202,24 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                         <div style={styles.actionButtons}>
                           {clinical && (
                             <a
-                              href={`/dashboard/consultations/new?patientId=${patient.id}`}
-                              className="btn btn-primary"
+                              href={rutaNuevaConsulta(patient.id, null, false)}
+                              className={isDentist ? 'btn btn-secondary' : 'btn btn-primary'}
                               style={styles.consultBtn}
-                              title="Iniciar Nueva Consulta"
+                              title={isDentist ? 'Iniciar consulta médica' : 'Iniciar Nueva Consulta'}
                             >
                               <Clipboard size={15} />
-                              <span>Consulta</span>
+                              <span>{isDentist ? 'Consulta médica' : 'Consulta'}</span>
+                            </a>
+                          )}
+                          {clinical && isDentist && (
+                            <a
+                              href={rutaNuevaConsulta(patient.id, null, true)}
+                              className="btn btn-secondary"
+                              style={styles.consultBtn}
+                              title="Iniciar consulta dental"
+                            >
+                              <IconoMuela size={15} />
+                              <span>Consulta dental</span>
                             </a>
                           )}
                           <a

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { provisionTenant, setClinicPlan, setClinicLimits, resendOwnerInvite, provisionTenantWithTeam, type TeamMemberInput, type ClinicLimitsInput } from './actions'
+import { provisionTenant, setClinicPlan, setClinicLimits, setClinicDentalLicense, resendOwnerInvite, provisionTenantWithTeam, type TeamMemberInput, type ClinicLimitsInput } from './actions'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Loader2, Send, CheckCircle, AlertCircle, Users, Plus, Trash2, SlidersHorizontal } from 'lucide-react'
 
@@ -35,8 +35,14 @@ interface Summary {
 }
 
 export default function SuperAdminClient({
-  summary, tenants, plans, tenantLimits,
-}: { summary: Summary | null; tenants: Tenant[]; plans: Plan[]; tenantLimits: Record<string, TenantLimits> }) {
+  summary, tenants, plans, tenantLimits, dentalLicenses,
+}: {
+  summary: Summary | null
+  tenants: Tenant[]
+  plans: Plan[]
+  tenantLimits: Record<string, TenantLimits>
+  dentalLicenses: Record<string, boolean>
+}) {
   const router = useRouter()
   const [creating, setCreating] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -157,6 +163,24 @@ export default function SuperAdminClient({
     setMsg(result?.error
       ? { type: 'err', text: result.error }
       : { type: 'ok', text: 'Enlace de activación reenviado.' })
+  }
+
+  async function handleDentalLicenseChange(clinicId: string, enabled: boolean) {
+    setRowBusy(clinicId)
+    setMsg(null)
+    try {
+      const result = await setClinicDentalLicense(clinicId, enabled)
+      if (result.error) {
+        setMsg({ type: 'err', text: result.error })
+      } else {
+        setMsg({ type: 'ok', text: enabled ? 'Odontología activada.' : 'Odontología desactivada.' })
+        router.refresh()
+      }
+    } catch {
+      setMsg({ type: 'err', text: 'No se pudo guardar la licencia de odontología.' })
+    } finally {
+      setRowBusy(null)
+    }
   }
 
   return (
@@ -335,6 +359,17 @@ export default function SuperAdminClient({
                   >
                     {plans.map(p => <option key={p.code} value={p.code}>{p.code}</option>)}
                   </select>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem' }}>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-label={`Odontología para ${t.clinic_name}`}
+                      checked={dentalLicenses[t.clinic_id] === true}
+                      disabled={rowBusy === t.clinic_id || dentalLicenses[t.clinic_id] === undefined}
+                      onChange={e => handleDentalLicenseChange(t.clinic_id, e.target.checked)}
+                    />
+                    Odontología
+                  </label>
                 </td>
                 <td style={S.td}>{t.doctors}</td>
                 <td style={S.td}>{t.assistants}</td>

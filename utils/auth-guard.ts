@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { User } from '@supabase/supabase-js'
+import { puedeRegistrarOdontologia } from '@/utils/permissions'
 
 /** Fila de user_profiles con el join de clinics usado por el guard (solo columnas consumidas). */
 export interface AuthProfile {
@@ -11,7 +12,8 @@ export interface AuthProfile {
   last_name: string
   role: string
   is_org_admin: boolean | null
-  clinics: { name: string | null; plan_code: string | null } | null
+  is_dentist: boolean | null
+  clinics: { name: string | null; plan_code: string | null; odontologia_habilitada: boolean } | null
 }
 
 export interface AuthContext {
@@ -21,6 +23,10 @@ export interface AuthContext {
   clinicName: string
   role: 'ADMIN' | 'DOCTOR' | 'ASSISTANT' | 'NURSE'
   isOrgAdmin: boolean
+  odontologiaHabilitada: boolean
+  isDentist: boolean
+  /** Odontólogo o administrador, con licencia: puede guardar consultas dentales. */
+  puedeRegistrarOdontologia: boolean
   planCode: string
 }
 
@@ -31,7 +37,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
 
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('*, clinics(name, plan_code)')
+    .select('*, clinics(name, plan_code, odontologia_habilitada)')
     .eq('id', user.id)
     .single()
 
@@ -41,6 +47,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   }
 
   const profile = data as AuthProfile
+  const odontologiaHabilitada = profile.clinics?.odontologia_habilitada === true
   return {
     user,
     profile,
@@ -48,6 +55,12 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     clinicName: profile.clinics?.name || '',
     role: profile.role as AuthContext['role'],
     isOrgAdmin: !!profile.is_org_admin,
+    odontologiaHabilitada,
+    isDentist: odontologiaHabilitada && profile.is_dentist === true,
+    puedeRegistrarOdontologia: puedeRegistrarOdontologia({
+      odontologia_habilitada: odontologiaHabilitada, is_dentist: profile.is_dentist,
+      is_org_admin: profile.is_org_admin, role: profile.role,
+    }),
     planCode: profile.clinics?.plan_code || 'SOLO_MEDICO',
   }
 }

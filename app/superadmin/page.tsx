@@ -20,20 +20,22 @@ export default async function SuperAdminPage() {
   const { data: tenants } = await supabase.rpc('admin_tenant_overview')
   const { data: plans } = await supabase.from('plans').select('code, name').eq('is_active', true).order('code')
 
-  // 4. Límites efectivos por tenant: override por-clínica + topes del plan.
+  // 4. Límites efectivos y licencia de odontología de cada clínica.
   //    Se lee con el admin client (service_role) porque la RLS de clinics restringe a la
   //    propia clínica; este page ya está protegido por is_platform_admin arriba.
   const admin = createAdminClient()
   const [{ data: clinicRows }, { data: planRows }] = await Promise.all([
     admin.from('clinics').select(
-      'id, plan_code, max_doctors_override, max_assistants_override, max_locations_override, max_storage_mb_override',
+      'id, plan_code, odontologia_habilitada, max_doctors_override, max_assistants_override, max_locations_override, max_storage_mb_override',
     ),
     admin.from('plans').select('code, max_doctors, max_assistants, max_locations, max_storage_mb'),
   ])
 
   const planByCode = new Map((planRows || []).map((p) => [p.code, p]))
   const tenantLimits: Record<string, TenantLimits> = {}
+  const dentalLicenses: Record<string, boolean> = {}
   for (const c of clinicRows || []) {
+    dentalLicenses[c.id] = c.odontologia_habilitada
     const plan = planByCode.get(c.plan_code)
     tenantLimits[c.id] = {
       plan: {
@@ -63,6 +65,7 @@ export default async function SuperAdminPage() {
         tenants={tenants || []}
         plans={plans || []}
         tenantLimits={tenantLimits}
+        dentalLicenses={dentalLicenses}
       />
     </div>
   )

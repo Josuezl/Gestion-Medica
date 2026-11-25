@@ -2,7 +2,6 @@
 // Movida sin cambios desde app/dashboard/consultations/actions.ts (Task 3B): una ruta de API
 // mantiene su dirección entre despliegues; una pestaña abierta desde antes puede seguir guardando.
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { requireRole } from '@/utils/auth-guard'
@@ -13,79 +12,8 @@ import { antecedentesDesdeFormulario } from '@/utils/antecedentes'
 import { bpFormValuesFromFormData, bpRecordFromForm, isBloodPressureRequired, validateBloodPressure } from '@/utils/bloodPressure'
 import { safeErrorMessage } from '@/utils/errors'
 import type { Medicine } from '@/utils/medicines'
-
-interface CatalogStudyItem { section: string; name: string; description?: string | null; indication?: string | null }
-
-/**
- * Agrega al catálogo de estudios de la clínica los estudios que el médico ingresó manualmente y
- * marcó para "guardar para la próxima vez". Crea la sección si no existe y evita duplicados por
- * nombre dentro de la sección. Catálogo compartido por toda la clínica (RLS por clinic_id).
- */
-async function saveStudiesToCatalog(supabase: SupabaseClient, clinicId: string, items: CatalogStudyItem[]) {
-  const bySection = new Map<string, CatalogStudyItem[]>()
-  for (const it of items) {
-    const sec = (it.section || 'Otros').trim() || 'Otros'
-    if (!bySection.has(sec)) bySection.set(sec, [])
-    bySection.get(sec)!.push(it)
-  }
-  for (const [sectionName, group] of bySection) {
-    // Buscar o crear la sección.
-    let sectionId: string | null = null
-    const { data: existing } = await supabase
-      .from('study_sections')
-      .select('id')
-      .eq('clinic_id', clinicId)
-      .eq('name', sectionName)
-      .maybeSingle()
-    if (existing) {
-      sectionId = existing.id
-    } else {
-      const { data: last } = await supabase
-        .from('study_sections')
-        .select('sort_order')
-        .eq('clinic_id', clinicId)
-        .order('sort_order', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const sort = ((last?.sort_order ?? -1) as number) + 1
-      const { data: created } = await supabase
-        .from('study_sections')
-        .insert([{ clinic_id: clinicId, name: sectionName, sort_order: sort }])
-        .select('id')
-        .single()
-      sectionId = created?.id ?? null
-    }
-    if (!sectionId) continue
-
-    const { data: lastStudy } = await supabase
-      .from('study_catalog')
-      .select('sort_order')
-      .eq('section_id', sectionId)
-      .order('sort_order', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    let sort = ((lastStudy?.sort_order ?? -1) as number) + 1
-
-    for (const it of group) {
-      const { data: dup } = await supabase
-        .from('study_catalog')
-        .select('id')
-        .eq('clinic_id', clinicId)
-        .eq('section_id', sectionId)
-        .eq('name', it.name)
-        .maybeSingle()
-      if (dup) continue
-      await supabase.from('study_catalog').insert([{
-        clinic_id: clinicId,
-        section_id: sectionId,
-        name: it.name,
-        description: it.description || null,
-        patient_indication: it.indication || null,
-        sort_order: sort++,
-      }])
-    }
-  }
-}
+import { insertarReceta } from './receta'
+import { registrarSolicitudEstudios } from './estudios'
 
 export async function guardarConsulta(
   patientId: string,
@@ -217,45 +145,20 @@ export async function guardarConsulta(
     console.error('Error actualizando antecedentes del paciente:', e)
   }
 
-  // 4. Si hay medicamentos agregados, registrar la receta, generar PDF y subir a Storage
+  // 4. Si hay medicamentos agregados, registrar la receta.
   let prescriptionId: string | null = null
   if (medicines && medicines.length > 0) {
-    const verificationCode = generateVerificationCode('MC')
-    const prescriptionNotes = formData.get('prescription_notes') as string || ''
-    // El médico puede pedir que el diagnóstico de la consulta se imprima en la receta
-    // (algunas aseguradoras lo exigen). Se guarda como snapshot solo si marca el check.
-    const includeDiagnosis = formData.get('include_diagnosis') === 'on'
-    const prescriptionDiagnosis = includeDiagnosis ? (diagnosis?.trim() || null) : null
-
-    // La columna `diagnosis` solo se incluye en el insert cuando hay valor, para no romper
-    // la creación de recetas normales si la migración (ALTER TABLE) aún no se ha aplicado.
-    const prescriptionInsert: Record<string, string | Medicine[] | null> = {
-      clinic_id: clinicId,
-      patient_id: patientId,
-      consultation_id: consultation.id,
-      doctor_id: user.id,
+    const receta = await insertarReceta(supabase, {
+      clinicId,
+      patientId,
+      consultationId: consultation.id,
+      doctorId: user.id,
       medicines,
-      notes: prescriptionNotes,
-      verification_code: verificationCode
-    }
-    if (prescriptionDiagnosis) prescriptionInsert.diagnosis = prescriptionDiagnosis
-
-    const { data: prescription, error: prescriptionError } = await supabase
-      .from('prescriptions')
-      .insert([prescriptionInsert])
-      .select()
-      .single()
-
-    if (prescriptionError) {
-      console.error('Error al insertar receta en DB:', prescriptionError)
-      warnings.push('La consulta se guardó, pero la receta no pudo registrarse. Vuelve a generarla desde el expediente.')
-    } else {
-      // Solo se crea el registro de la receta. El PDF NO se genera ni se almacena al guardar:
-      // imprimir usa HTML, y el envío por correo/WhatsApp es una acción manual del médico (el PDF
-      // del correo se genera al vuelo al enviar). Esto evita gastar Storage por cada consulta y
-      // hace el guardado más rápido (sin render de PDF, subida ni llamada a WhatsApp).
-      prescriptionId = prescription.id
-    }
+      diagnosis,
+      formData,
+    })
+    prescriptionId = receta.prescriptionId
+    if (receta.warning) warnings.push(receta.warning)
   }
 
   // 4.b Orden de laboratorio (opcional). Solo se inserta si el médico marcó exámenes,
@@ -295,56 +198,12 @@ export async function guardarConsulta(
     warnings.push('No se pudo procesar la orden de laboratorio (datos inválidos).')
   }
 
-  // 4.c Solicitud de estudios (opcional). Mismo patrón que la orden de laboratorio: solo se inserta
-  //      si el médico marcó estudios. La indicación de cada estudio viaja dentro del snapshot JSONB.
-  let studyRequestId: string | null = null
-  try {
-    const raw = formData.get('study_request')
-    if (typeof raw === 'string' && raw) {
-      const parsed = JSON.parse(raw) as {
-        studies?: CatalogStudyItem[]
-        otherStudies?: string
-        manualToCatalog?: CatalogStudyItem[]
-      }
-      const studies = Array.isArray(parsed?.studies) ? parsed.studies : []
-      const otherStudies = (parsed?.otherStudies || '').trim()
-      if (studies.length > 0 || otherStudies) {
-        const studyVerificationCode = generateVerificationCode('EST')
-        const { data: studyReq, error: studyErr } = await supabase
-          .from('study_requests')
-          .insert([{
-            clinic_id: clinicId,
-            patient_id: patientId,
-            consultation_id: consultation.id,
-            doctor_id: user.id,
-            studies,
-            other_studies: otherStudies || null,
-            verification_code: studyVerificationCode,
-          }])
-          .select('id')
-          .single()
-        if (studyErr) {
-          console.error('Error al insertar solicitud de estudios:', studyErr)
-          warnings.push('La consulta se guardó, pero la solicitud de estudios no pudo registrarse.')
-        } else {
-          studyRequestId = studyReq.id
-          // Estudios manuales marcados para guardar en el catálogo compartido de la clínica.
-          const toCatalog = Array.isArray(parsed?.manualToCatalog) ? parsed.manualToCatalog : []
-          if (toCatalog.length > 0) {
-            try {
-              await saveStudiesToCatalog(supabase, clinicId, toCatalog)
-            } catch (e) {
-              console.error('No se pudieron guardar los estudios manuales en el catálogo:', e)
-              warnings.push('La solicitud se guardó, pero algún estudio manual no se agregó al catálogo.')
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Solicitud de estudios: study_request inválido', e)
-    warnings.push('No se pudo procesar la solicitud de estudios (datos inválidos).')
-  }
+  // 4.c Solicitud de estudios (opcional): ver utils/guardado/estudios.ts.
+  const estudios = await registrarSolicitudEstudios(supabase, {
+    clinicId, patientId, consultationId: consultation.id, doctorId: user.id, formData,
+  })
+  const studyRequestId = estudios.studyRequestId
+  warnings.push(...estudios.warnings)
 
   // 5. Si viene de una cita agendada, actualizar su estado a COMPLETED
   if (appointmentId) {

@@ -6,11 +6,13 @@ import StatusDropdown, { STATUS_CONFIG } from '../StatusDropdown'
 import { doctorShortName } from '@/utils/doctorName'
 import { calculateAge } from '@/utils/age'
 import { formatDateLongHN } from '@/utils/datetime'
+import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
 import type { Appointment, Doctor } from '../AgendaClient'
 
 interface AppointmentCardProps {
   app: Appointment
   doctors: Doctor[]
+  esOdontologo: boolean
   isClinician: boolean
   canTakeVitals: boolean
   isPreclinicalReady: boolean
@@ -29,6 +31,7 @@ interface AppointmentCardProps {
 export default function AppointmentCard({
   app,
   doctors,
+  esOdontologo,
   isClinician,
   canTakeVitals,
   isPreclinicalReady,
@@ -64,6 +67,7 @@ export default function AppointmentCard({
     window.open(whatsappUrl, '_blank', 'noreferrer')
   }
 
+  const patientId = app.patients?.id
   const canStartConsultation = isClinician && ['WAITING', 'IN_PROGRESS', 'CONFIRMED', 'PENDING'].includes(app.status)
   // La preclínica solo aplica antes/durante la cita: se oculta en estados terminales
   // (Cancelada, No se presentó, Realizada).
@@ -97,10 +101,10 @@ export default function AppointmentCard({
 
         {/* Fila de acciones, alineada con el nombre. */}
         <div className="appt-card-v2-actions">
-          {canStartConsultation && (
+          {canStartConsultation && patientId && (
             <button
               className="appt-btn appt-btn-start"
-              onClick={() => window.location.href = `/dashboard/consultations/new?patientId=${app.patients?.id}&appointmentId=${app.id}`}
+              onClick={() => window.location.href = rutaNuevaConsulta(patientId, app.id, esOdontologo)}
             >
               <Clipboard size={15} /> Iniciar Consulta
             </button>

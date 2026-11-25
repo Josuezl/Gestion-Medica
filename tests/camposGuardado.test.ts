@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest'
-import { agregarParametros, leerParametrosConsulta, leerForce } from '@/utils/camposGuardado'
+import { agregarParametros, leerParametrosConsulta, leerParametrosConsultaDental, leerForce } from '@/utils/camposGuardado'
 
 test('agrega parámetros con prefijo y omite los null', () => {
   const fd = agregarParametros(new FormData(), { _patientId: 'p1', _appointmentId: null, _force: true, _medicines: [{ name: 'X' }] })
@@ -20,4 +20,44 @@ test('sin paciente o con medicinas rotas: error claro', () => {
 test('force solo con "true"', () => {
   const fd = new FormData(); expect(leerForce(fd)).toBe(false)
   fd.set('_force', 'true'); expect(leerForce(fd)).toBe(true)
+})
+
+function formularioDental() {
+  return agregarParametros(new FormData(), {
+    _patientId: 'p1',
+    _appointmentId: 'a1',
+    _medicines: [{ name: 'X' }],
+    _denticion: 'MIXTA',
+    _odontograma: JSON.stringify({
+      version: 1,
+      piezas: { '36': { caras: { O: { hallazgo: 'CARIES', estado: 'PENDIENTE', extra: true } } } },
+      regiones: {},
+    }),
+  })
+}
+
+test.each([
+  ['_patientId', null],
+  ['_odontograma', '{roto'],
+  ['_odontograma', '{"version":1,"piezas":{"99":{}},"regiones":{}}'],
+  ['_denticion', 'OTRA'],
+])('rechaza parámetros dentales inválidos en %s con valor %s', (campo, valor) => {
+  const fd = formularioDental()
+  if (valor === null) fd.delete(campo)
+  else fd.set(campo, valor)
+  expect(leerParametrosConsultaDental(fd)).toEqual({ error: expect.any(String) })
+})
+
+test('lee los parámetros dentales y devuelve el odontograma limpio', () => {
+  expect(leerParametrosConsultaDental(formularioDental())).toEqual({
+    patientId: 'p1',
+    appointmentId: 'a1',
+    medicines: [{ name: 'X' }],
+    denticion: 'MIXTA',
+    estado: {
+      version: 1,
+      piezas: { '36': { caras: { O: { hallazgo: 'CARIES', estado: 'PENDIENTE' } } } },
+      regiones: {},
+    },
+  })
 })

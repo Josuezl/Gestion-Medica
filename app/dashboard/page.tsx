@@ -16,12 +16,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const supabase = await createClient()
   const sp = await searchParams
 
-  // 1. Sesión + perfil memoizados por request (compartidos con layout y greeting, P1-2)
   const session = await getSessionProfile()
-  if (!session) return null
+  if (!session?.profile) return null
   const { profile } = session
-
-  const clinicId = profile?.clinic_id
+  const clinicId = profile.clinic_id
 
   // Si venimos de "crear paciente → agendar cita", pre-seleccionar ese paciente en el modal de cita.
   let preSelectedPatient: { id: string; name: string } | null = null
@@ -60,6 +58,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       duration_minutes,
       doctor_id,
       location_id,
+      user_profiles!doctor_id(is_dentist),
       patients (
         id,
         first_name,
@@ -85,7 +84,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // 4. Obtener doctores de la clínica
   const { data: doctors } = await supabase
     .from('user_profiles')
-    .select('id, first_name, last_name, role, gender')
+    .select('id, first_name, last_name, role, gender, is_dentist')
     .eq('clinic_id', clinicId || '')
     .in('role', ['ADMIN', 'DOCTOR'])
     .order('first_name', { ascending: true })
@@ -109,6 +108,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         loadedRangeStart={rangeStart.toISOString()}
         loadedRangeEnd={rangeEnd.toISOString()}
         doctors={doctors || []}
+        odontologiaHabilitada={profile.odontologia_habilitada}
         locations={locations || []}
         defaultLocationId={defaultLocationId}
         preclinicalPatientIds={preclinicalPatientIds}

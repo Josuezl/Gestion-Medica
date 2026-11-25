@@ -93,6 +93,7 @@ export default async function ConfigPage() {
         maxAssistants={maxAssistants}
         canManageLocations={showLocations}
         canInviteDoctors={doctorsEnabled}
+        odontologiaHabilitada={ctx.odontologiaHabilitada}
         maxLocations={maxLocations}
         storageUsedBytes={storageUsedBytes || 0}
         maxStorageMb={maxStorageMb}

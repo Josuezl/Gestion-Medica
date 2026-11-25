@@ -21,12 +21,13 @@ import { SUBIDA_ESTUDIOS_HABILITADA } from '@/utils/features'
 import StudyList from './StudyList'
 import WhatsAppShareModal from './WhatsAppShareModal'
 import { doctorShortName } from '@/utils/doctorName'
+import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
+import DetalleConsultaDental from '../odontologia/components/DetalleConsultaDental'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
 import { antecedenteParaMostrar } from '@/utils/antecedentes'
 import type {
   PatientRow,
-  ConsultationRow,
   PrescriptionRow,
   StudyRow,
   LabOrderRow,
@@ -46,7 +47,7 @@ function groupLabTests(tests: LabTestItem[] | null | undefined): { category: str
 
 interface PatientHistoryTabsProps {
   patient: PatientRow
-  consultations: ConsultationRow[]
+  consultations: ConsultaConTipo[]
   studies: StudyRow[]
   prescriptions: PrescriptionRow[]
   labOrders?: LabOrderRow[]
@@ -173,6 +174,7 @@ export default function PatientHistoryTabs({
                     })
                     const docName = doctorShortName(consult.user_profiles?.first_name, consult.user_profiles?.last_name, consult.user_profiles?.gender)
                     const isExpanded = !!expandedConsultations[consult.id]
+                    const etiqueta = etiquetaTipoConsulta(consult.tipo)
                     
                     return (
                       <div key={consult.id} style={styles.timelineItem}>
@@ -198,6 +200,7 @@ export default function PatientHistoryTabs({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
                               <div>
                                 <p style={styles.consultDate}>{date}</p>
+                                {etiqueta && <span className="badge badge-info">{etiqueta}</span>}
                                 <p style={styles.consultDoctor}>{docName}</p>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
@@ -243,18 +246,20 @@ export default function PatientHistoryTabs({
                                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.reason_for_visit}</p>
                                 </div>
 
-                                <div style={{
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  padding: '12px 16px',
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
-                                    <Activity size={14} color="#3b82f6" />
-                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Síntomas</span>
+                                {!etiqueta && (
+                                  <div style={{
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '12px 16px',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                      <Activity size={14} color="#3b82f6" />
+                                      <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Síntomas</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.symptoms || 'Ninguno reportado'}</p>
                                   </div>
-                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.symptoms || 'Ninguno reportado'}</p>
-                                </div>
+                                )}
                               </div>
 
                               {/* Grid de Estudios y Plan de Tratamiento */}
@@ -263,18 +268,20 @@ export default function PatientHistoryTabs({
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                                 gap: '1rem'
                               }}>
-                                <div style={{
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  padding: '12px 16px',
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
-                                    <Beaker size={14} />
-                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exámenes de laboratorio/ estudios médicos</span>
+                                {!etiqueta && (
+                                  <div style={{
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '12px 16px',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                      <Beaker size={14} />
+                                      <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exámenes de laboratorio/ estudios médicos</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.physical_exam || 'Ninguno registrado'}</p>
                                   </div>
-                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.physical_exam || 'Ninguno registrado'}</p>
-                                </div>
+                                )}
 
                                 <div style={{
                                   backgroundColor: '#f8fafc',
@@ -289,6 +296,8 @@ export default function PatientHistoryTabs({
                                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.treatment_plan}</p>
                                 </div>
                               </div>
+
+                              {etiqueta && <DetalleConsultaDental consulta={consult} />}
 
                               {/* Medicamentos recetados */}
                               {consult.prescriptions && consult.prescriptions.length > 0 && (

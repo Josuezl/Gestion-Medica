@@ -8,6 +8,8 @@ import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import type { DoctorRef, LabTestItem, StudyRequestItem } from '@/utils/clinicalTypes'
 import { antecedenteParaMostrar } from '@/utils/antecedentes'
+import { getAuthContext } from '@/utils/auth-guard'
+import { etiquetaTipoConsulta } from '@/utils/tipoConsulta'
 
 /**
  * Server Action: Enviar ficha médica del paciente por correo electrónico (Resend)
@@ -353,13 +355,13 @@ export async function sendStudyRequestByEmail(patientId: string, studyRequestId:
 export async function sendIncapacidadByEmail(patientId: string, consultationId: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
+  const auth = await getAuthContext()
+  if (!auth) return { error: 'No autorizado' }
 
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('*, clinics(*)')
-    .eq('id', user.id)
+    .eq('id', auth.user.id)
     .single()
   if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
 
@@ -383,6 +385,7 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
   }
   if (!consultation.verification_code) return { error: 'La incapacidad no tiene código de verificación.' }
 
+  const etiqueta = etiquetaTipoConsulta(consultation.tipo)
   const clinicName = profile.practice_name || profile.clinics?.name || 'Consultorio Médico'
   const cd = consultation.user_profiles as DoctorRef | null
   const doctorName = cd
@@ -404,6 +407,7 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
     verificationCode: consultation.verification_code,
     verifyUrl: `${siteUrl}/consultations/${consultationId}/print?code=${consultation.verification_code}`,
     summary: [
+      ...(etiqueta ? [{ label: 'Tipo de consulta', value: etiqueta }] : []),
       ...(leavePeriodText(consultation.leave_start_date, consultation.leave_days)
         ? [{ label: 'Periodo', value: leavePeriodText(consultation.leave_start_date, consultation.leave_days) as string }]
         : []),
@@ -429,13 +433,13 @@ export async function sendIncapacidadByEmail(patientId: string, consultationId: 
 export async function sendReferralByEmail(patientId: string, consultationId: string) {
   const supabase = await createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
+  const auth = await getAuthContext()
+  if (!auth) return { error: 'No autorizado' }
 
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('*, clinics(*)')
-    .eq('id', user.id)
+    .eq('id', auth.user.id)
     .single()
   if (!profile?.clinic_id) return { error: 'Error: usuario no asociado a clínica' }
 
@@ -467,6 +471,8 @@ export async function sendReferralByEmail(patientId: string, consultationId: str
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
   const summary: { label: string; value: string }[] = []
+  const etiqueta = etiquetaTipoConsulta(consultation.tipo)
+  if (etiqueta) summary.push({ label: 'Tipo de consulta', value: etiqueta })
   if (consultation.referral_to) summary.push({ label: 'Dirigido a', value: consultation.referral_to })
   if (consultation.reason_for_visit) summary.push({ label: 'Motivo de consulta', value: consultation.reason_for_visit })
   summary.push({ label: 'Motivo de referencia', value: consultation.referral })

@@ -21,6 +21,7 @@ interface TeamMember {
   first_name?: string | null
   last_name?: string | null
   role: string
+  is_dentist?: boolean | null
   email?: string | null
   specialty?: string | null
   professional_id?: string | null
@@ -59,6 +60,7 @@ interface EditMemberForm {
   practiceAddress: string
   signatureUrl: string
   role: string
+  isDentist: boolean
 }
 
 interface ConfigClientProps {
@@ -71,6 +73,7 @@ interface ConfigClientProps {
   maxAssistants: number
   canManageLocations: boolean
   canInviteDoctors: boolean
+  odontologiaHabilitada: boolean
   maxLocations: number
   storageUsedBytes: number
   maxStorageMb: number
@@ -86,6 +89,7 @@ export default function ConfigClient({
   maxAssistants,
   canManageLocations,
   canInviteDoctors,
+  odontologiaHabilitada,
   maxLocations,
   storageUsedBytes,
   maxStorageMb
@@ -96,6 +100,8 @@ export default function ConfigClient({
   const storagePct = Math.min((usedMb / maxStorageMb) * 100, 100)
   const storageNearLimit = storagePct >= 80
   const [showInviteForm, setShowInviteForm] = useState(false)
+  const defaultInviteRole = canInviteDoctors ? 'DOCTOR' : 'ASSISTANT'
+  const [inviteRole, setInviteRole] = useState(defaultInviteRole)
   const [showLocationForm, setShowLocationForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -146,6 +152,7 @@ export default function ConfigClient({
       practiceAddress: member.practice_address || '',
       signatureUrl: member.signature_url || '',
       role: member.role,
+      isDentist: member.is_dentist === true,
     })
   }
 
@@ -189,6 +196,7 @@ export default function ConfigClient({
       practiceAddress: editMember.practiceAddress,
       signatureUrl: editMember.signatureUrl,
       role: editMember.role,
+      isDentist: odontologiaHabilitada && editMember.role === 'DOCTOR' ? editMember.isDentist : undefined,
     })
     setMemberSaving(false)
     if (res?.error) setMemberError(res.error)
@@ -327,6 +335,17 @@ export default function ConfigClient({
                   </select>
                 </div>
               )}
+              {odontologiaHabilitada && editMember.role === 'DOCTOR' && (
+                <div className="form-group">
+                  <label className="form-label">
+                    <input
+                      type="checkbox"
+                      checked={editMember.isDentist}
+                      onChange={e => setEditMember({ ...editMember, isDentist: e.target.checked })}
+                    />{' '}Es odontólogo
+                  </label>
+                </div>
+              )}
               {(editMember.role === 'DOCTOR' || editMember.role === 'ADMIN') && (
                 <>
                   <div className="form-group">
@@ -452,7 +471,10 @@ export default function ConfigClient({
           </div>
           <button 
             className="btn btn-primary"
-            onClick={() => setShowInviteForm(!showInviteForm)}
+            onClick={() => {
+              if (!showInviteForm) setInviteRole(defaultInviteRole)
+              setShowInviteForm(!showInviteForm)
+            }}
             disabled={limitReached}
           >
             <UserPlus size={16} />
@@ -530,7 +552,7 @@ export default function ConfigClient({
               </div>
               <div className="form-group">
                 <label className="form-label">Rol</label>
-                <select name="role" className="form-input" required defaultValue={canInviteDoctors ? 'DOCTOR' : 'ASSISTANT'}>
+                <select name="role" className="form-input" required value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
                   {canInviteDoctors && (
                     <option value="DOCTOR">Médico</option>
                   )}
@@ -538,6 +560,13 @@ export default function ConfigClient({
                   <option value="NURSE">Auxiliar de Enfermería</option>
                 </select>
               </div>
+              {odontologiaHabilitada && inviteRole === 'DOCTOR' && (
+                <div className="form-group">
+                  <label className="form-label">
+                    <input type="checkbox" name="isDentist" value="true" />{' '}Es odontólogo
+                  </label>
+                </div>
+              )}
               {canInviteDoctors && (
                 <div className="form-group">
                   <label className="form-label">Especialidad (opcional)</label>

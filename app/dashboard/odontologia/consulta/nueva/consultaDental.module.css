@@ -1,0 +1,307 @@
+.page, .form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sectionTitle svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.antecedentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.75rem 1.25rem;
+}
+
+.antecedentes, .consulta dl {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.antecedentes dt, .consulta dt {
+  font-weight: 700;
+}
+
+.antecedentes dd, .consulta dd {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Encabezado: título a la izquierda y botón del historial de consultas a la derecha. */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.encabezado > button {
+  gap: 0.5rem;
+}
+
+/* Historial de consultas en un modal (antes ocupaba una columna lateral). */
+.historialDialogo {
+  margin: auto;
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-lg);
+}
+
+.historialDialogo::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.historialCabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.historialCabecera .sectionTitle {
+  margin: 0;
+}
+
+.odontogramaCard,
+.historialTrabajos {
+  min-width: 0;
+}
+
+.historialTrabajos {
+  overflow-wrap: anywhere;
+}
+
+.pendienteActual,
+.trabajosConsulta {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pendienteActual {
+  padding-top: 0;
+  margin-bottom: 0.65rem;
+}
+
+.trabajosConsulta:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.historialTrabajos h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.listaTrabajos {
+  display: grid;
+  gap: 0.45rem;
+  padding-inline-start: 1.25rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+}
+
+.listaTrabajos li > * {
+  display: block;
+}
+
+.procedimientos {
+  margin: 0.4rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+}
+
+.form > button {
+  align-self: flex-start;
+  gap: 0.5rem;
+}
+
+
+.consulta {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.consulta:last-child {
+  border-bottom: 0;
+}
+
+.consulta summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.consulta summary :global(.badge) {
+  margin-inline-start: 0.4rem;
+}
+
+.consulta summary .muted {
+  display: block;
+  font-weight: 400;
+  padding-top: 0.2rem;
+}
+
+.consulta dl {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.draftBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.error {
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+/* Campos de texto uno debajo del otro, con ancho y alto medianos (ni franjas largas ni columnas). */
+.camposDobles {
+  display: grid;
+  grid-template-columns: minmax(0, 46rem);
+}
+
+.camposDobles textarea {
+  min-height: 5.5rem;
+}
+
+/* Historial de trabajos dentro de la tarjeta del odontograma, separado por una línea. */
+.historialTrabajos {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.subtitulo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.subtitulo svg {
+  color: var(--primary);
+}
+
+/* Modal de consulta guardada (mismo estilo que el de la consulta médica). */
+.modalFondo {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 0.55);
+}
+
+.modalTarjeta {
+  width: 100%;
+  max-width: 440px;
+  padding: 1.75rem;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.3);
+  text-align: center;
+}
+
+.modalIcono {
+  color: #16a34a;
+  margin-bottom: 0.5rem;
+}
+
+.modalTitulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modalTexto {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.modalAcciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.modalAcciones > * {
+  width: 100%;
+  gap: 0.4rem;
+}

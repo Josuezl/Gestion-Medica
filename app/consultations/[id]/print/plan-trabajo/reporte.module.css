@@ -1,0 +1,133 @@
+.reporte:global(.sheet) {
+  --acento: #0d9488;
+  --fondo-acento: #f0fdfa;
+  width: min(100%, 216mm);
+  min-height: 0;
+  gap: 12px;
+  padding: 10mm 12mm;
+}
+
+.reporte :global(.reporte-cabecera),
+.paciente {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.reporte :global(.reporte-clinica) {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.reporte :global(.reporte-clinica) img,
+.reporte :global(.reporte-clinica) svg {
+  width: 40px;
+  max-height: 44px;
+  flex-shrink: 0;
+  object-fit: contain;
+  color: var(--acento);
+}
+
+.reporte :global(.clinic-name) { font-size: 17px; }
+.reporte :global(.reporte-profesional),
+.fecha {
+  border-inline-start: 1px solid #99d8ce;
+  padding-inline-start: 16px;
+}
+
+.titulo :global(.doc-title) { text-align: start; margin: 0 0 2px; font-size: 9px; }
+
+.titulo h1,
+.encabezado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titulo h1::after,
+.encabezado h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #99d8ce;
+}
+
+.titulo h1 { margin: 0; font-size: 22px; line-height: 1.2; }
+
+.paciente {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--fondo-acento);
+}
+
+.paciente :global(.plabel),
+.resumen dt { color: var(--acento); font-weight: 700; }
+.paciente p { font-size: 16px; font-weight: 800; margin: 0; }
+.datos { font-size: 10px; color: #334155; }
+
+.encabezado { margin-bottom: 4px; }
+.encabezado h2 {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  margin: 0;
+  color: var(--acento);
+  font-size: 13px;
+}
+.encabezado > span { font-size: 10px; font-weight: 600; color: #475569; }
+
+.resumen {
+  margin: 0;
+  display: grid;
+  gap: 4px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow-wrap: anywhere;
+}
+.resumen dt { font-size: 10px; }
+
+.odontograma > section { zoom: 0.78; }
+.leyenda { display: flex; gap: 10px; font-size: 10px; }
+.leyenda span { display: inline-flex; align-items: center; gap: 4px; }
+.leyenda i { width: 7px; height: 7px; border-radius: 50%; }
+
+.tabla { width: 100%; border-collapse: collapse; font-size: 11px; color: #334155; }
+.tabla th, .tabla td {
+  text-align: start;
+  padding: 4px 6px;
+  vertical-align: top;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-wrap: anywhere;
+}
+.tabla th { background: var(--fondo-acento); color: #0f172a; }
+.tabla th:nth-child(1), .tabla th:nth-child(2) { width: 18%; }
+.tabla th:nth-child(3) { width: 28%; }
+.tabla td { white-space: pre-wrap; }
+
+.reporte :global(.sign-area) { margin-top: 2px; }
+.reporte :global(.sign-empty) { height: 30px; }
+.reporte :global(.sign) { margin-inline-start: auto; }
+.reporte :global(.qr-box) img { width: 64px; height: 64px; }
+
+@media screen and (max-width: 640px) {
+  .reporte:global(.sheet) { padding: 12px; }
+  .reporte :global(.sign-area) { flex-wrap: wrap; }
+  .paciente, .reporte :global(.reporte-cabecera) { gap: 8px; }
+  .reporte :global(.reporte-profesional), .fecha { padding-inline-start: 8px; }
+}
+
+/* Hoja carta (216 × 279 mm), la que usan las clínicas en Honduras. */
+@page reporteDental { size: letter; margin: 0; }
+
+@media print {
+  /* Margen como relleno de la hoja: Chrome ignora el margin de una @page con nombre. */
+  .reporte:global(.sheet) { page: reporteDental; display: block; width: 100%; padding: 10mm 12mm; box-sizing: border-box; }
+  .reporte > * + * { margin-top: 8px; }
+  .odontograma { break-inside: avoid; }
+  .odontograma > section { zoom: 0.70; }
+  .tabla tr { break-inside: avoid; }
+  .tabla th, .tabla td { padding-block: 2px; }
+}

@@ -9,6 +9,10 @@ import { verificarVersion } from '@/utils/versionCheck'
 import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, sendReferralByEmail, sendStudyRequestByEmail } from './email-actions'
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
+import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
+import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
+import IconoMuela from '@/app/components/IconoMuela'
+import DetalleConsultaDental from '../../odontologia/components/DetalleConsultaDental'
 import { isPediatric, calculateAge } from '@/utils/age'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
 import { useAppOrigin } from '@/utils/useAppOrigin'
@@ -56,12 +60,14 @@ const PediatricGrowthChart = nextDynamic(() => import('../../components/Pediatri
 import WhatsAppShareModal from '../../components/WhatsAppShareModal'
 import PreclinicalVitalsModal from '../../components/PreclinicalVitalsModal'
 import { bpReadings, bpShortLabel } from '@/utils/bloodPressure'
+import { vitalsHistory } from '@/utils/historialSignos'
 import SignosConsultaDetalle from '../../components/SignosConsultaDetalle'
 import AntecedentesEditor from '../../components/AntecedentesEditor'
 import { escapeHtml } from '@/utils/escapeHtml'
 import { leavePeriodText } from '@/utils/incapacidad'
 import { antecedenteParaMostrar, estadoEfectivo } from '@/utils/antecedentes'
 import DocumentosMenu from './DocumentosMenu'
+import OdontogramaTab, { type OdontogramaGuardado } from '../../odontologia/OdontogramaTab'
 import LabOrdersTab from './LabOrdersTab'
 import StudyRequestsTab from './StudyRequestsTab'
 import MedicalLeaveModal from './MedicalLeaveModal'
@@ -81,7 +87,7 @@ function parseLocalDate(value: string) {
 
 interface PatientDetailsClientProps {
   patient: PatientRow
-  consultations: ConsultationRow[]
+  consultations: ConsultaConTipo[]
   studies: StudyRow[]
   prescriptions: PrescriptionRow[]
   labOrders?: LabOrderRow[]
@@ -94,6 +100,11 @@ interface PatientDetailsClientProps {
   currentUserId: string
   currentUserRole: string
   isOrgAdmin: boolean
+  odontologiaHabilitada: boolean
+  odontogramas: OdontogramaGuardado[] | null
+  isDentist: boolean
+  /** Pestaña inicial; solo se usa 'odontograma' (enlace desde la sección Odontología). */
+  initialTab?: 'odontograma'
 }
 
 export default function PatientDetailsClient({
@@ -110,7 +121,11 @@ export default function PatientDetailsClient({
   justCreated = false,
   currentUserId,
   currentUserRole,
-  isOrgAdmin
+  isOrgAdmin,
+  odontologiaHabilitada,
+  odontogramas,
+  isDentist,
+  initialTab,
 }: PatientDetailsClientProps) {
   const appUrl = useAppOrigin()
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
@@ -119,7 +134,7 @@ export default function PatientDetailsClient({
   // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
   const lastConsult: ConsultationRow | null = consultations && consultations.length > 0 ? consultations[0] : null
   const alergiasEstado = estadoEfectivo(patient.allergies_status, patient.allergies)
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics'>(canClinical ? 'consultations' : 'prescriptions')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics' | 'odontograma'>(initialTab ?? (canClinical ? 'consultations' : 'prescriptions'))
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
@@ -202,6 +217,7 @@ export default function PatientDetailsClient({
       : consultations.map((c, index) => {
           const docName = doctorShortName(c.user_profiles?.first_name, c.user_profiles?.last_name, c.user_profiles?.gender);
           const consultDate = formatDate(c.created_at);
+          const etiquetaDental = etiquetaTipoConsulta(c.tipo);
 
           const vitalsHtml = [
             ...bpReadings(c).map((r) => `<span class="vital-tag">${bpShortLabel(r.arm)}: ${escapeHtml(r.value)}</span>`),
@@ -233,6 +249,7 @@ export default function PatientDetailsClient({
                 <div>
                   <div class="consult-date">${escapeHtml(consultDate)}</div>
                   <div class="consult-doctor">${escapeHtml(docName)}</div>
+                  ${etiquetaDental ? `<div class="consult-doctor">${etiquetaDental}</div>` : ''}
                 </div>
                 ${vitalsHtml ? `<div class="vitals">${vitalsHtml}</div>` : ''}
               </div>
@@ -250,15 +267,15 @@ export default function PatientDetailsClient({
                   <div class="field-value">${escapeHtml(c.reason_for_visit) || '—'}</div>
                 </div>
                 <div class="field-card">
-                  <div class="field-label">Síntomas / Anamnesis</div>
-                  <div class="field-value">${escapeHtml(c.symptoms) || 'Ninguno reportado'}</div>
+                  <div class="field-label">${etiquetaDental ? 'Examen intraoral' : 'Síntomas / Anamnesis'}</div>
+                  <div class="field-value">${etiquetaDental ? escapeHtml(c.intraoral_exam?.trim()) || '—' : escapeHtml(c.symptoms) || 'Ninguno reportado'}</div>
                 </div>
               </div>
 
               <div class="consult-grid two-col">
                 <div class="field-card">
-                  <div class="field-label">Exámenes de laboratorio / estudios médicos</div>
-                  <div class="field-value">${escapeHtml(c.physical_exam) || 'Ninguno registrado'}</div>
+                  <div class="field-label">${etiquetaDental ? 'Procedimientos realizados' : 'Exámenes de laboratorio / estudios médicos'}</div>
+                  <div class="field-value">${etiquetaDental ? escapeHtml(c.procedures_done?.trim()) || '—' : escapeHtml(c.physical_exam) || 'Ninguno registrado'}</div>
                 </div>
                 <div class="field-card">
                   <div class="field-label">Plan de Tratamiento</div>
@@ -865,9 +882,18 @@ export default function PatientDetailsClient({
           {/* Acciones principales a la derecha */}
           <div className="exp-acciones-principales action-row">
             {canClinical && (
-              <a href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary exp-accion">
+              <a
+                href={rutaNuevaConsulta(patient.id, null, false)}
+                className={isDentist ? 'btn btn-secondary exp-accion' : 'btn btn-primary exp-accion'}
+              >
                 <Plus size={18} />
-                Nueva consulta
+                {isDentist ? 'Consulta médica' : 'Nueva consulta'}
+              </a>
+            )}
+            {canClinical && isDentist && (
+              <a href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-secondary exp-accion">
+                <IconoMuela size={18} />
+                Consulta dental
               </a>
             )}
             <button type="button" className="btn btn-secondary exp-accion" onClick={() => setIsEditing(!isEditing)}>
@@ -1074,6 +1100,16 @@ export default function PatientDetailsClient({
             </button>
           )}
 
+          {odontologiaHabilitada && (
+            <button
+              style={activeTab === 'odontograma' ? styles.tabActive : styles.tab}
+              onClick={() => setActiveTab('odontograma')}
+            >
+              <IconoMuela size={18} />
+              <span>Odontograma</span>
+            </button>
+          )}
+
           {canClinical && patient.is_pediatric && (
             <button
               style={activeTab === 'pediatrics' ? styles.tabActive : styles.tab}
@@ -1139,6 +1175,15 @@ export default function PatientDetailsClient({
 
         {/* Tab Contents */}
         <div style={styles.tabContentContainer}>
+          {odontologiaHabilitada && activeTab === 'odontograma' && (
+            <OdontogramaTab
+              patientId={patient.id}
+              birthDate={patient.birth_date ?? null}
+              historial={odontogramas}
+              isDentist={isDentist}
+            />
+          )}
+
           {/* TAB 1: CONSULTAS */}
           {activeTab === 'consultations' && (
             <div style={styles.tabView}>
@@ -1151,9 +1196,18 @@ export default function PatientDetailsClient({
                 <div style={styles.tabEmptyState}>
                   <Activity size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
                   <p>Este paciente aún no tiene ninguna consulta clínica registrada.</p>
-                  <Link href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
-                    Registrar Primer Consulta
+                  <Link
+                    href={rutaNuevaConsulta(patient.id, null, false)}
+                    className={isDentist ? 'btn btn-secondary' : 'btn btn-primary'}
+                    style={{ marginTop: '1rem', fontSize: '0.8rem' }}
+                  >
+                    {isDentist ? 'Consulta médica' : 'Registrar Primer Consulta'}
                   </Link>
+                  {isDentist && (
+                    <Link href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                      Consulta dental
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div style={styles.timeline}>
@@ -1166,6 +1220,7 @@ export default function PatientDetailsClient({
                     })
                     const docName = doctorShortName(consult.user_profiles?.first_name, consult.user_profiles?.last_name, consult.user_profiles?.gender)
                     const isExpanded = !!expandedConsultations[consult.id]
+                    const etiqueta = etiquetaTipoConsulta(consult.tipo)
                     
                     return (
                       <div key={consult.id} style={styles.timelineItem}>
@@ -1191,6 +1246,7 @@ export default function PatientDetailsClient({
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
                               <div>
                                 <p style={styles.consultDate}>{date}</p>
+                                {etiqueta && <span className="badge badge-info">{etiqueta}</span>}
                                 <p style={styles.consultDoctor}>{docName}</p>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
@@ -1235,18 +1291,20 @@ export default function PatientDetailsClient({
                                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.reason_for_visit}</p>
                                 </div>
 
-                                <div style={{
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  padding: '12px 16px',
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
-                                    <Activity size={14} color="#3b82f6" />
-                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Síntomas</span>
+                                {!etiqueta && (
+                                  <div style={{
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '12px 16px',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                      <Activity size={14} color="#3b82f6" />
+                                      <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Síntomas</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.symptoms || 'Ninguno reportado'}</p>
                                   </div>
-                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500' }}>{consult.symptoms || 'Ninguno reportado'}</p>
-                                </div>
+                                )}
                               </div>
 
                               {/* Grid de Estudios y Plan de Tratamiento */}
@@ -1255,18 +1313,20 @@ export default function PatientDetailsClient({
                                 gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                                 gap: '1rem'
                               }}>
-                                <div style={{
-                                  backgroundColor: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  padding: '12px 16px',
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
-                                    <Beaker size={14} />
-                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exámenes de laboratorio/ estudios médicos</span>
+                                {!etiqueta && (
+                                  <div style={{
+                                    backgroundColor: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    padding: '12px 16px',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: '#64748b' }}>
+                                      <Beaker size={14} />
+                                      <span style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exámenes de laboratorio/ estudios médicos</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.physical_exam || 'Ninguno registrado'}</p>
                                   </div>
-                                  <p style={{ margin: 0, fontSize: '0.9rem', color: '#0f172a', lineHeight: '1.5', fontWeight: '500', whiteSpace: 'pre-line' }}>{consult.physical_exam || 'Ninguno registrado'}</p>
-                                </div>
+                                )}
 
                                 <div style={{
                                   backgroundColor: '#f8fafc',
@@ -1282,8 +1342,15 @@ export default function PatientDetailsClient({
                                 </div>
                               </div>
 
-                              {/* Signos tomados en esta consulta */}
-                              <SignosConsultaDetalle consult={consult} pediatrico={!!patient.is_pediatric} />
+                              {etiqueta && <DetalleConsultaDental consulta={consult} />}
+                              {etiqueta && bpReadings(consult).length === 0 && vitalsHistory([consult]).length === 0 ? (
+                                <section className="vs-detalle" aria-label="Signos vitales de la consulta">
+                                  <h4 className="vs-detalle-titulo">Signos vitales</h4>
+                                  <span className="bp-hist-vacio">—</span>
+                                </section>
+                              ) : (
+                                <SignosConsultaDetalle consult={consult} pediatrico={!!patient.is_pediatric} />
+                              )}
 
                               {/* Medicamentos recetados en esta consulta */}
                               {consult.prescriptions && consult.prescriptions.length > 0 && (
