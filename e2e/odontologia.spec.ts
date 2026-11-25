@@ -64,6 +64,52 @@ async function afirmarGuardadoDentalRechazado(page: Page, pacienteId: string) {
   expect(await rest(`consultations?select=id&patient_id=eq.${pacienteId}`)).toEqual([])
 }
 
+test('el odontólogo abre una consulta dental desde la lista de pacientes', async ({ comoOdontologo, paciente }) => {
+  await comoOdontologo.goto('/dashboard/patients?q=Paciente+Odontolog%C3%ADa+E2E')
+  const fila = comoOdontologo.getByRole('row').filter({
+    has: comoOdontologo.getByRole('link', { name: 'Expediente', exact: true })
+      .and(comoOdontologo.locator(`[href="/dashboard/patients/${paciente.id}"]`)),
+  })
+  const dental = fila.getByRole('link', { name: 'Consulta dental', exact: true })
+  const medica = fila.getByRole('link', { name: 'Consulta médica', exact: true })
+  await expect(dental).toHaveClass(/\bbtn-primary\b/)
+  await expect(medica).toHaveClass(/\bbtn-secondary\b/)
+  await expect(medica).toHaveAttribute('href', `/dashboard/consultations/new?patientId=${paciente.id}`)
+  await dental.click()
+  await expect(comoOdontologo).toHaveURL(`/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
+  await expect(comoOdontologo.getByRole('heading', { name: 'Nueva consulta dental', exact: true })).toBeVisible()
+})
+
+test('el expediente muestra el odontograma vacío en solo lectura y permite iniciar una consulta dental', async ({ comoOdontologo, paciente }) => {
+  await comoOdontologo.goto(`/dashboard/patients/${paciente.id}`)
+  const dental = comoOdontologo.getByRole('link', { name: 'Consulta dental', exact: true })
+  const medica = comoOdontologo.getByRole('link', { name: 'Consulta médica', exact: true })
+  await expect(dental).toHaveCount(2)
+  await expect(medica).toHaveCount(2)
+  for (const enlace of await dental.all()) {
+    await expect(enlace).toHaveClass(/\bbtn-primary\b/)
+    await expect(enlace).toHaveAttribute('href', `/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
+  }
+  for (const enlace of await medica.all()) {
+    await expect(enlace).toHaveClass(/\bbtn-secondary\b/)
+    await expect(enlace).toHaveAttribute('href', `/dashboard/consultations/new?patientId=${paciente.id}`)
+  }
+
+  await comoOdontologo.getByRole('button', { name: 'Odontograma', exact: true }).click()
+  await expect(comoOdontologo.getByText('Este paciente todavía no tiene odontogramas guardados.')).toBeVisible()
+  const odontograma = comoOdontologo.getByRole('region', { name: 'Odontograma', exact: true })
+  await expect(odontograma).toBeVisible()
+  await expect(odontograma.getByRole('group', { name: 'Arcada superior permanente' })).toBeVisible()
+  await expect(odontograma.getByRole('group', { name: 'Arcada superior temporal' })).toHaveCount(0)
+  const cara = odontograma.getByRole('button', { name: CARA_OCLUSAL, exact: true })
+  await expect(cara).toBeDisabled()
+  await expect(cara).toHaveAccessibleDescription(CARA_OCLUSAL)
+  const nueva = comoOdontologo.getByRole('link', { name: 'Nueva consulta dental', exact: true })
+  await expect(nueva).toBeVisible()
+  await expect(nueva).toHaveClass(/\bbtn-primary\b/)
+  await expect(nueva).toHaveAttribute('href', `/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
+})
+
 test('la consulta dental queda en el expediente, el historial médico y el plan de trabajo', async ({ comoOdontologo, paciente }) => {
   const expediente = `/dashboard/patients/${paciente.id}`
   const consultaId = await test.step('El odontólogo guarda una caries oclusal pendiente en la pieza 36', async () => {

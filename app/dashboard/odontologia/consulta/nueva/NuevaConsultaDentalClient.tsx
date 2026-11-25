@@ -3,7 +3,8 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ClipboardList, FileText, History, Save, Smile } from 'lucide-react'
+import { ChevronLeft, ClipboardList, FileText, History, Save } from 'lucide-react'
+import IconoMuela from '@/app/components/IconoMuela'
 import ConnectionBanner from '@/app/dashboard/components/ConnectionBanner'
 import HistorySummaryModals from '@/app/dashboard/consultations/new/HistorySummaryModals'
 import RecetaConsulta from '@/app/dashboard/consultations/new/RecetaConsulta'
@@ -224,7 +225,7 @@ export default function NuevaConsultaDentalClient({
           </section>
 
           <section className="card">
-            <TituloSeccion><Smile size={18} /> Odontograma</TituloSeccion>
+            <TituloSeccion><IconoMuela size={18} /> Odontograma</TituloSeccion>
             <Odontograma
               estado={estado}
               denticion={denticion}

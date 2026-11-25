@@ -10,6 +10,8 @@ import { sendPrescriptionByEmail, sendLabOrderByEmail, sendIncapacidadByEmail, s
 import { canDoClinical, canEnterVitals } from '@/utils/permissions'
 import { doctorShortName } from '@/utils/doctorName'
 import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
+import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
+import IconoMuela from '@/app/components/IconoMuela'
 import DetalleConsultaDental from '../../odontologia/components/DetalleConsultaDental'
 import { isPediatric, calculateAge } from '@/utils/age'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
@@ -51,7 +53,6 @@ import {
   Baby,
   Stethoscope,
   CheckCircle2,
-  Smile,
 } from 'lucide-react'
 import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y la curva de crecimiento es secundaria: se difiere (P2-5)
@@ -877,10 +878,19 @@ export default function PatientDetailsClient({
 
           {/* Acciones principales a la derecha */}
           <div className="exp-acciones-principales action-row">
+            {canClinical && isDentist && (
+              <a href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-primary exp-accion">
+                <IconoMuela size={18} />
+                Consulta dental
+              </a>
+            )}
             {canClinical && (
-              <a href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary exp-accion">
+              <a
+                href={rutaNuevaConsulta(patient.id, null, false)}
+                className={isDentist ? 'btn btn-secondary exp-accion' : 'btn btn-primary exp-accion'}
+              >
                 <Plus size={18} />
-                Nueva consulta
+                {isDentist ? 'Consulta médica' : 'Nueva consulta'}
               </a>
             )}
             <button type="button" className="btn btn-secondary exp-accion" onClick={() => setIsEditing(!isEditing)}>
@@ -1092,7 +1102,7 @@ export default function PatientDetailsClient({
               style={activeTab === 'odontograma' ? styles.tabActive : styles.tab}
               onClick={() => setActiveTab('odontograma')}
             >
-              <Smile size={18} />
+              <IconoMuela size={18} />
               <span>Odontograma</span>
             </button>
           )}
@@ -1163,7 +1173,12 @@ export default function PatientDetailsClient({
         {/* Tab Contents */}
         <div style={styles.tabContentContainer}>
           {odontologiaHabilitada && activeTab === 'odontograma' && (
-            <OdontogramaTab patientId={patient.id} historial={odontogramas} isDentist={isDentist} />
+            <OdontogramaTab
+              patientId={patient.id}
+              birthDate={patient.birth_date ?? null}
+              historial={odontogramas}
+              isDentist={isDentist}
+            />
           )}
 
           {/* TAB 1: CONSULTAS */}
@@ -1178,8 +1193,17 @@ export default function PatientDetailsClient({
                 <div style={styles.tabEmptyState}>
                   <Activity size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
                   <p>Este paciente aún no tiene ninguna consulta clínica registrada.</p>
-                  <Link href={`/dashboard/consultations/new?patientId=${patient.id}`} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
-                    Registrar Primer Consulta
+                  {isDentist && (
+                    <Link href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                      Consulta dental
+                    </Link>
+                  )}
+                  <Link
+                    href={rutaNuevaConsulta(patient.id, null, false)}
+                    className={isDentist ? 'btn btn-secondary' : 'btn btn-primary'}
+                    style={{ marginTop: '1rem', fontSize: '0.8rem' }}
+                  >
+                    {isDentist ? 'Consulta médica' : 'Registrar Primer Consulta'}
                   </Link>
                 </div>
               ) : (

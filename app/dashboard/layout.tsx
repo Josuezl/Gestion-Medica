@@ -5,6 +5,7 @@ import SidebarLink from './components/SidebarLink'
 import { redirect } from 'next/navigation'
 import { logout } from '../auth/actions'
 import { personShortName } from '@/utils/doctorName'
+import IconoMuela from '@/app/components/IconoMuela'
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +18,6 @@ import {
   Inbox,
   Globe,
   BookOpen,
-  Smile,
 } from 'lucide-react'
 
 export default async function DashboardLayout({
@@ -72,7 +72,7 @@ export default async function DashboardLayout({
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
           {profile?.odontologia_habilitada && (
-            <SidebarLink href="/dashboard/odontologia" label="Odontología" icon={<Smile size={20} />} />
+            <SidebarLink href="/dashboard/odontologia" label="Odontología" icon={<IconoMuela size={20} />} />
           )}
           {/* Auto-agendamiento: lo gestiona todo el personal (asistentes, médicos y enfermería) */}
           <SidebarLink href="/dashboard/agenda-publica" label="Agenda en línea" icon={<Globe size={20} />} />

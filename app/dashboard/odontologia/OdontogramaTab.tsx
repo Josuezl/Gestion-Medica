@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDateTimeHN } from '@/utils/datetime'
-import type { Cara, Denticion, EstadoOdontograma, Region } from '@/utils/odontograma'
+import { denticionPorEdad, estadoVacio, type Cara, type Denticion, type EstadoOdontograma, type Region } from '@/utils/odontograma'
 import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
 import Odontograma, { descripcion, ubicacion } from './components/Odontograma'
 
@@ -36,18 +36,21 @@ function listaDeMarcas(estado: EstadoOdontograma) {
   return marcas
 }
 
-export default function OdontogramaTab({ patientId, historial, isDentist }: {
+export default function OdontogramaTab({ patientId, birthDate, historial, isDentist }: {
   patientId: string
+  birthDate: string | null
   historial: OdontogramaGuardado[] | null
   isDentist: boolean
 }) {
   const [seleccionId, setSeleccionId] = useState<string>()
   const seleccionado = historial?.find(({ id }) => id === seleccionId) ?? historial?.[0]
+  const sinHistorial = historial?.length === 0
   const marcas = seleccionado?.estado ? listaDeMarcas(seleccionado.estado) : []
 
   return (
     <section style={{ minWidth: 0, display: 'grid', gap: '1rem' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'space-between', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: sinHistorial ? 'center' : 'end', justifyContent: 'space-between', gap: '0.75rem' }}>
+        {sinHistorial && <p>Este paciente todavía no tiene odontogramas guardados.</p>}
         {seleccionado && (
           <label>
             <span className="form-label">Fecha del odontograma</span>
@@ -72,7 +75,9 @@ export default function OdontogramaTab({ patientId, historial, isDentist }: {
         </div>
       </div>
 
-      {seleccionado?.estado ? (
+      {sinHistorial ? (
+        <Odontograma estado={estadoVacio()} denticion={denticionPorEdad(birthDate)} soloLectura />
+      ) : seleccionado?.estado ? (
         <>
           <Odontograma estado={seleccionado.estado} denticion={seleccionado.denticion} soloLectura />
           <div>
@@ -87,9 +92,7 @@ export default function OdontogramaTab({ patientId, historial, isDentist }: {
           </div>
         </>
       ) : (
-        <p>{historial === null || seleccionado
-          ? 'No se pudo cargar el odontograma.'
-          : 'Este paciente todavía no tiene odontogramas guardados.'}</p>
+        <p>No se pudo cargar el odontograma.</p>
       )}
     </section>
   )
