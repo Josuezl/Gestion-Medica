@@ -61,8 +61,8 @@ export default function HistorialTrabajos({ denticion, pendientes, consultas }: 
   const tituloId = useId()
   const limite = 10
   return (
-    <aside className={`card ${styles.historialTrabajos}`} aria-labelledby={tituloId}>
-      <h3 id={tituloId} className={styles.sectionTitle}><History size={18} /> Historial de trabajos</h3>
+    <div className={styles.historialTrabajos} role="region" aria-labelledby={tituloId}>
+      <h4 id={tituloId} className={styles.subtitulo}><History size={16} /> Historial de trabajos</h4>
       <div className={styles.pendienteActual}>
         <h4>Pendiente actual</h4>
         <ListaTrabajos trabajos={pendientes} denticion={denticion} estado="PENDIENTE" />
@@ -76,6 +76,6 @@ export default function HistorialTrabajos({ denticion, pendientes, consultas }: 
           <TrabajosAnteriores consultas={consultas.slice(limite)} />
         </details>
       )}
-    </aside>
+    </div>
   )
 }

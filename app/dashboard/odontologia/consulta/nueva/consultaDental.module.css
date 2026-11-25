@@ -64,18 +64,46 @@
   align-items: start;
 }
 
-@media (min-width: 1100px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr) minmax(15rem, 23%);
-  }
+/* Encabezado: título a la izquierda y botón del historial de consultas a la derecha. */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-/* Columna lateral: historial de trabajos arriba, historial de consultas debajo. */
-.lateral {
-  display: grid;
-  gap: 1.5rem;
-  min-width: 0;
-  align-content: start;
+.encabezado > button {
+  gap: 0.5rem;
+}
+
+/* Historial de consultas en un modal (antes ocupaba una columna lateral). */
+.historialDialogo {
+  margin: auto;
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: var(--shadow-lg);
+}
+
+.historialDialogo::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.historialCabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.historialCabecera .sectionTitle {
+  margin: 0;
 }
 
 .odontogramaCard,
@@ -131,9 +159,6 @@
   gap: 0.5rem;
 }
 
-.historial {
-  min-width: 0;
-}
 
 .consulta {
   padding: 0.75rem 0;
@@ -198,4 +223,34 @@
   border-radius: 8px;
   background: #fef2f2;
   color: #991b1b;
+}
+
+/* Campos de texto uno debajo del otro, con ancho y alto medianos (ni franjas largas ni columnas). */
+.camposDobles {
+  display: grid;
+  grid-template-columns: minmax(0, 46rem);
+}
+
+.camposDobles textarea {
+  min-height: 5.5rem;
+}
+
+/* Historial de trabajos dentro de la tarjeta del odontograma, separado por una línea. */
+.historialTrabajos {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.subtitulo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.subtitulo svg {
+  color: var(--primary);
 }

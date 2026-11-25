@@ -188,3 +188,25 @@ export const DEFAULT_STUDY_CATALOG: StudyCatalogSection[] = [
     ],
   },
 ]
+
+// Estudios que piden habitualmente los odontólogos. La consulta dental los ofrece primero aunque la
+// clínica no los tenga en su catálogo (si la clínica ya tiene una sección «Odontología», se usa la suya).
+// Indicación común: lo que estorba a una radiografía dental, sin tiempos ni logística del centro.
+const INDICACION_RX_DENTAL =
+  '1. Retire aretes, piercings, cadenas, lentes y prótesis dentales removibles antes de la toma.\n' +
+  '2. Informe al personal si está embarazada o podría estarlo.'
+
+export const ODONTOLOGIA_STUDY_SECTION: StudyCatalogSection = {
+  section: 'Odontología',
+  studies: [
+    { name: 'Radiografía panorámica', description: 'Ortopantomografía: vista completa de ambas arcadas, maxilares y ATM.', indication: INDICACION_RX_DENTAL },
+    { name: 'Radiografía periapical', description: 'Pieza o piezas específicas, desde la corona hasta el ápice de la raíz.', indication: INDICACION_RX_DENTAL },
+    { name: 'Radiografía de aleta de mordida (bite-wing)', description: 'Coronas de piezas posteriores superiores e inferiores; caries interproximales.', indication: INDICACION_RX_DENTAL },
+    { name: 'Radiografía oclusal', description: 'Vista del piso de boca o del paladar.', indication: INDICACION_RX_DENTAL },
+    { name: 'Serie radiográfica periapical completa', description: 'Periapicales de todas las piezas.', indication: INDICACION_RX_DENTAL },
+    { name: 'Radiografía cefálica lateral (cefalometría)', description: 'Para diagnóstico y planificación de ortodoncia.', indication: INDICACION_RX_DENTAL },
+    { name: 'Tomografía Cone Beam (CBCT)', description: 'Tomografía dental 3D: implantes, terceros molares, lesiones.', indication: INDICACION_RX_DENTAL },
+    { name: 'Fotografías clínicas intraorales y extraorales', description: 'Registro fotográfico para diagnóstico y seguimiento.' },
+    { name: 'Modelos de estudio', description: 'Impresiones de ambas arcadas para análisis y planificación.' },
+  ],
+}

@@ -2,6 +2,8 @@ import { notFound, redirect } from 'next/navigation'
 import { getSessionProfile } from '@/utils/session'
 import { createClient } from '@/utils/supabase/server'
 import { denticionPorEdad, estadoVacio, realizadosNuevos, trabajosPendientes, validarEstado, type Denticion } from '@/utils/odontograma'
+import { ODONTOLOGIA_STUDY_SECTION } from '@/utils/studyCatalog'
+import type { CatalogSection } from '@/app/dashboard/consultations/new/StudyRequestModal'
 import NuevaConsultaDentalClient from './NuevaConsultaDentalClient'
 
 interface PageProps {
@@ -25,6 +27,36 @@ async function cargarConsultas(supabase: Awaited<ReturnType<typeof createClient>
     })))
     if (data.length < lote) return consultas
   }
+}
+
+/**
+ * Estudios que se ofrecen en la consulta dental: la sección «Odontología» del catálogo. Si la clínica no la tiene
+ * en su catálogo, se ofrecen los estudios dentales por defecto (sin escribir nada en la base).
+ */
+async function cargarCatalogoEstudios(supabase: Awaited<ReturnType<typeof createClient>>): Promise<CatalogSection[]> {
+  const [secciones, estudios] = await Promise.all([
+    supabase.from('study_sections').select('id, name, sort_order').order('sort_order', { ascending: true }),
+    supabase.from('study_catalog').select('section_id, name, description, patient_indication, sort_order, is_active')
+      .eq('is_active', true).order('sort_order', { ascending: true }),
+  ])
+  const catalogo: CatalogSection[] = (secciones.data || [])
+    .map((s) => ({
+      section: s.name as string,
+      studies: (estudios.data || [])
+        .filter((e) => e.section_id === s.id)
+        .map((e) => ({ name: e.name as string, description: e.description as string | null, indication: e.patient_indication as string | null })),
+    }))
+    .filter((s) => s.studies.length > 0)
+
+  const propia = catalogo.find((s) => s.section.trim().toLowerCase() === 'odontología')
+  const odontologia = propia ?? {
+    section: ODONTOLOGIA_STUDY_SECTION.section,
+    studies: ODONTOLOGIA_STUDY_SECTION.studies.map((e) => ({
+      name: e.name, description: e.description ?? null, indication: e.indication ?? null,
+    })),
+  }
+  // En la consulta dental solo se ofrecen los estudios de odontología (pedido de Josué).
+  return [odontologia]
 }
 
 async function cargarOdontogramas(supabase: Awaited<ReturnType<typeof createClient>>, patientId: string) {
@@ -52,11 +84,14 @@ export default async function NuevaConsultaDentalPage({ searchParams }: PageProp
   }
 
   const supabase = await createClient()
-  const [paciente, odontogramas, historial, receta] = await Promise.all([
+  const [paciente, odontogramas, historial, receta, studyCatalog, ultimaSolicitud] = await Promise.all([
     supabase.from('patients').select('*').eq('id', patientId).single(),
     cargarOdontogramas(supabase, patientId),
     cargarConsultas(supabase, patientId),
     supabase.from('prescriptions').select('id, created_at, medicines, notes').eq('patient_id', patientId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    cargarCatalogoEstudios(supabase),
+    supabase.from('study_requests').select('studies, other_studies, created_at').eq('patient_id', patientId)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ])
 
@@ -99,6 +134,8 @@ export default async function NuevaConsultaDentalPage({ searchParams }: PageProp
       estadoInicial={estado}
       pendientes={trabajosPendientes(estado)}
       trabajosPrevios={trabajosPrevios}
+      studyCatalog={studyCatalog}
+      lastStudyRequest={ultimaSolicitud.data ?? null}
     />
   )
 }

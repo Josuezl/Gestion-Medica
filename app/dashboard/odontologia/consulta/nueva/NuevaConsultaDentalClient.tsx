@@ -1,18 +1,23 @@
 'use client'
 
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ClipboardList, FileText, History, Save } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ClipboardList, FileText, History, Save, X } from 'lucide-react'
 import IconoMuela from '@/app/components/IconoMuela'
 import ConnectionBanner from '@/app/dashboard/components/ConnectionBanner'
 import HistorySummaryModals from '@/app/dashboard/consultations/new/HistorySummaryModals'
 import RecetaConsulta from '@/app/dashboard/consultations/new/RecetaConsulta'
+import SolicitudCard from '@/app/dashboard/consultations/new/SolicitudCard'
+import {
+  StudyRequestList, StudyRequestModal, type CatalogSection, type RequestStudy, type StudyRequestValue,
+} from '@/app/dashboard/consultations/new/StudyRequestModal'
+import { CamposIncapacidad, PanelIncluir, type LeaveValue } from '@/app/dashboard/components/CamposIncapacidad'
 import { calculateAge } from '@/utils/age'
 import { ANTECEDENTES, antecedenteParaMostrar } from '@/utils/antecedentes'
 import { ajustarAutoCrece, autoCrecer } from '@/utils/autoCrecer'
 import { agregarParametros } from '@/utils/camposGuardado'
 import type { ConsultationRow, PatientRow, PrescriptionRow } from '@/utils/clinicalTypes'
-import { formatDateTimeHN } from '@/utils/datetime'
+import { formatDateTimeHN, ymdHN } from '@/utils/datetime'
 import { draftKey, formDataToFields } from '@/utils/formDraft'
 import { writeFormField } from '@/utils/formFields'
 import { guardarEnApi } from '@/utils/guardarApi'
@@ -40,7 +45,12 @@ interface Props {
   estadoInicial: EstadoOdontograma
   pendientes: TrabajoOdontologico[]
   trabajosPrevios: TrabajosConsulta[]
+  studyCatalog: CatalogSection[]
+  lastStudyRequest: { studies: RequestStudy[]; other_studies: string | null; created_at: string } | null
 }
+
+const LEAVE_VACIA: LeaveValue = { start: '', days: '', diagnosis: '', reason: '' }
+const ESTUDIOS_VACIOS: StudyRequestValue = { studies: [], otherStudies: '', manualToCatalog: [] }
 
 const CAMPOS = {
   reason_for_visit: { etiqueta: 'Motivo de consulta', requerido: true },
@@ -60,7 +70,7 @@ const CAMPOS_HISTORIAL = {
   treatment_plan: CAMPOS.treatment_plan.etiqueta,
 }
 
-function CampoClinico({ name }: { name: keyof typeof CAMPOS }) {
+function CampoClinico({ name, onInput }: { name: keyof typeof CAMPOS; onInput?: (valor: string) => void }) {
   const { etiqueta, requerido } = CAMPOS[name]
 
   return (
@@ -68,7 +78,8 @@ function CampoClinico({ name }: { name: keyof typeof CAMPOS }) {
       <label htmlFor={name} className="evo-label">
         {etiqueta} {requerido && <span className="evo-requerido" aria-hidden="true">*</span>}
       </label>
-      <textarea id={name} className="form-input auto-crece" name={name} rows={3} required={requerido} onInput={autoCrecer} />
+      <textarea id={name} className="form-input auto-crece" name={name} rows={3} required={requerido}
+        onInput={(evento) => { autoCrecer(evento); onInput?.(evento.currentTarget.value) }} />
     </div>
   )
 }
@@ -89,6 +100,7 @@ function leerOdontogramaBorrador(raw?: string) {
 
 export default function NuevaConsultaDentalClient({
   paciente, appointmentId, consultas, ultimaReceta, currentUserId, denticionInicial, estadoInicial, pendientes, trabajosPrevios,
+  studyCatalog, lastStudyRequest,
 }: Props) {
   const [denticion, setDenticion] = useState(denticionInicial)
   const [estado, setEstado] = useState(estadoInicial)
@@ -97,7 +109,17 @@ export default function NuevaConsultaDentalClient({
   const [includeDiagnosis, setIncludeDiagnosis] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [consultaGuardada, setConsultaGuardada] = useState<string | null>(null)
+  const [studyRequest, setStudyRequest] = useState<StudyRequestValue>(ESTUDIOS_VACIOS)
+  const [showStudyModal, setShowStudyModal] = useState(false)
+  const [includeLeave, setIncludeLeave] = useState(false)
+  const [leave, setLeave] = useState<LeaveValue>(LEAVE_VACIA)
+  const [diagnosisText, setDiagnosisText] = useState('')
+  const [verHistorial, setVerHistorial] = useState(false)
+  const historialRef = useRef<HTMLDialogElement>(null)
+  const [consultaGuardada, setConsultaGuardada] = useState<{
+    id: string; studyRequestId: string | null; hasMedicalLeave: boolean
+  } | null>(null)
+  const studyRequestCount = studyRequest.studies.length + (studyRequest.otherStudies.trim() ? 1 : 0)
   const formRef = useRef<HTMLFormElement>(null)
   const expediente = `/dashboard/patients/${paciente.id}`
 
@@ -108,8 +130,15 @@ export default function NuevaConsultaDentalClient({
       medicines_text: medicinesText,
       _denticion: denticion,
       _odontograma: JSON.stringify(estado),
+      study_request: JSON.stringify(studyRequest),
+      include_medical_leave: includeLeave ? 'on' : '',
     }),
   )
+
+  useEffect(() => {
+    const dialogo = historialRef.current
+    if (verHistorial && dialogo && !dialogo.open) dialogo.showModal()
+  }, [verHistorial])
 
   function restaurarBorrador(fields: Record<string, string>) {
     for (const name of Object.keys(CAMPOS)) {
@@ -125,6 +154,21 @@ export default function NuevaConsultaDentalClient({
     }
     const estadoGuardado = leerOdontogramaBorrador(fields._odontograma)
     if (estadoGuardado) setEstado(estadoGuardado)
+    setDiagnosisText(fields.diagnosis ?? '')
+    setIncludeLeave(fields.include_medical_leave === 'on' || !!fields.medical_leave?.trim())
+    setLeave({ start: fields.leave_start_date ?? '', days: fields.leave_days ?? '', diagnosis: fields.leave_diagnosis ?? '', reason: fields.medical_leave ?? '' })
+    if (fields.study_request) {
+      try {
+        const parsed = JSON.parse(fields.study_request) as Partial<StudyRequestValue>
+        setStudyRequest({
+          studies: Array.isArray(parsed.studies) ? parsed.studies : [],
+          otherStudies: parsed.otherStudies ?? '',
+          manualToCatalog: Array.isArray(parsed.manualToCatalog) ? parsed.manualToCatalog : [],
+        })
+      } catch {
+        // Un borrador de estudios dañado no impide recuperar lo demás.
+      }
+    }
 
     resolvePendingDraft()
     requestAnimationFrame(() => ajustarAutoCrece(formRef.current))
@@ -162,7 +206,11 @@ export default function NuevaConsultaDentalClient({
       if (resultado.warnings?.length) {
         window.alert('La consulta se guardó, pero hubo avisos:\n\n• ' + resultado.warnings.join('\n• '))
       }
-      setConsultaGuardada(resultado.consultationId)
+      setConsultaGuardada({
+        id: resultado.consultationId,
+        studyRequestId: resultado.studyRequestId ?? null,
+        hasMedicalLeave: !!resultado.hasMedicalLeave,
+      })
     } catch {
       setError('No se pudo confirmar el guardado. Revisa tu conexión y verifica en el expediente si la consulta quedó registrada antes de reintentar.')
       setLoading(false)
@@ -172,7 +220,7 @@ export default function NuevaConsultaDentalClient({
   const edad = calculateAge(paciente.birth_date)
 
   if (consultaGuardada) {
-    const impresion = `/consultations/${consultaGuardada}/print`
+    const impresion = `/consultations/${consultaGuardada.id}/print`
     return (
       <section className="card">
         <TituloSeccion>Consulta dental guardada</TituloSeccion>
@@ -180,7 +228,15 @@ export default function NuevaConsultaDentalClient({
           <a className="btn btn-primary" href={`${impresion}/plan-trabajo`} target="_blank" rel="noopener noreferrer">
             Imprimir reporte para el paciente
           </a>
-          <a className="btn btn-secondary" href={impresion} target="_blank" rel="noopener noreferrer">Imprimir consulta</a>
+          <a className="btn btn-secondary" href={`${impresion}?doc=dental`} target="_blank" rel="noopener noreferrer">Imprimir consulta</a>
+          {consultaGuardada.studyRequestId && (
+            <a className="btn btn-secondary" href={`/study-requests/${consultaGuardada.studyRequestId}/print`} target="_blank" rel="noopener noreferrer">
+              Imprimir solicitud de estudios
+            </a>
+          )}
+          {consultaGuardada.hasMedicalLeave && (
+            <a className="btn btn-secondary" href={impresion} target="_blank" rel="noopener noreferrer">Imprimir incapacidad</a>
+          )}
           <Link className="btn btn-secondary" href={expediente}>Ir al expediente</Link>
         </div>
       </section>
@@ -192,10 +248,24 @@ export default function NuevaConsultaDentalClient({
       <ConnectionBanner />
       <HistorySummaryModals patient={paciente} consultations={consultas} />
 
-      <header>
-        <Link className={styles.backLink} href={expediente}><ChevronLeft size={16} /> Volver al expediente</Link>
-        <h2 className={styles.title}>Nueva consulta dental</h2>
+      <header className={styles.encabezado}>
+        <div>
+          <Link className={styles.backLink} href={expediente}><ChevronLeft size={16} /> Volver al expediente</Link>
+          <h2 className={styles.title}>Nueva consulta dental</h2>
+        </div>
+        <button type="button" className="btn btn-secondary" onClick={() => setVerHistorial(true)}>
+          <History size={18} /> Historial de consultas ({consultas.length})
+        </button>
       </header>
+
+      {showStudyModal && (
+        <StudyRequestModal
+          catalog={studyCatalog}
+          initial={studyRequest}
+          onSave={(valor) => { setStudyRequest(valor); setShowStudyModal(false); scheduleSave() }}
+          onClose={() => setShowStudyModal(false)}
+        />
+      )}
 
       <div className="card nc-paciente">
         <div className="nc-avatar" aria-hidden="true">{paciente.first_name.charAt(0)}{paciente.last_name.charAt(0)}</div>
@@ -237,8 +307,10 @@ export default function NuevaConsultaDentalClient({
         <form ref={formRef} onSubmit={guardar} onInput={scheduleSave} data-respaldo-propio className={styles.form}>
           <section className="card">
             <TituloSeccion><ClipboardList size={18} /> Evaluación dental</TituloSeccion>
-            <CampoClinico name="reason_for_visit" />
-            <CampoClinico name="intraoral_exam" />
+            <div className={styles.camposDobles}>
+              <CampoClinico name="reason_for_visit" />
+              <CampoClinico name="intraoral_exam" />
+            </div>
           </section>
 
           <section className={`card ${styles.odontogramaCard}`}>
@@ -249,13 +321,17 @@ export default function NuevaConsultaDentalClient({
               onChange={(valor) => { setEstado(valor); scheduleSave() }}
               onDenticionChange={(valor) => { setDenticion(valor); scheduleSave() }}
             />
+            {/* En la misma sección del odontograma: lo pendiente y lo realizado en visitas anteriores. */}
+            <HistorialTrabajos denticion={denticionInicial} pendientes={pendientes} consultas={trabajosPrevios} />
           </section>
 
           <section className="card">
             <TituloSeccion><FileText size={18} /> Diagnóstico y tratamiento</TituloSeccion>
-            <CampoClinico name="diagnosis" />
-            <CampoClinico name="procedures_done" />
-            <CampoClinico name="treatment_plan" />
+            <div className={styles.camposDobles}>
+              <CampoClinico name="diagnosis" onInput={setDiagnosisText} />
+              <CampoClinico name="procedures_done" />
+              <CampoClinico name="treatment_plan" />
+            </div>
           </section>
 
           <RecetaConsulta
@@ -268,35 +344,79 @@ export default function NuevaConsultaDentalClient({
             setIncludeDiagnosis={(valor) => { setIncludeDiagnosis(valor); scheduleSave() }}
           />
 
+          <section className="card">
+            <TituloSeccion><FileText size={18} /> Estudios e incapacidad</TituloSeccion>
+            <input type="hidden" name="study_request" value={JSON.stringify(studyRequest)} />
+            <div className="sol-grid">
+              <SolicitudCard
+                icono={<ClipboardList size={22} />}
+                titulo="Estudios"
+                descripcion="Radiografías dentales y otros estudios."
+                vacio="Sin estudios seleccionados."
+                botonTexto="Seleccionar estudios"
+                cantidad={studyRequestCount}
+                unidades={['estudio seleccionado', 'estudios seleccionados']}
+                onAbrir={() => setShowStudyModal(true)}
+                onQuitar={() => { setStudyRequest(ESTUDIOS_VACIOS); scheduleSave() }}
+                lista={<StudyRequestList studies={studyRequest.studies} otherStudies={studyRequest.otherStudies} />}
+                ultima={lastStudyRequest && Array.isArray(lastStudyRequest.studies) && (lastStudyRequest.studies.length > 0 || (lastStudyRequest.other_studies || '').trim()) ? {
+                  fecha: lastStudyRequest.created_at,
+                  etiqueta: 'Última solicitud',
+                  lista: <StudyRequestList studies={lastStudyRequest.studies} otherStudies={lastStudyRequest.other_studies} />,
+                  onImportar: () => { setStudyRequest({ studies: lastStudyRequest.studies || [], otherStudies: lastStudyRequest.other_studies || '', manualToCatalog: [] }); scheduleSave() },
+                } : null}
+              />
+              <PanelIncluir
+                icono={<CalendarDays size={22} />}
+                titulo="Incapacidad"
+                incluido={includeLeave}
+                onIncluir={(valor) => {
+                  setIncludeLeave(valor)
+                  // Al encender, la fecha de inicio arranca en hoy (editable), igual que en la consulta médica.
+                  if (valor && !leave.start) setLeave({ ...leave, start: ymdHN(new Date()) })
+                  scheduleSave()
+                }}
+              >
+                <CamposIncapacidad value={leave} onChange={(valor) => { setLeave(valor); scheduleSave() }} diagnosticoConsulta={diagnosisText} />
+              </PanelIncluir>
+            </div>
+          </section>
+
           {error && <p className={styles.error} role="alert">{error}</p>}
           <button type="submit" className="btn btn-primary" disabled={loading}>
             <Save size={18} /> {loading ? 'Guardando consulta…' : 'Finalizar consulta dental'}
           </button>
         </form>
 
-        <div className={styles.lateral}>
-          <HistorialTrabajos denticion={denticionInicial} pendientes={pendientes} consultas={trabajosPrevios} />
-          <aside className={`card ${styles.historial}`}>
-            <TituloSeccion><History size={18} /> Historial de consultas</TituloSeccion>
-            {consultas.length === 0 && <p className={styles.muted}>Sin consultas previas.</p>}
-            {consultas.map((consulta) => (
-              <details key={consulta.id} className={styles.consulta}>
-                <summary>
-                  {formatDateTimeHN(consulta.created_at)}
-                  {consulta.tipo === 'DENTAL' && <span className="badge badge-info">Odontología</span>}
-                  <span className={styles.muted}>{consulta.diagnosis || consulta.reason_for_visit || 'Consulta'}</span>
-                </summary>
-                <dl>
-                  {Object.entries(CAMPOS_HISTORIAL).map(([campo, etiqueta]) => {
-                    const valor = consulta[campo as keyof typeof CAMPOS_HISTORIAL]
-                    return valor && <div key={campo}><dt>{etiqueta}</dt><dd>{valor}</dd></div>
-                  })}
-                </dl>
-              </details>
-            ))}
-          </aside>
-        </div>
       </div>
+
+      {verHistorial && (
+        <dialog ref={historialRef} className={styles.historialDialogo} aria-labelledby="historial-consultas-titulo"
+          onClose={() => setVerHistorial(false)}>
+          <div className={styles.historialCabecera}>
+            <h3 id="historial-consultas-titulo" className={styles.sectionTitle}><History size={18} /> Historial de consultas</h3>
+            <button type="button" className="btn btn-secondary" aria-label="Cerrar historial" onClick={() => historialRef.current?.close()}>
+              <X size={18} />
+            </button>
+          </div>
+          {consultas.length === 0 && <p className={styles.muted}>Sin consultas previas.</p>}
+          {consultas.map((consulta) => (
+            <details key={consulta.id} className={styles.consulta}>
+              <summary>
+                {formatDateTimeHN(consulta.created_at)}
+                {consulta.tipo === 'DENTAL' && <span className="badge badge-info">Odontología</span>}
+                <span className={styles.muted}>{consulta.diagnosis || consulta.reason_for_visit || 'Consulta'}</span>
+              </summary>
+              <dl>
+                {Object.entries(CAMPOS_HISTORIAL).map(([campo, etiqueta]) => {
+                  const valor = consulta[campo as keyof typeof CAMPOS_HISTORIAL]
+                  return valor && <div key={campo}><dt>{etiqueta}</dt><dd>{valor}</dd></div>
+                })}
+              </dl>
+            </details>
+          ))}
+        </dialog>
+      )}
     </div>
   )
 }

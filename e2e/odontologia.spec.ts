@@ -142,7 +142,7 @@ test('la consulta dental queda en el expediente, el historial médico y el repor
     const reporte = comoOdontologo.getByRole('link', { name: 'Imprimir reporte para el paciente', exact: true })
     await expect(reporte).toHaveAttribute('href', `${impresion}/plan-trabajo`)
     await expect(reporte).toHaveAttribute('target', '_blank')
-    await expect(comoOdontologo.getByRole('link', { name: 'Imprimir consulta', exact: true })).toHaveAttribute('href', impresion)
+    await expect(comoOdontologo.getByRole('link', { name: 'Imprimir consulta', exact: true })).toHaveAttribute('href', `${impresion}?doc=dental`)
     await comoOdontologo.getByRole('link', { name: 'Ir al expediente', exact: true }).click()
     await expect(comoOdontologo).toHaveURL(expediente)
     await expect(comoOdontologo.locator('.consulta-tarjeta').getByText('Odontología', { exact: true })).toBeVisible()
@@ -231,4 +231,40 @@ test('la sección Odontología lista solo consultas dentales y abre el expedient
   await comoOdontologo.getByRole('link', { name: 'Expediente' }).first().click()
   await expect(comoOdontologo).toHaveURL(`/dashboard/patients/${paciente.id}?tab=odontograma`)
   await expect(comoOdontologo.getByRole('region', { name: 'Odontograma', exact: true })).toBeVisible()
+})
+
+test('la consulta dental solicita una radiografía panorámica y emite incapacidad', async ({ comoOdontologo, paciente }) => {
+  await comoOdontologo.goto(`/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
+  await comoOdontologo.locator('[name=reason_for_visit]').fill('Dolor en molar')
+  await comoOdontologo.locator('[name=diagnosis]').fill('Pulpitis en la pieza 46')
+  await comoOdontologo.locator('[name=treatment_plan]').fill('Endodoncia de la pieza 46')
+
+  // El historial de consultas vive en un botón con modal.
+  await comoOdontologo.getByRole('button', { name: /Historial de consultas/ }).click()
+  const historial = comoOdontologo.getByRole('dialog', { name: 'Historial de consultas' })
+  await expect(historial).toBeVisible()
+  await historial.getByRole('button', { name: 'Cerrar historial' }).click()
+
+  await comoOdontologo.getByRole('button', { name: 'Seleccionar estudios' }).click()
+  await comoOdontologo.getByText('Radiografía panorámica', { exact: true }).first().click()
+  await comoOdontologo.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(comoOdontologo.getByText('1 estudio seleccionado')).toBeVisible()
+
+  await comoOdontologo.getByRole('switch', { name: 'Incluir incapacidad' }).check({ force: true })
+  await comoOdontologo.locator('[name=leave_days]').fill('2')
+  await comoOdontologo.locator('[name=leave_diagnosis]').fill('Pulpitis en la pieza 46')
+  await comoOdontologo.locator('[name=medical_leave]').fill('Reposo relativo')
+  await comoOdontologo.getByRole('button', { name: 'Finalizar consulta dental' }).click()
+
+  const estudios = comoOdontologo.getByRole('link', { name: 'Imprimir solicitud de estudios' })
+  await expect(estudios).toBeVisible()
+  await expect(comoOdontologo.getByRole('link', { name: 'Imprimir incapacidad' })).toBeVisible()
+  await expect(comoOdontologo.getByRole('link', { name: 'Imprimir consulta' })).toHaveAttribute('href', /\?doc=dental$/)
+
+  const [consulta] = await rest(`consultations?select=leave_days,medical_leave,tipo&patient_id=eq.${paciente.id}`) as
+    { leave_days: number; medical_leave: string; tipo: string }[]
+  expect(consulta).toMatchObject({ tipo: 'DENTAL', leave_days: 2, medical_leave: 'Reposo relativo' })
+  const solicitudes = await rest(`study_requests?select=studies&patient_id=eq.${paciente.id}`) as { studies: { name: string }[] }[]
+  expect(solicitudes[0].studies.map((e) => e.name)).toContain('Radiografía panorámica')
+  await rest(`study_requests?patient_id=eq.${paciente.id}`, { method: 'DELETE' })
 })
