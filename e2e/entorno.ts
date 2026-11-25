@@ -21,7 +21,9 @@ export const USUARIOS_E2E = {
   medico: 'medico@e2e.test',
   asistente: 'asistente@e2e.test',
   admin: 'admin@e2e.test',
+  odontologo: 'odontologo@e2e.test',
 } as const
 export type RolE2e = keyof typeof USUARIOS_E2E
 export const archivoSesion = (rol: RolE2e) => `e2e/.auth/${rol}.json`
 export const TOKEN_AGENDAR = 'e2e-agendar'
+export const SEDE_E2E = '00000000-0000-4000-a000-000000000011'

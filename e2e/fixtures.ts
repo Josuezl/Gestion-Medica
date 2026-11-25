@@ -1,7 +1,7 @@
 import { test as base, type Browser, type Page, type TestInfo } from '@playwright/test'
 import { archivoSesion, type RolE2e } from './entorno'
 
-type Fixtures = { comoMedico: Page; comoAsistente: Page; comoAdmin: Page }
+type Fixtures = { comoMedico: Page; comoAsistente: Page; comoAdmin: Page; comoOdontologo: Page }
 
 // Cada fixture abre un contexto propio con la sesión guardada en global-setup y el dispositivo
 // del proyecto (escritorio o teléfono).
@@ -22,5 +22,6 @@ export const test = base.extend<Fixtures>({
   comoMedico: paginaComo('medico'),
   comoAsistente: paginaComo('asistente'),
   comoAdmin: paginaComo('admin'),
+  comoOdontologo: paginaComo('odontologo'),
 })
 export { expect } from '@playwright/test'
