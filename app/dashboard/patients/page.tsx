@@ -198,17 +198,6 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                       </td>
                       <td data-label="Acciones" style={{ textAlign: 'right' }}>
                         <div style={styles.actionButtons}>
-                          {clinical && isDentist && (
-                            <a
-                              href={rutaNuevaConsulta(patient.id, null, true)}
-                              className="btn btn-primary"
-                              style={styles.consultBtn}
-                              title="Iniciar consulta dental"
-                            >
-                              <IconoMuela size={15} />
-                              <span>Consulta dental</span>
-                            </a>
-                          )}
                           {clinical && (
                             <a
                               href={rutaNuevaConsulta(patient.id, null, false)}
@@ -218,6 +207,17 @@ export default async function PatientsPage({ searchParams }: PageProps) {
                             >
                               <Clipboard size={15} />
                               <span>{isDentist ? 'Consulta médica' : 'Consulta'}</span>
+                            </a>
+                          )}
+                          {clinical && isDentist && (
+                            <a
+                              href={rutaNuevaConsulta(patient.id, null, true)}
+                              className="btn btn-secondary"
+                              style={styles.consultBtn}
+                              title="Iniciar consulta dental"
+                            >
+                              <IconoMuela size={15} />
+                              <span>Consulta dental</span>
                             </a>
                           )}
                           <a

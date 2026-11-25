@@ -20,6 +20,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {}
   const isEditing = resolvedSearchParams.edit === 'true'
   const justCreated = resolvedSearchParams.creado === '1'
+  const abrirOdontograma = resolvedSearchParams.tab === 'odontograma'
   
   const supabase = await createClient()
 
@@ -138,6 +139,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       odontologiaHabilitada={odontologiaHabilitada}
       odontogramas={odontogramas}
       isDentist={isDentist}
+      initialTab={abrirOdontograma && odontologiaHabilitada ? 'odontograma' : undefined}
     />
   )
 }

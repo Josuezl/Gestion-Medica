@@ -103,6 +103,8 @@ interface PatientDetailsClientProps {
   odontologiaHabilitada: boolean
   odontogramas: OdontogramaGuardado[] | null
   isDentist: boolean
+  /** Pestaña inicial; solo se usa 'odontograma' (enlace desde la sección Odontología). */
+  initialTab?: 'odontograma'
 }
 
 export default function PatientDetailsClient({
@@ -123,6 +125,7 @@ export default function PatientDetailsClient({
   odontologiaHabilitada,
   odontogramas,
   isDentist,
+  initialTab,
 }: PatientDetailsClientProps) {
   const appUrl = useAppOrigin()
   // Asistente y enfermera solo gestionan datos del paciente y recetas (sin trabajo clínico ni expediente).
@@ -131,7 +134,7 @@ export default function PatientDetailsClient({
   // Última consulta: se usa para iniciar consulta de seguimiento y para emitir/corregir incapacidad.
   const lastConsult: ConsultationRow | null = consultations && consultations.length > 0 ? consultations[0] : null
   const alergiasEstado = estadoEfectivo(patient.allergies_status, patient.allergies)
-  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics' | 'odontograma'>(canClinical ? 'consultations' : 'prescriptions')
+  const [activeTab, setActiveTab] = useState<'history' | 'consultations' | 'prescriptions' | 'laborders' | 'studyrequests' | 'incapacidades' | 'referencias' | 'studies' | 'pediatrics' | 'odontograma'>(initialTab ?? (canClinical ? 'consultations' : 'prescriptions'))
   const [expandedLabOrder, setExpandedLabOrder] = useState<string | null>(null)
   const [expandedStudyRequest, setExpandedStudyRequest] = useState<string | null>(null)
   // Modal de WhatsApp unificado: comparte receta / orden de lab / incapacidad según `docType`.
@@ -878,12 +881,6 @@ export default function PatientDetailsClient({
 
           {/* Acciones principales a la derecha */}
           <div className="exp-acciones-principales action-row">
-            {canClinical && isDentist && (
-              <a href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-primary exp-accion">
-                <IconoMuela size={18} />
-                Consulta dental
-              </a>
-            )}
             {canClinical && (
               <a
                 href={rutaNuevaConsulta(patient.id, null, false)}
@@ -891,6 +888,12 @@ export default function PatientDetailsClient({
               >
                 <Plus size={18} />
                 {isDentist ? 'Consulta médica' : 'Nueva consulta'}
+              </a>
+            )}
+            {canClinical && isDentist && (
+              <a href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-secondary exp-accion">
+                <IconoMuela size={18} />
+                Consulta dental
               </a>
             )}
             <button type="button" className="btn btn-secondary exp-accion" onClick={() => setIsEditing(!isEditing)}>
@@ -1193,11 +1196,6 @@ export default function PatientDetailsClient({
                 <div style={styles.tabEmptyState}>
                   <Activity size={40} color="var(--text-muted)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
                   <p>Este paciente aún no tiene ninguna consulta clínica registrada.</p>
-                  {isDentist && (
-                    <Link href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-primary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
-                      Consulta dental
-                    </Link>
-                  )}
                   <Link
                     href={rutaNuevaConsulta(patient.id, null, false)}
                     className={isDentist ? 'btn btn-secondary' : 'btn btn-primary'}
@@ -1205,6 +1203,11 @@ export default function PatientDetailsClient({
                   >
                     {isDentist ? 'Consulta médica' : 'Registrar Primer Consulta'}
                   </Link>
+                  {isDentist && (
+                    <Link href={rutaNuevaConsulta(patient.id, null, true)} className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                      Consulta dental
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div style={styles.timeline}>

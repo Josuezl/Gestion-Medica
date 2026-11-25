@@ -72,9 +72,11 @@ test('el odontólogo abre una consulta dental desde la lista de pacientes', asyn
   })
   const dental = fila.getByRole('link', { name: 'Consulta dental', exact: true })
   const medica = fila.getByRole('link', { name: 'Consulta médica', exact: true })
-  await expect(dental).toHaveClass(/\bbtn-primary\b/)
+  await expect(dental).toHaveClass(/\bbtn-secondary\b/)
   await expect(medica).toHaveClass(/\bbtn-secondary\b/)
   await expect(medica).toHaveAttribute('href', `/dashboard/consultations/new?patientId=${paciente.id}`)
+  // Primero la consulta médica y después la dental (pedido de Josué).
+  expect(await medica.evaluate((m, d) => Boolean(m.compareDocumentPosition(d!) & Node.DOCUMENT_POSITION_FOLLOWING), await dental.elementHandle())).toBe(true)
   await dental.click()
   await expect(comoOdontologo).toHaveURL(`/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
   await expect(comoOdontologo.getByRole('heading', { name: 'Nueva consulta dental', exact: true })).toBeVisible()
@@ -87,7 +89,7 @@ test('el expediente muestra el odontograma vacío en solo lectura y permite inic
   await expect(dental).toHaveCount(2)
   await expect(medica).toHaveCount(2)
   for (const enlace of await dental.all()) {
-    await expect(enlace).toHaveClass(/\bbtn-primary\b/)
+    await expect(enlace).toHaveClass(/\bbtn-secondary\b/)
     await expect(enlace).toHaveAttribute('href', `/dashboard/odontologia/consulta/nueva?patientId=${paciente.id}`)
   }
   for (const enlace of await medica.all()) {
@@ -207,4 +209,26 @@ test('el médico sigue guardando consultas médicas', async ({ paciente: { id, m
   expect(await rest(`consultations?select=tipo,diagnosis&patient_id=eq.${id}`)).toEqual([
     { tipo: 'MEDICA', diagnosis: 'Resfriado común' },
   ])
+})
+
+test('la sección Odontología lista solo consultas dentales y abre el expediente en el odontograma', async ({ comoOdontologo, paciente }) => {
+  const [odontologo] = await rest(`user_profiles?select=id&clinic_id=eq.${CLINICA_E2E}&is_dentist=eq.true&limit=1`) as { id: string }[]
+  const base = { clinic_id: CLINICA_E2E, patient_id: paciente.id, doctor_id: odontologo.id, treatment_plan: 'Control' }
+  await rest('consultations', {
+    method: 'POST',
+    body: JSON.stringify([
+      { ...base, tipo: 'DENTAL', reason_for_visit: 'Limpieza dental E2E', diagnosis: 'Gingivitis leve E2E' },
+      { ...base, tipo: 'MEDICA', reason_for_visit: 'Gripe E2E', diagnosis: 'Resfriado común E2E' },
+    ]),
+  })
+
+  await comoOdontologo.goto('/dashboard/odontologia?q=Odontolog%C3%ADa+E2E')
+  await expect(comoOdontologo.getByRole('heading', { name: 'Consultas odontológicas', exact: true })).toBeVisible()
+  await expect(comoOdontologo.getByRole('link', { name: 'Nueva consulta dental (Buscar paciente)' })).toBeVisible()
+  await expect(comoOdontologo.getByText('Gingivitis leve E2E')).toBeVisible()
+  await expect(comoOdontologo.getByText('Resfriado común E2E')).toHaveCount(0)
+
+  await comoOdontologo.getByRole('link', { name: 'Expediente' }).first().click()
+  await expect(comoOdontologo).toHaveURL(`/dashboard/patients/${paciente.id}?tab=odontograma`)
+  await expect(comoOdontologo.getByRole('region', { name: 'Odontograma', exact: true })).toBeVisible()
 })
