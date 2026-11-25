@@ -30,6 +30,12 @@ interactivo y compartir pacientes e historial con los médicos de la clínica.
   documento con el odontograma marcado, la lista de trabajos pendientes por pieza (marcas
   `PENDIENTE`, en orden FDI, con cara, hallazgo y nota), y el diagnóstico y las indicaciones de
   la consulta. **No lleva precios**: los costos siguen en la fase 2.
+- **Licencia de odontología por clínica (añadido 2026-11-25):** el módulo se vende aparte.
+  Columna `clinics.odontologia_habilitada boolean not null default false`, que solo el superadmin
+  cambia (protegida en `guard_clinic_changes`, igual que `plan_code`). Si está apagada, la clínica
+  no ve el menú "Odontología", ni la pestaña de odontograma, ni la casilla "Es odontólogo", y la
+  base rechaza guardar datos dentales (`is_dentist_now()` también exige la licencia). San Martín
+  se enciende desde superadmin al desplegar; las demás clínicas quedan apagadas.
 - **Forma de trabajo:** Codex programa, Claude coordina y revisa. **Todo se prueba en local**
   (`npm run dev` con Supabase local) antes de subir a producción.
 
@@ -168,8 +174,8 @@ Josué eligió A porque el historial compartido es central y es lo que menos có
 1. Aplicar el SQL aditivo en Supabase de producción (antes del merge).
 2. Merge a `main` (con aprobación de Josué y CI en verde), fuera del horario de la clínica.
 3. Verificar `/version.json`.
-4. Subir `max_doctors_override` de San Martín en superadmin, crear los dos usuarios y activarles
-   "Es odontólogo".
+4. En superadmin, encender "Odontología" para San Martín y subir su `max_doctors_override`;
+   crear los dos usuarios y activarles "Es odontólogo".
 
 ## Decisiones de Claude tras la revisión (Josué puede corregirlas)
 

@@ -108,6 +108,26 @@ Supabase local).
   también que `npm run test:e2e -- e2e/consulta-diseno.spec.ts` sigue verde (consulta médica).
 - [ ] **Paso 5:** Commit `feat(odontologia): migración is_dentist, tipo de consulta, odontogramas y RPC`.
 
+### Tarea 1b: Licencia de odontología por clínica
+
+**Archivos:**
+- Crear: `supabase/migrations/20261125000001_odontologia_licencia.sql` (aditiva; la de la Tarea 1 no se toca)
+- Modificar: `scripts/probar-rls-odontologia.mjs`
+- Modificar: `utils/auth-guard.ts` (`AuthProfile.clinics` + `odontologia_habilitada`; `AuthContext.odontologiaHabilitada: boolean`)
+- Modificar: `app/superadmin/page.tsx`, `app/superadmin/actions.ts`, `app/superadmin/SuperAdminClient.tsx` (switch "Odontología" por clínica, mismo patrón que los topes `max_*_override`)
+
+**Produce:**
+- `clinics.odontologia_habilitada boolean not null default false`.
+- `guard_clinic_changes()` (`CREATE OR REPLACE`) protege también `odontologia_habilitada` (solo `service_role`).
+- `public.odontologia_habilitada_now() returns boolean` (`STABLE SECURITY DEFINER`, `search_path public`): licencia de la clínica de `auth.uid()`, `false` si no hay.
+- `is_dentist_now()` (`CREATE OR REPLACE`) = marca del usuario **y** `odontologia_habilitada_now()`. Así todas las políticas y el RPC de la Tarea 1 quedan condicionados a la licencia sin reescribirlos.
+- `AuthContext.odontologiaHabilitada` y `AuthContext.isDentist` = marca **y** licencia (las Tareas 4–8 usan estos dos valores para mostrar u ocultar).
+
+- [ ] **Paso 1:** Extender el script: la clínica de prueba arranca con la licencia apagada → el odontólogo recibe error en el RPC; con service role se enciende → el RPC funciona; el org-admin de la clínica intenta encenderla con su sesión → error.
+- [ ] **Paso 2:** Correr el script → FAIL. Escribir la migración, `npx supabase migration up --local`, script → OK.
+- [ ] **Paso 3:** Superadmin: switch por clínica que llama a una acción con cliente de service role (igual que los topes). Manual local: encender/apagar y ver el cambio.
+- [ ] **Paso 4:** `npm run lint`, `npm test`, `npx tsc --noEmit` en verde. Commit `feat(odontologia): licencia de odontología por clínica`.
+
 ### Tarea 2: Modelo del odontograma (lógica pura)
 
 **Archivos:**
