@@ -1,15 +1,16 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { searchPatientsForAgenda } from '@/app/dashboard/patients/actions'
-import { getAuthContext } from '@/utils/auth-guard'
+import { getSessionProfile } from '@/utils/session'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { createClient } from '@/utils/supabase/server'
 
 export default async function OdontologiaPage({ searchParams }: {
   searchParams: Promise<{ q?: string | string[] }>
 }) {
-  const auth = await getAuthContext()
-  if (!auth?.odontologiaHabilitada) notFound()
+  const session = await getSessionProfile()
+  const profile = session?.profile
+  if (!profile?.odontologia_habilitada || !profile.clinic_id) notFound()
 
   const { q } = await searchParams
   const busqueda = typeof q === 'string' ? q.trim() : ''
@@ -17,7 +18,7 @@ export default async function OdontologiaPage({ searchParams }: {
   const [recientes, pacientes] = await Promise.all([
     supabase.from('consultations')
       .select('id, patient_id, created_at, reason_for_visit, patients(first_name, last_name)')
-      .eq('clinic_id', auth.clinicId)
+      .eq('clinic_id', profile.clinic_id)
       .eq('tipo', 'DENTAL')
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })

@@ -1,6 +1,6 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { getAuthContext } from '@/utils/auth-guard'
+import { getSessionProfile } from '@/utils/session'
 import type { OdontogramaGuardado } from '../../odontologia/OdontogramaTab'
 import { validarEstado, type Denticion } from '@/utils/odontograma'
 import { notFound } from 'next/navigation'
@@ -24,19 +24,11 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
   const supabase = await createClient()
 
   // 1. Validar autenticación
-  const auth = await getAuthContext()
-  if (!auth) return null
-  const { user, profile, odontologiaHabilitada, isDentist } = auth
-
-  const { data: currentProfile } = await supabase
-    .from('user_profiles')
-    .select('clinics(show_record_number)')
-    .eq('id', user.id)
-    .single()
-  // N° de Expediente: solo se muestra a las clínicas con el flag activo (hoy Complejo Médico San Martín).
-  // El join clinics(...) es a-uno: llega como objeto, aunque la inferencia del cliente diga arreglo.
-  const profileCfg = currentProfile as unknown as { clinics: { show_record_number: boolean | null } | null } | null
-  const showRecordNumber = !!profileCfg?.clinics?.show_record_number
+  const session = await getSessionProfile()
+  if (!session?.profile) return null
+  const { user, profile } = session
+  const odontologiaHabilitada = profile.odontologia_habilitada
+  const isDentist = odontologiaHabilitada && profile.is_dentist
 
   // 2. Cargar expediente del paciente
   const { data: patient, error: patientError } = await supabase
@@ -137,12 +129,12 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
       studyRequests={studyRequests || []}
       medicalLeaves={(medicalLeaves as unknown as MedicalLeaveRow[]) || []}
       referrals={(referrals as unknown as ReferralRow[]) || []}
-      showRecordNumber={showRecordNumber}
+      showRecordNumber={profile.show_record_number}
       initialEdit={isEditing}
       justCreated={justCreated}
       currentUserId={user.id}
-      currentUserRole={profile.role}
-      isOrgAdmin={auth.isOrgAdmin}
+      currentUserRole={profile.role ?? ''}
+      isOrgAdmin={!!profile.is_org_admin}
       odontologiaHabilitada={odontologiaHabilitada}
       odontogramas={odontogramas}
       isDentist={isDentist}

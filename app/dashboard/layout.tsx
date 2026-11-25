@@ -1,6 +1,5 @@
 import React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { getAuthContext } from '@/utils/auth-guard'
 import { getSessionProfile } from '@/utils/session'
 import SidebarLink from './components/SidebarLink'
 import { redirect } from 'next/navigation'
@@ -27,7 +26,7 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   // Sesión + perfil memoizados por request: layout, página y greeting comparten la llamada (P1-2).
-  const [session, auth] = await Promise.all([getSessionProfile(), getAuthContext()])
+  const session = await getSessionProfile()
   if (!session) {
     redirect('/login')
   }
@@ -72,7 +71,7 @@ export default async function DashboardLayout({
         <nav style={styles.navigation}>
           <SidebarLink href="/dashboard" label="Dashboard" icon={<LayoutDashboard size={20} />} />
           <SidebarLink href="/dashboard/patients" label="Pacientes" icon={<Users size={20} />} />
-          {auth?.odontologiaHabilitada && (
+          {profile?.odontologia_habilitada && (
             <SidebarLink href="/dashboard/odontologia" label="Odontología" icon={<Smile size={20} />} />
           )}
           {/* Auto-agendamiento: lo gestiona todo el personal (asistentes, médicos y enfermería) */}

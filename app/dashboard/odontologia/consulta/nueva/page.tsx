@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { getAuthContext } from '@/utils/auth-guard'
+import { getSessionProfile } from '@/utils/session'
 import { createClient } from '@/utils/supabase/server'
 import { denticionPorEdad, estadoVacio, validarEstado, type Denticion } from '@/utils/odontograma'
 import NuevaConsultaDentalClient from './NuevaConsultaDentalClient'
@@ -31,8 +31,10 @@ export default async function NuevaConsultaDentalPage({ searchParams }: PageProp
   const { patientId, appointmentId } = await searchParams
   if (typeof patientId !== 'string' || !patientId) redirect('/dashboard/patients')
 
-  const ctx = await getAuthContext()
-  if (!ctx?.isDentist) redirect(`/dashboard/patients/${encodeURIComponent(patientId)}`)
+  const session = await getSessionProfile()
+  if (!session?.profile?.odontologia_habilitada || !session.profile.is_dentist) {
+    redirect(`/dashboard/patients/${encodeURIComponent(patientId)}`)
+  }
 
   const supabase = await createClient()
   const [paciente, odontograma, historial, receta] = await Promise.all([
@@ -61,7 +63,7 @@ export default async function NuevaConsultaDentalPage({ searchParams }: PageProp
       appointmentId={cita}
       consultas={historial}
       ultimaReceta={receta.data ?? undefined}
-      currentUserId={ctx.user.id}
+      currentUserId={session.user.id}
       denticionInicial={(odontograma.data?.denticion as Denticion | undefined) ?? denticionPorEdad(paciente.data.birth_date ?? null)}
       estadoInicial={estado.estado}
     />

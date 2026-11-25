@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import AgendaClient, { type Appointment } from './AgendaClient'
 import DashboardGreeting from './DashboardGreeting'
 import { getPendingPreclinicalPatientIds } from './preclinical/actions'
-import { getAuthContext } from '@/utils/auth-guard'
+import { getSessionProfile } from '@/utils/session'
 
 import { cookies } from 'next/headers'
 
@@ -16,9 +16,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const supabase = await createClient()
   const sp = await searchParams
 
-  const auth = await getAuthContext()
-  if (!auth) return null
-  const { clinicId, profile, odontologiaHabilitada } = auth
+  const session = await getSessionProfile()
+  if (!session?.profile) return null
+  const { profile } = session
+  const clinicId = profile.clinic_id
 
   // Si venimos de "crear paciente → agendar cita", pre-seleccionar ese paciente en el modal de cita.
   let preSelectedPatient: { id: string; name: string } | null = null
@@ -107,7 +108,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         loadedRangeStart={rangeStart.toISOString()}
         loadedRangeEnd={rangeEnd.toISOString()}
         doctors={doctors || []}
-        odontologiaHabilitada={odontologiaHabilitada}
+        odontologiaHabilitada={profile.odontologia_habilitada}
         locations={locations || []}
         defaultLocationId={defaultLocationId}
         preclinicalPatientIds={preclinicalPatientIds}
