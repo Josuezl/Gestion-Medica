@@ -1,5 +1,6 @@
 import React from 'react'
 import QRCode from 'qrcode'
+import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import PrintControlBar from './PrintControlBar'
 import ConstanciaIncapacidad from './ConstanciaIncapacidad'
@@ -8,8 +9,10 @@ import DocumentCodeGate from '@/app/components/DocumentCodeGate'
 import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { calculateAge } from '@/utils/age'
-import type { ConsultationRow } from '@/utils/clinicalTypes'
+import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
 import { bpReadings } from '@/utils/bloodPressure'
+import Odontograma from '@/app/dashboard/odontologia/components/Odontograma'
+import { validarEstado, type Denticion } from '@/utils/odontograma'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -22,30 +25,37 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const resolvedSearchParams = searchParams ? await searchParams : {}
   // Modo "referencia": muestra solo Motivo de Consulta + Motivo de Referencia (en vez del resumen completo).
   const isReferral = resolvedSearchParams?.doc === 'referral'
+  const wantsDental = resolvedSearchParams?.doc === 'dental'
   const code = typeof resolvedSearchParams?.code === 'string'
     ? resolvedSearchParams.code
     : Array.isArray(resolvedSearchParams?.code) ? resolvedSearchParams.code[0] : undefined
 
   // Acceso: personal de la clínica (sesión) o el paciente con el código del documento.
-  const access = await loadPublicDocument<ConsultationRow>('consultations', consultationId, code)
+  const access = await loadPublicDocument<ConsultaConTipo>('consultations', consultationId, code)
   if (access.status === 'notfound') return notFound()
   if (access.status === 'gate') {
     return (
       <DocumentCodeGate
         basePath={`/consultations/${consultationId}/print`}
-        extraQuery={isReferral ? '&doc=referral' : ''}
+        extraQuery={isReferral ? '&doc=referral' : wantsDental ? '&doc=dental' : ''}
         hasError={!!access.hasError}
-        docLabel={isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}
+        docLabel={isReferral ? 'Referencia Médica' : wantsDental ? 'Consulta de Odontología' : 'Incapacidad Médica'}
       />
     )
   }
   const { doc: consultation, patient, doctor, clinic } = access
   if (!consultation || !patient || !doctor || !clinic) return notFound()
 
+  const c = consultation
+  const hasLeavePeriod = !!(c.leave_start_date && c.leave_days)
+  const dental = !isReferral && (wantsDental || (!hasLeavePeriod && !c.medical_leave?.trim()))
+    ? etiquetaTipoConsulta(c.tipo)
+    : null
+
   const patientAge = calculateAge(patient.birth_date)
   const formattedDate = formatDateTimeHN(consultation.created_at)
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const verifyUrl = `${SITE_URL}/verificar/${consultation.verification_code}${isReferral ? '?doc=referral' : ''}`
+  const verifyUrl = `${SITE_URL}/verificar/${consultation.verification_code}${isReferral ? '?doc=referral' : dental ? '?doc=dental' : ''}`
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 240, errorCorrectionLevel: 'M' })
   const docName = doctorShortName(doctor.first_name, doctor.last_name, doctor.gender)
   const docSpecialty = doctor.specialty || 'Medicina General'
@@ -57,9 +67,8 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const isGlobalLogo = !!logoUrl && !usingOwnLogo
   const getGenderText = (g?: string | null) => (g === 'M' ? 'Masculino' : g === 'F' ? 'Femenino' : 'Otro')
 
-  const c = consultation
   // Incapacidad con inicio y días: hoja propia («Constancia médica de incapacidad»).
-  if (!isReferral && c.leave_start_date && c.leave_days) {
+  if (!dental && !isReferral && c.leave_start_date && c.leave_days) {
     return (
       <ConstanciaIncapacidad
         c={{ ...c, leave_start_date: c.leave_start_date, leave_days: c.leave_days }}
@@ -70,7 +79,15 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
   const hc = c.head_circumference
   const hasVitals = c.weight || c.height || bpReadings(c).length > 0 || c.temperature || c.heart_rate || c.respiratory_rate || c.oxygen_saturation || hc
 
-  const sections = (isReferral
+  const sections = (dental
+    ? [
+        { title: 'Motivo de Consulta', value: c.reason_for_visit },
+        { title: 'Examen intraoral', value: c.intraoral_exam?.trim() || '—' },
+        { title: 'Diagnóstico', value: c.diagnosis },
+        { title: 'Procedimientos realizados', value: c.procedures_done?.trim() || '—' },
+        { title: 'Plan de Tratamiento / Recomendaciones', value: c.treatment_plan },
+      ]
+    : isReferral
     ? [
         { title: 'Dirigido a', value: c.referral_to },
         { title: 'Motivo de Consulta', value: c.reason_for_visit },
@@ -85,7 +102,8 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
       ]
   ).filter(s => s.value && String(s.value).trim() !== '')
   // En referencia no se muestran vitales ni la incapacidad.
-  const showVitals = hasVitals && !isReferral
+  const showVitals = hasVitals && !isReferral && !dental
+  const odontograma = dental && c.clinic_id ? await cargarOdontograma(consultationId, c.clinic_id) : null
 
   return (
     <>
@@ -181,10 +199,24 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
         }
       `}} />
 
-      <PrintControlBar />
+      {dental && <style>{`
+        .sheet-dental .body {
+          display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-content: start; gap: 8px 16px;
+        }
+        .sheet-dental .section { margin-bottom: 0; }
+        .odontograma-impreso { grid-column: 1 / -1; scroll-margin-top: 5rem; }
+        .odontograma-impreso section { zoom: 0.72; }
+        @media print {
+          .sheet.sheet-dental { min-height: 296mm; padding: 8mm 16mm; }
+          .sheet-dental .sign-area { margin-top: 14px; }
+          .odontograma-impreso section { zoom: 0.68; }
+        }
+      `}</style>}
+      <PrintControlBar titulo={dental ? `Consulta de ${dental}` : undefined} />
 
       <div className="page-wrap">
-        <div className="sheet">
+        <div className={dental ? 'sheet sheet-dental' : 'sheet'}>
           {/* Cabecera */}
           <div className="header">
             {logoUrl ? (
@@ -202,7 +234,7 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
             )}
           </div>
 
-          <p className="doc-title">{isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}</p>
+          <p className="doc-title">{dental ? `Consulta de ${dental}` : isReferral ? 'Referencia Médica' : 'Incapacidad Médica'}</p>
           <div className="divider" />
 
           {/* Paciente */}
@@ -255,7 +287,15 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
               </div>
             ))}
 
-            {!isReferral && c.medical_leave && String(c.medical_leave).trim() !== '' && (
+            {dental && (
+              <div className="section odontograma-impreso" id="odontograma">
+                <h3 className="section-title">Odontograma</h3>
+                {odontograma
+                  ? <Odontograma estado={odontograma.estado} denticion={odontograma.denticion} soloLectura />
+                  : <p className="section-body">—</p>}
+              </div>
+            )}
+            {!dental && !isReferral && c.medical_leave && String(c.medical_leave).trim() !== '' && (
               <div className="section">
                 <h3 className="section-title">Incapacidad Médica</h3>
                 <p className="section-body">{c.medical_leave}</p>
@@ -291,4 +331,16 @@ export default async function PrintConsultationSummaryPage({ params, searchParam
       </div>
     </>
   )
+}
+
+async function cargarOdontograma(consultationId: string, clinicId: string) {
+  // loadPublicDocument ya autorizó el acceso por sesión o código para esta consulta.
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const { data, error } = await supabase.from('odontogramas').select('denticion, estado')
+    .eq('consultation_id', consultationId).eq('clinic_id', clinicId).maybeSingle()
+  if (error) throw new Error('No se pudo cargar el odontograma de la consulta.')
+  if (!data) return null
+  const estado = validarEstado(data.estado)
+  if (!estado.ok) throw new Error('El odontograma guardado de la consulta no es válido.')
+  return { estado: estado.estado, denticion: data.denticion as Denticion }
 }

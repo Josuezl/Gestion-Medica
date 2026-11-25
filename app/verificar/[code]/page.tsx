@@ -5,6 +5,7 @@ import { CheckCircle, AlertCircle, FileText, User, Stethoscope, ClipboardList, F
 import { formatDateHN } from '@/utils/datetime'
 import { doctorTitle } from '@/utils/doctorName'
 import { medicineDetail, type Medicine } from '@/utils/medicines'
+import { etiquetaTipoConsulta } from '@/utils/tipoConsulta'
 
 /**
  * Forma común de los documentos verificables por código (receta, incapacidad/referencia,
@@ -15,6 +16,8 @@ interface VerifiableDoc {
   id: string
   created_at: string
   verification_code?: string | null
+  tipo?: string | null
+  consultations?: { tipo?: string | null } | null
   medicines?: Medicine[] | null
   notes?: string | null
   medical_leave?: string | null
@@ -50,6 +53,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     .from('prescriptions')
     .select(`
       id, created_at, medicines, notes, verification_code,
+      consultations ( tipo ),
       clinics ( name, phone, address ),
       patients ( first_name, last_name ),
       user_profiles!doctor_id ( first_name, last_name, specialty )
@@ -64,7 +68,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
     const { data } = await supabaseAdmin
       .from('consultations')
       .select(`
-        id, created_at, medical_leave, leave_start_date, leave_days, referral, referral_to, reason_for_visit, verification_code,
+        id, tipo, created_at, medical_leave, leave_start_date, leave_days, referral, referral_to, reason_for_visit, verification_code,
         clinics ( name ),
         patients ( first_name, last_name ),
         user_profiles!doctor_id ( first_name, last_name, specialty, gender, practice_name )
@@ -108,8 +112,11 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
 
   const doc = prescription || leave || labOrder || studyRequest
   const isValid = !!doc
-  const isReferral = !prescription && !!leave && wantReferral
-  const isLeave = !prescription && !!leave && !wantReferral
+  const etiqueta = etiquetaTipoConsulta(prescription ? prescription.consultations?.tipo : leave?.tipo)
+  const isReferral = !!leave && wantReferral
+  const consultaDental = !!leave && !!etiqueta && !isReferral
+    && (sp.doc === 'dental' || (!leave.medical_leave?.trim() && !(leave.leave_start_date && leave.leave_days)))
+  const isLeave = !!leave && !isReferral && !consultaDental
   const isLabOrder = !prescription && !leave && !!labOrder
   const isStudyRequest = !prescription && !leave && !labOrder && !!studyRequest
 
@@ -154,6 +161,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
               : isLeave ? 'Incapacidad Médica Auténtica'
               : isLabOrder ? 'Orden de Laboratorio Auténtica'
               : isStudyRequest ? 'Solicitud de Estudios Auténtica'
+              : consultaDental ? 'Consulta de Odontología Auténtica'
               : 'Receta Médica Auténtica'}
           </h1>
           {isValid && (
@@ -161,6 +169,7 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
               Emitida el {formatDateHN(doc.created_at)}
             </p>
           )}
+          {etiqueta && !consultaDental && <p style={{ margin: '0.5rem 0 0', fontWeight: 700 }}>{etiqueta}</p>}
         </div>
 
         {/* Content */}
@@ -269,14 +278,19 @@ export default async function VerifyDocumentPage({ params, searchParams }: { par
                     )}
                   </div>
                 </div>
+              ) : leave ? (
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 0.5rem' }}>Motivo de consulta</h3>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{leave.reason_for_visit?.trim() || '—'}</p>
+                </div>
               ) : (
                 <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', marginBottom: '2rem' }}>
                   <h3 style={{ fontSize: '1rem', color: '#0f172a', margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <FileText size={20} color="#0d9488" /> Medicamentos Recetados
                   </h3>
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                    {(prescription!.medicines || []).map((med, idx) => (
-                      <div key={idx} style={{ padding: '1rem', borderBottom: idx !== (prescription!.medicines || []).length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+                    {prescription?.medicines?.map((med, idx, medicines) => (
+                      <div key={idx} style={{ padding: '1rem', borderBottom: idx !== medicines.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
                         <p style={{ margin: '0 0 0.25rem', fontWeight: 600, color: '#0f172a' }}>{idx + 1}. {med.name}</p>
                         {medicineDetail(med) && (
                           <p style={{ margin: '0', fontSize: '0.875rem', color: '#64748b' }}>{medicineDetail(med)}</p>

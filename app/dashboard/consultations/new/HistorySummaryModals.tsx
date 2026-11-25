@@ -4,7 +4,9 @@ import React, { useState } from 'react'
 import { ClipboardList, BarChart3, ArrowRight } from 'lucide-react'
 import { calculateAge } from '@/utils/age'
 import { summaryHeadline, aggregateDiagnoses, summarizeRecentConsultations } from '@/utils/historySummary'
-import type { ConsultationRow, PatientRow } from '@/utils/clinicalTypes'
+import type { PatientRow } from '@/utils/clinicalTypes'
+import { etiquetaTipoConsulta, type ConsultaConTipo } from '@/utils/tipoConsulta'
+import DetalleConsultaDental from '../../odontologia/components/DetalleConsultaDental'
 import nextDynamic from 'next/dynamic'
 // recharts pesa ~100 KB gz y el gráfico vive dentro de un modal: se difiere (P2-5)
 const DiagnosesBarChart = nextDynamic(() => import('./DiagnosesBarChart'), { ssr: false, loading: () => <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Cargando gráfica…</p> })
@@ -18,7 +20,7 @@ const RECENT_LIMIT = 5
  */
 export default function HistorySummaryModals({ patient, consultations }: {
   patient: Pick<PatientRow, 'gender' | 'birth_date' | 'first_name' | 'last_name'>
-  consultations: ConsultationRow[]
+  consultations: ConsultaConTipo[]
 }) {
   const [open, setOpen] = useState(true)
 
@@ -56,21 +58,29 @@ export default function HistorySummaryModals({ patient, consultations }: {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-          {recent.map((c, i) => (
-            <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', background: '#f8fafc' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: '#0f766e', fontSize: '0.9rem', textTransform: 'capitalize' }}>{fmtDate(c.date)}</span>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{c.doctorName}</span>
+          {recent.map((c, i) => {
+            const consulta = consultations[i]
+            const etiqueta = etiquetaTipoConsulta(consulta.tipo)
+            return (
+              <div key={consulta.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', background: '#f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, color: '#0f766e', fontSize: '0.9rem', textTransform: 'capitalize' }}>{fmtDate(c.date)}</span>
+                  {etiqueta && <span className="badge badge-info">{etiqueta}</span>}
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{c.doctorName}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <Field label="Diagnóstico" value={c.diagnosis} />
+                  {etiqueta ? <DetalleConsultaDental consulta={consulta} /> : (
+                    <>
+                      <Field label="Síntomas" value={c.symptoms} />
+                      {c.studies && <Field label="Resultados de estudios" value={c.studies} />}
+                    </>
+                  )}
+                  <Field label="Plan de tratamiento" value={c.plan} />
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <Field label="Diagnóstico" value={c.diagnosis} />
-                <Field label="Síntomas" value={c.symptoms} />
-                {/* Solo si la consulta los tiene: no se llena el resumen de «No registrado». */}
-                {c.studies && <Field label="Resultados de estudios" value={c.studies} />}
-                <Field label="Plan de tratamiento" value={c.plan} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {diagnoses.length > 0 && (

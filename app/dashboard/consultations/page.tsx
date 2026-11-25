@@ -8,6 +8,8 @@ import { doctorShortName } from '@/utils/doctorName'
 import { formatDateTimeHN } from '@/utils/datetime'
 import { sanitizeSearchTerm } from '@/utils/validation'
 import { getSessionProfile } from '@/utils/session'
+import { etiquetaTipoConsulta } from '@/utils/tipoConsulta'
+import DetalleConsultaDental from '../odontologia/components/DetalleConsultaDental'
 import { Search, FileText, Eye, User, Calendar, Activity, ArrowRight } from 'lucide-react'
 
 interface PageProps {
@@ -44,6 +46,9 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
     .from('consultations')
     .select(`
       id,
+      tipo,
+      intraoral_exam,
+      procedures_done,
       reason_for_visit,
       diagnosis,
       created_at,
@@ -104,7 +109,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
       {/* Header Row */}
       <div style={styles.headerRow}>
         <div>
-          <h2 style={styles.title}>Consultas Médicas</h2>
+          <h2 style={styles.title}>Consultas</h2>
           <p style={styles.subtitle}>Historial de consultas de evolución, diagnósticos y tratamientos de la clínica</p>
         </div>
         <Link href="/dashboard/patients" className="btn btn-primary" style={{ gap: '0.5rem' }}>
@@ -146,7 +151,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
             <p style={styles.emptySubtext}>
               {searchQuery
                 ? 'Intenta con otros términos de búsqueda o limpia el filtro.'
-                : 'Aún no se han registrado consultas médicas en esta clínica.'}
+                : 'Aún no se han registrado consultas en esta clínica.'}
             </p>
           </div>
         ) : (
@@ -165,6 +170,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
               <tbody>
                 {paginatedConsultations.map((consultation) => {
                   const date = formatDateTimeHN(consultation.created_at)
+                  const etiqueta = etiquetaTipoConsulta(consultation.tipo)
                   // Los joins patients(...)/user_profiles(...) son a-uno: llegan como objeto,
                   // aunque la inferencia del cliente diga arreglo.
                   const patientRef = consultation.patients as unknown as { id: string; first_name?: string | null; last_name?: string | null } | null
@@ -181,6 +187,7 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                           <Calendar size={14} color="var(--text-muted)" />
                           <span style={styles.dateText}>{date}</span>
                         </div>
+                        {etiqueta && <span className="badge badge-info">{etiqueta}</span>}
                       </td>
                       <td data-label="Paciente">
                         <div style={styles.patientWrapper}>
@@ -198,8 +205,14 @@ export default async function ConsultationsPage({ searchParams }: PageProps) {
                       <td data-label="Diagnóstico">
                         <div style={styles.diagnosisWrapper}>
                           <Activity size={14} color="var(--primary)" />
-                          <span style={styles.diagnosisText}>{consultation.diagnosis}</span>
+                          <span style={styles.diagnosisText}>{consultation.diagnosis || '—'}</span>
                         </div>
+                        {etiqueta && (
+                          <details style={{ marginTop: '0.5rem' }}>
+                            <summary>Detalle dental</summary>
+                            <DetalleConsultaDental consulta={consultation} />
+                          </details>
+                        )}
                       </td>
                       <td data-label="Atendido Por">
                         <span style={styles.doctorText}>{doctorName}</span>
