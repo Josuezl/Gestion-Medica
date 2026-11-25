@@ -91,7 +91,7 @@ function notaValida(nota: unknown): nota is string | undefined {
   return nota === undefined || (typeof nota === 'string' && nota.length <= 500)
 }
 
-function marcaValida(marca: unknown, nivel: Nivel): marca is Marca {
+function marcaValida(marca: unknown, nivel: Nivel): marca is Marca & Record<string, unknown> {
   return esObjeto(marca)
     && typeof marca.estado === 'string'
     && Object.hasOwn(COLOR_ESTADO, marca.estado)
@@ -139,7 +139,7 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
 
   for (const [region, marca] of Object.entries(x.regiones)) {
     if (!REGIONES.has(region)) return { ok: false, error: 'El odontograma contiene una región inválida.' }
-    if (!esObjeto(marca) || !marcaValida(marca, 'region')) {
+    if (!marcaValida(marca, 'region')) {
       return { ok: false, error: `La marca de la región ${region} no es válida.` }
     }
     if (!notaValida(marca.nota)) {
