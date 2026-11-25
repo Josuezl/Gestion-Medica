@@ -191,7 +191,7 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
         return { ok: false, error: `La marca de la pieza ${fdi} no es válida.` }
       }
       if (pieza.pieza.hallazgo === 'OTRO' && !pieza.nota?.trim()) {
-        return { ok: false, error: `Pieza ${fdi}: describe en la nota el hallazgo «Otro».` }
+        return { ok: false, error: `Pieza ${fdi}: describe en la nota qué es «Otro».` }
       }
       limpia.pieza = { hallazgo: pieza.pieza.hallazgo, estado: pieza.pieza.estado }
     }
@@ -208,7 +208,7 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
         }
         const notaCara = marca.nota?.trim()
         if (marca.hallazgo === 'OTRO' && !notaCara) {
-          return { ok: false, error: `Pieza ${fdi}, cara ${cara}: describe en la nota el hallazgo «Otro».` }
+          return { ok: false, error: `Pieza ${fdi}, cara ${cara}: describe en la nota qué es «Otro».` }
         }
         caras[cara as Cara] = { hallazgo: marca.hallazgo, estado: marca.estado, ...(notaCara ? { nota: notaCara } : {}) }
       }

@@ -82,7 +82,7 @@ export default function OdontogramaTab({ patientId, birthDate, historial, isDent
         <>
           <Odontograma estado={seleccionado.estado} denticion={seleccionado.denticion} soloLectura />
           <div>
-            <h3>Hallazgos y notas</h3>
+            <h3>Tratamientos y notas</h3>
             {marcas.length > 0 ? (
               <ul style={{ paddingLeft: '1.25rem', display: 'grid', gap: '0.35rem', overflowWrap: 'anywhere' }}>
                 {marcas.map(({ lugar, detalle, marca }) => (
@@ -92,7 +92,7 @@ export default function OdontogramaTab({ patientId, birthDate, historial, isDent
                   </li>
                 ))}
               </ul>
-            ) : <p>Este odontograma no tiene hallazgos ni notas.</p>}
+            ) : <p>Este odontograma no tiene tratamientos ni notas.</p>}
           </div>
         </>
       ) : (

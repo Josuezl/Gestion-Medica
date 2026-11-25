@@ -189,7 +189,7 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
     >
       <h3 id={tituloId} style={{ marginBottom: '1rem' }}>{ubicacion(objetivo, denticion)}</h3>
       <div className="form-group">
-        <span id={`${tituloId}-hallazgo`} className="form-label">Hallazgo</span>
+        <span id={`${tituloId}-hallazgo`} className="form-label">Tratamiento</span>
         <div role="radiogroup" aria-labelledby={`${tituloId}-hallazgo`} onKeyDown={moverConFlechas}
           style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(8.5rem, 1fr))', gap: '0.4rem' }}>
           {opciones.map(({ codigo, etiqueta }, indice) => {
@@ -216,8 +216,8 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
       <label className="form-group">
         <span className="form-label">Estado</span>
         <select className="form-input" disabled={!hallazgo} value={estadoMarca} onChange={(e) => setEstadoMarca(e.target.value as EstadoMarca)}>
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="REALIZADO">Realizado</option>
+          <option value="PENDIENTE">Pendiente (lo necesita)</option>
+          <option value="REALIZADO">Realizado (ya lo tiene)</option>
         </select>
       </label>
       {(objetivo.nivel !== 'cara' || hallazgo === 'OTRO') && (
@@ -229,7 +229,7 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
             onChange={(e) => setNota(e.target.value)} style={{ resize: 'vertical' }} />
           {faltaNota && (
             <span id={`${tituloId}-nota-ayuda`} style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Describe el hallazgo para poder aplicar «Otro».
+              Describe el tratamiento o la condición para poder aplicar «Otro».
             </span>
           )}
         </label>
