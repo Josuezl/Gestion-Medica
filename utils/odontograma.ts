@@ -45,7 +45,7 @@ export const HALLAZGOS: { codigo: Hallazgo; etiqueta: string; niveles: Nivel[] }
 
 export const COLOR_ESTADO: Record<EstadoMarca, string> = {
   PENDIENTE: '#dc2626',
-  REALIZADO: '#2563eb',
+  REALIZADO: '#16a34a',
 }
 
 export function piezasDe(d: Denticion): number[] {

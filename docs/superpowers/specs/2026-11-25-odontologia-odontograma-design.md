@@ -132,7 +132,7 @@ Josué eligió A porque el historial compartido es central y es lo que menos có
 - **Hallazgos iniciales** (lista cerrada, ampliable en la fase 2): caries, obturación/restauración,
   sellante, corona, endodoncia, extracción indicada, ausente, implante, prótesis fija/puente,
   prótesis removible (PR), fractura, movilidad y nota libre.
-- **Colores:** **rojo** = patología o tratamiento por hacer; **azul** = tratamiento existente o
+- **Colores:** **rojo** = patología o tratamiento por hacer; **verde** (cambiado de azul a pedido de Josué, 2026-11-25) = tratamiento existente o
   realizado. Es la convención habitual en Latinoamérica; hay que confirmarla con los odontólogos.
 - SVG propio, sin librerías externas. En modo solo lectura se muestra igual, sin interacción.
 - Al abrir una consulta dental nueva, el odontograma se precarga con el último estado guardado

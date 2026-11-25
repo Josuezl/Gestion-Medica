@@ -70,6 +70,62 @@
   }
 }
 
+/* Columna lateral: historial de trabajos arriba, historial de consultas debajo. */
+.lateral {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.odontogramaCard,
+.historialTrabajos {
+  min-width: 0;
+}
+
+.historialTrabajos {
+  overflow-wrap: anywhere;
+}
+
+.pendienteActual,
+.trabajosConsulta {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pendienteActual {
+  padding-top: 0;
+  margin-bottom: 0.65rem;
+}
+
+.trabajosConsulta:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.historialTrabajos h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.listaTrabajos {
+  display: grid;
+  gap: 0.45rem;
+  padding-inline-start: 1.25rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+}
+
+.listaTrabajos li > * {
+  display: block;
+}
+
+.procedimientos {
+  margin: 0.4rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+}
+
 .form > button {
   align-self: flex-start;
   gap: 0.5rem;

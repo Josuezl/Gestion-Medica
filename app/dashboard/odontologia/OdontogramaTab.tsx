@@ -15,7 +15,7 @@ export type OdontogramaGuardado = {
   estado: EstadoOdontograma | null
 }
 
-function listaDeMarcas(estado: EstadoOdontograma) {
+function listaDeMarcas(estado: EstadoOdontograma, denticion: Denticion) {
   const marcas: { lugar: string; detalle: string }[] = []
 
   for (const [numero, pieza] of Object.entries(estado.piezas)) {
@@ -31,7 +31,7 @@ function listaDeMarcas(estado: EstadoOdontograma) {
 
   for (const [region, marca] of Object.entries(estado.regiones)) {
     const detalle = descripcion(marca, marca?.nota)
-    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'region', region: region as Region }), detalle })
+    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'region', region: region as Region }, denticion), detalle })
   }
   return marcas
 }
@@ -45,7 +45,7 @@ export default function OdontogramaTab({ patientId, birthDate, historial, isDent
   const [seleccionId, setSeleccionId] = useState<string>()
   const seleccionado = historial?.find(({ id }) => id === seleccionId) ?? historial?.[0]
   const sinHistorial = historial?.length === 0
-  const marcas = seleccionado?.estado ? listaDeMarcas(seleccionado.estado) : []
+  const marcas = seleccionado?.estado ? listaDeMarcas(seleccionado.estado, seleccionado.denticion) : []
 
   return (
     <section style={{ minWidth: 0, display: 'grid', gap: '1rem' }}>

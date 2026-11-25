@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, NotebookPen, Trash2 } from 'lucide-react'
 import {
-  COLOR_ESTADO, HALLAZGOS, esSuperior, nombreSuperficie, piezasDe,
+  COLOR_ESTADO, HALLAZGOS, REGIONES, esSuperior, etiquetaRegion, nombreSuperficie, piezasDe,
   type Cara, type Denticion, type EstadoMarca, type EstadoOdontograma, type Hallazgo, type Marca, type Region,
 } from '@/utils/odontograma'
 import { siluetaDe } from './dientes'
@@ -24,10 +24,6 @@ type Objetivo =
 
 const DENTICIONES: Record<Denticion, string> = { PERMANENTE: 'Permanente', TEMPORAL: 'Temporal', MIXTA: 'Mixta' }
 const ESTADOS: Record<EstadoMarca, string> = { PENDIENTE: 'Pendiente', REALIZADO: 'Realizado' }
-const REGIONES: Record<Region, string> = {
-  S1: 'Sextante 1', S2: 'Sextante 2', S3: 'Sextante 3', S4: 'Sextante 4', S5: 'Sextante 5', S6: 'Sextante 6',
-  AS: 'Arcada superior', AI: 'Arcada inferior',
-}
 const SECTORES = [
   { camino: 'M8.44 8.44 A22 22 0 0 1 39.56 8.44 L32 16 H16 Z', x: 24, y: 10 },
   { camino: 'M8.44 39.56 A22 22 0 0 1 8.44 8.44 L16 16 V32 Z', x: 10, y: 24 },
@@ -36,8 +32,8 @@ const SECTORES = [
   { camino: 'M39.56 39.56 A22 22 0 0 1 8.44 39.56 L16 32 H32 Z', x: 24, y: 38 },
 ]
 
-export function ubicacion(objetivo: Objetivo): string {
-  if (objetivo.nivel === 'region') return REGIONES[objetivo.region]
+export function ubicacion(objetivo: Objetivo, denticion: Denticion = 'PERMANENTE'): string {
+  if (objetivo.nivel === 'region') return etiquetaRegion(objetivo.region, denticion)
   if (objetivo.nivel === 'pieza') return `Pieza ${objetivo.fdi}`
 
   const { fdi, cara } = objetivo
@@ -159,9 +155,10 @@ function Diente({ fdi, estado, seleccionar }: {
   )
 }
 
-function EditorMarca({ objetivo, estado, alGuardar, alCerrar }: {
+function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
   objetivo: Objetivo
   estado: EstadoOdontograma
+  denticion: Denticion
   alGuardar: (marca: Marca | undefined, nota?: string) => void
   alCerrar: () => void
 }) {
@@ -198,7 +195,7 @@ function EditorMarca({ objetivo, estado, alGuardar, alCerrar }: {
         background: 'var(--bg-card)', color: 'var(--text-main)', boxShadow: 'var(--shadow-lg)',
       }}
     >
-      <h3 id={tituloId} style={{ marginBottom: '1rem' }}>{ubicacion(objetivo)}</h3>
+      <h3 id={tituloId} style={{ marginBottom: '1rem' }}>{ubicacion(objetivo, denticion)}</h3>
       <label className="form-group">
         <span className="form-label">Hallazgo</span>
         <select className="form-input" value={hallazgo} onChange={(e) => setHallazgo(e.target.value as Hallazgo | '')}>
@@ -238,6 +235,37 @@ function EditorMarca({ objetivo, estado, alGuardar, alCerrar }: {
   )
 }
 
+const ANCHO_PIEZA = 48
+const PADDING_PIEZAS = 4
+// En pantallas táctiles muy angostas no se achica más: los dientes dejarían de poder tocarse
+// y se usa el desplazamiento horizontal como último recurso.
+const ESCALA_MINIMA = 0.6
+
+/**
+ * Escala (CSS zoom) para que la fila más larga de dientes quepa completa en el ancho disponible.
+ * zoom, a diferencia de transform, también reduce el espacio que ocupa y los clip-path de las caras.
+ */
+function useEscalaParaCaber(piezasPorFila: number) {
+  const contenedor = useRef<HTMLDivElement>(null)
+  const [valor, setValor] = useState(1)
+
+  useEffect(() => {
+    const elemento = contenedor.current
+    if (!elemento) return
+    const natural = piezasPorFila * ANCHO_PIEZA + PADDING_PIEZAS * 2
+    const medir = () => {
+      const disponible = elemento.clientWidth
+      if (disponible > 0) setValor(Math.max(ESCALA_MINIMA, Math.min(1, disponible / natural)))
+    }
+    medir()
+    const observador = new ResizeObserver(medir)
+    observador.observe(elemento)
+    return () => observador.disconnect()
+  }, [piezasPorFila])
+
+  return [contenedor, valor] as const
+}
+
 export default function Odontograma({ estado, denticion, onChange, onDenticionChange, soloLectura, mostrarLeyenda = true }: Props) {
   const regionDetalleId = useId()
   const [objetivo, setObjetivo] = useState<Objetivo | null>(null)
@@ -250,6 +278,7 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
     { etiqueta: 'Arcada inferior temporal', piezas: piezas.filter((fdi) => fdi >= 50 && !esSuperior(fdi)) },
     { etiqueta: 'Arcada inferior permanente', piezas: piezas.filter((fdi) => fdi < 50 && !esSuperior(fdi)) },
   ]
+  const [contenedorPiezas, escala] = useEscalaParaCaber(Math.max(...arcadas.map((arcada) => arcada.piezas.length)))
 
   function guardar(marca: Marca | undefined, nota?: string) {
     if (!editable || !objetivo) return
@@ -314,9 +343,12 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
         </div>}
       </div>}
 
-      <div role="region" aria-label="Piezas dentales" tabIndex={0}
+      <div ref={contenedorPiezas} role="region" aria-label="Piezas dentales" tabIndex={0}
         style={{ minWidth: 0, overflowX: 'auto', borderRadius: 'var(--radius-sm)' }}>
-        <div style={{ width: 'max-content', minWidth: '100%', display: 'grid', gap: '0.6rem', padding: '0.25rem' }}>
+        <div style={{
+          width: 'max-content', minWidth: '100%', display: 'grid', gap: '0.6rem', padding: `${PADDING_PIEZAS}px`,
+          zoom: escala,
+        }}>
           {arcadas.filter((arcada) => arcada.piezas.length > 0).map(({ etiqueta, piezas }) => (
             <div key={etiqueta} role="group" aria-label={etiqueta}
               style={{ display: 'flex', justifyContent: 'center' }}>
@@ -329,22 +361,23 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
       </div>
 
       <div role="group" aria-label="Regiones dentales" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-        {(Object.keys(REGIONES) as Region[]).map((region) => {
+        {REGIONES.map((region) => {
           const marca = estado.regiones[region]
           const detalle = descripcion(marca, marca?.nota)
           const detalleId = `${regionDetalleId}-${region}`
+          const etiqueta = etiquetaRegion(region, denticion)
           return (
             <button key={region} type="button" aria-disabled={editable ? undefined : true}
               className="odontograma-control btn-secondary"
-              aria-label={REGIONES[region]} aria-describedby={detalle ? detalleId : undefined}
+              aria-label={etiqueta} aria-describedby={detalle ? detalleId : undefined}
               aria-haspopup={editable ? 'dialog' : undefined}
-              title={detalle ?? REGIONES[region]} onClick={seleccionar ? () => seleccionar({ nivel: 'region', region }) : undefined}
+              title={detalle ?? etiqueta} onClick={seleccionar ? () => seleccionar({ nivel: 'region', region }) : undefined}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem', font: 'inherit', fontSize: '0.8rem',
                 padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',
                 border: `1px solid ${marca ? COLOR_ESTADO[marca.estado] : 'var(--border-color)'}`,
               }}>
-              {REGIONES[region]}
+              {etiqueta}
               {marca && <span>
                 · {HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)?.etiqueta}
               </span>}
@@ -355,7 +388,7 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
       </div>
 
       {editable && objetivo && (
-        <EditorMarca objetivo={objetivo} estado={estado} alGuardar={guardar} alCerrar={() => setObjetivo(null)} />
+        <EditorMarca objetivo={objetivo} estado={estado} denticion={denticion} alGuardar={guardar} alCerrar={() => setObjetivo(null)} />
       )}
     </section>
   )

@@ -18,9 +18,10 @@ import { writeFormField } from '@/utils/formFields'
 import { guardarEnApi } from '@/utils/guardarApi'
 import type { guardarConsultaDental } from '@/utils/guardado/consulta-dental'
 import { parseMedicinesText } from '@/utils/medicines'
-import { validarEstado, type Denticion, type EstadoOdontograma } from '@/utils/odontograma'
+import { validarEstado, type Denticion, type EstadoOdontograma, type TrabajoOdontologico } from '@/utils/odontograma'
 import { useFormDraft } from '@/utils/useFormDraft'
 import Odontograma from '../../components/Odontograma'
+import HistorialTrabajos, { type TrabajosConsulta } from './HistorialTrabajos'
 import styles from './consultaDental.module.css'
 
 interface ConsultaAnterior extends ConsultationRow {
@@ -37,6 +38,8 @@ interface Props {
   currentUserId: string
   denticionInicial: Denticion
   estadoInicial: EstadoOdontograma
+  pendientes: TrabajoOdontologico[]
+  trabajosPrevios: TrabajosConsulta[]
 }
 
 const CAMPOS = {
@@ -85,7 +88,7 @@ function leerOdontogramaBorrador(raw?: string) {
 }
 
 export default function NuevaConsultaDentalClient({
-  paciente, appointmentId, consultas, ultimaReceta, currentUserId, denticionInicial, estadoInicial,
+  paciente, appointmentId, consultas, ultimaReceta, currentUserId, denticionInicial, estadoInicial, pendientes, trabajosPrevios,
 }: Props) {
   const [denticion, setDenticion] = useState(denticionInicial)
   const [estado, setEstado] = useState(estadoInicial)
@@ -238,7 +241,7 @@ export default function NuevaConsultaDentalClient({
             <CampoClinico name="intraoral_exam" />
           </section>
 
-          <section className="card">
+          <section className={`card ${styles.odontogramaCard}`}>
             <TituloSeccion><IconoMuela size={18} /> Odontograma</TituloSeccion>
             <Odontograma
               estado={estado}
@@ -271,25 +274,28 @@ export default function NuevaConsultaDentalClient({
           </button>
         </form>
 
-        <aside className={`card ${styles.historial}`}>
-          <TituloSeccion><History size={18} /> Historial de consultas</TituloSeccion>
-          {consultas.length === 0 && <p className={styles.muted}>Sin consultas previas.</p>}
-          {consultas.map((consulta) => (
-            <details key={consulta.id} className={styles.consulta}>
-              <summary>
-                {formatDateTimeHN(consulta.created_at)}
-                {consulta.tipo === 'DENTAL' && <span className="badge badge-info">Odontología</span>}
-                <span className={styles.muted}>{consulta.diagnosis || consulta.reason_for_visit || 'Consulta'}</span>
-              </summary>
-              <dl>
-                {Object.entries(CAMPOS_HISTORIAL).map(([campo, etiqueta]) => {
-                  const valor = consulta[campo as keyof typeof CAMPOS_HISTORIAL]
-                  return valor && <div key={campo}><dt>{etiqueta}</dt><dd>{valor}</dd></div>
-                })}
-              </dl>
-            </details>
-          ))}
-        </aside>
+        <div className={styles.lateral}>
+          <HistorialTrabajos denticion={denticionInicial} pendientes={pendientes} consultas={trabajosPrevios} />
+          <aside className={`card ${styles.historial}`}>
+            <TituloSeccion><History size={18} /> Historial de consultas</TituloSeccion>
+            {consultas.length === 0 && <p className={styles.muted}>Sin consultas previas.</p>}
+            {consultas.map((consulta) => (
+              <details key={consulta.id} className={styles.consulta}>
+                <summary>
+                  {formatDateTimeHN(consulta.created_at)}
+                  {consulta.tipo === 'DENTAL' && <span className="badge badge-info">Odontología</span>}
+                  <span className={styles.muted}>{consulta.diagnosis || consulta.reason_for_visit || 'Consulta'}</span>
+                </summary>
+                <dl>
+                  {Object.entries(CAMPOS_HISTORIAL).map(([campo, etiqueta]) => {
+                    const valor = consulta[campo as keyof typeof CAMPOS_HISTORIAL]
+                    return valor && <div key={campo}><dt>{etiqueta}</dt><dd>{valor}</dd></div>
+                  })}
+                </dl>
+              </details>
+            ))}
+          </aside>
+        </div>
       </div>
     </div>
   )
