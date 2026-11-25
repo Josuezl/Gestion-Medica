@@ -87,11 +87,11 @@ function esObjeto(x: unknown): x is Record<string, unknown> {
   return prototipo === Object.prototype || prototipo === null
 }
 
-function notaValida(nota: unknown): boolean {
+function notaValida(nota: unknown): nota is string | undefined {
   return nota === undefined || (typeof nota === 'string' && nota.length <= 500)
 }
 
-function marcaValida(marca: unknown, nivel: Nivel): boolean {
+function marcaValida(marca: unknown, nivel: Nivel): marca is Marca {
   return esObjeto(marca)
     && typeof marca.estado === 'string'
     && Object.hasOwn(COLOR_ESTADO, marca.estado)
@@ -105,6 +105,8 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
     return { ok: false, error: 'El odontograma debe incluir mapas de piezas y regiones.' }
   }
 
+  const estado = estadoVacio()
+
   // Las marcas de piezas ocultas siguen siendo válidas al cambiar de dentición.
   for (const [fdi, pieza] of Object.entries(x.piezas)) {
     if (!PIEZAS_FDI.has(fdi)) return { ok: false, error: 'El odontograma contiene una pieza FDI inválida.' }
@@ -112,17 +114,27 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
     if (!notaValida(pieza.nota)) {
       return { ok: false, error: `La nota de la pieza ${fdi} debe ser texto de hasta 500 caracteres.` }
     }
-    if (pieza.pieza !== undefined && !marcaValida(pieza.pieza, 'pieza')) {
-      return { ok: false, error: `La marca de la pieza ${fdi} no es válida.` }
-    }
-    if (pieza.caras === undefined) continue
-    if (!esObjeto(pieza.caras)) return { ok: false, error: `Las caras de la pieza ${fdi} deben ser un objeto.` }
-    for (const [cara, marca] of Object.entries(pieza.caras)) {
-      if (!CARAS.has(cara)) return { ok: false, error: `La pieza ${fdi} contiene una cara inválida.` }
-      if (!marcaValida(marca, 'cara')) {
-        return { ok: false, error: `La marca en la cara ${cara} de la pieza ${fdi} no es válida.` }
+    const limpia: Pieza = {}
+    if (pieza.nota) limpia.nota = pieza.nota
+    if (pieza.pieza !== undefined) {
+      if (!marcaValida(pieza.pieza, 'pieza')) {
+        return { ok: false, error: `La marca de la pieza ${fdi} no es válida.` }
       }
+      limpia.pieza = { hallazgo: pieza.pieza.hallazgo, estado: pieza.pieza.estado }
     }
+    if (pieza.caras !== undefined) {
+      if (!esObjeto(pieza.caras)) return { ok: false, error: `Las caras de la pieza ${fdi} deben ser un objeto.` }
+      const caras: NonNullable<Pieza['caras']> = {}
+      for (const [cara, marca] of Object.entries(pieza.caras)) {
+        if (!CARAS.has(cara)) return { ok: false, error: `La pieza ${fdi} contiene una cara inválida.` }
+        if (!marcaValida(marca, 'cara')) {
+          return { ok: false, error: `La marca en la cara ${cara} de la pieza ${fdi} no es válida.` }
+        }
+        caras[cara as Cara] = { hallazgo: marca.hallazgo, estado: marca.estado }
+      }
+      if (Object.keys(caras).length > 0) limpia.caras = caras
+    }
+    if (Object.keys(limpia).length > 0) estado.piezas[fdi] = limpia
   }
 
   for (const [region, marca] of Object.entries(x.regiones)) {
@@ -133,7 +145,12 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
     if (!notaValida(marca.nota)) {
       return { ok: false, error: `La nota de la región ${region} debe ser texto de hasta 500 caracteres.` }
     }
+    estado.regiones[region as Region] = {
+      hallazgo: marca.hallazgo,
+      estado: marca.estado,
+      ...(marca.nota !== undefined ? { nota: marca.nota } : {}),
+    }
   }
 
-  return { ok: true, estado: x as EstadoOdontograma }
+  return { ok: true, estado }
 }

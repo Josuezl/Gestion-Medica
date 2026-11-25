@@ -47,6 +47,31 @@ describe('validarEstado', () => {
     expect(validarEstado(estadoVacio())).toEqual({ ok: true, estado: vacio })
   })
 
+  it('devuelve un estado nuevo con solo las claves conocidas y piezas con contenido', () => {
+    const corona = { hallazgo: 'CORONA', estado: 'REALIZADO' }
+    const entrada = {
+      ...vacio,
+      x: 1,
+      piezas: {
+        '36': { x: 1, caras: { O: { ...caries, x: 1 } }, pieza: { ...corona, x: 1 }, nota: 'Control' },
+        '37': { x: 1, caras: {}, nota: '' },
+      },
+      regiones: { S1: { ...puente, nota: 'Revisar', x: 1 } },
+    }
+
+    const resultado = validarEstado(entrada)
+
+    expect(resultado).toEqual({
+      ok: true,
+      estado: {
+        version: 1,
+        piezas: { '36': { caras: { O: caries }, pieza: corona, nota: 'Control' } },
+        regiones: { S1: { ...puente, nota: 'Revisar' } },
+      },
+    })
+    if (resultado.ok) expect(resultado.estado).not.toBe(entrada)
+  })
+
   it.each([
     ['pieza 99', { ...vacio, piezas: { '99': {} } }],
     ['cara X', { ...vacio, piezas: { '36': { caras: { X: caries } } } }],
