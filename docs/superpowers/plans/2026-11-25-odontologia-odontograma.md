@@ -287,6 +287,26 @@ comportamiento.
   idéntica a antes.
 - [ ] **Paso 3:** Commit `feat(odontologia): historial unificado e impresión dental`.
 
+### Tarea 8b: Plan de trabajo imprimible (sin precios)
+
+**Archivos:**
+- Modificar: `utils/odontograma.ts` (+ `trabajosPendientes(estado: EstadoOdontograma): { ubicacion: string; hallazgo: Hallazgo; etiqueta: string; nota?: string }[]`)
+- Test: `tests/odontograma.test.ts`
+- Crear: `app/consultations/[id]/print/plan-trabajo/page.tsx` (reusa el encabezado de la
+  clínica/médico y `PrintControlBar` de la impresión actual)
+- Modificar: pantalla de consulta dental guardada / `OdontogramaTab.tsx`: botón
+  "Imprimir plan de trabajo" (visible para todo el personal; solo lectura).
+
+- [ ] **Paso 1:** Tests de `trabajosPendientes`: solo devuelve marcas `PENDIENTE` (ignora
+  `REALIZADO`); orden FDI ascendente de piezas (11, 12 … 48, luego 51 … 85) y después las
+  regiones `S1…S6, AS, AI`; `ubicacion` con el formato `'Pieza 36 · Oclusal'`, `'Pieza 21'` o
+  `'Sextante 2'` / `'Arcada superior'`; estado vacío → `[]`.
+- [ ] **Paso 2:** FAIL → implementar → PASS.
+- [ ] **Paso 3:** Página: título "Plan de trabajo", paciente, fecha, odontólogo, odontograma
+  (solo lectura), tabla de pendientes (Ubicación · Trabajo · Nota), diagnóstico e indicaciones
+  de la consulta, firma. Sin columna de precio. Manual local: imprimir y revisar en una hoja.
+- [ ] **Paso 4:** Commit `feat(odontologia): plan de trabajo imprimible`.
+
 ### Tarea 9: E2E y prueba con Josué
 
 **Archivos:**

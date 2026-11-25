@@ -26,6 +26,10 @@ interactivo y compartir pacientes e historial con los médicos de la clínica.
 - **Los odontólogos conservan todo lo que puede hacer un médico** (consulta médica, incapacidad,
   órdenes de laboratorio, estudios). No se les restringe nada. La única diferencia es que
   además pueden guardar consultas dentales y odontogramas.
+- **Plan de trabajo imprimible (añadido al aprobar el plan):** el odontólogo imprime un
+  documento con el odontograma marcado, la lista de trabajos pendientes por pieza (marcas
+  `PENDIENTE`, en orden FDI, con cara, hallazgo y nota), y el diagnóstico y las indicaciones de
+  la consulta. **No lleva precios**: los costos siguen en la fase 2.
 - **Forma de trabajo:** Codex programa, Claude coordina y revisa. **Todo se prueba en local**
   (`npm run dev` con Supabase local) antes de subir a producción.
 
