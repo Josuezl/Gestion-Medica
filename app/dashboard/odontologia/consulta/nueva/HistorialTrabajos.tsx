@@ -4,6 +4,7 @@ import { formatDateTimeHN } from '@/utils/datetime'
 import { doctorShortName } from '@/utils/doctorName'
 import { etiquetaRegion, type Denticion, type TrabajoOdontologico } from '@/utils/odontograma'
 import styles from './consultaDental.module.css'
+import { IconoHallazgo } from '../../components/iconos'
 
 export type TrabajosConsulta = {
   id: string
@@ -14,7 +15,7 @@ export type TrabajosConsulta = {
   trabajos: TrabajoOdontologico[]
 }
 
-function ListaTrabajos({ trabajos, denticion }: { trabajos: TrabajoOdontologico[]; denticion: Denticion }) {
+function ListaTrabajos({ trabajos, denticion, estado }: { trabajos: TrabajoOdontologico[]; denticion: Denticion; estado: 'PENDIENTE' | 'REALIZADO' }) {
   if (!trabajos.length) return null
 
   return (
@@ -26,7 +27,10 @@ function ListaTrabajos({ trabajos, denticion }: { trabajos: TrabajoOdontologico[
         return (
           <li key={lugar}>
             <span>{lugar}</span>
-            <strong>{trabajo.etiqueta}</strong>
+            <strong style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <IconoHallazgo hallazgo={trabajo.hallazgo} estado={estado} size={18} />
+              {trabajo.etiqueta}
+            </strong>
             {trabajo.nota && <span className={styles.muted}>{trabajo.nota}</span>}
           </li>
         )
@@ -42,7 +46,7 @@ function TrabajosAnteriores({ consultas }: { consultas: TrabajosConsulta[] }) {
       <p className={styles.muted}>
         {odontologo ? doctorShortName(odontologo.first_name, odontologo.last_name, odontologo.gender) : 'Odontólogo sin identificar'}
       </p>
-      <ListaTrabajos trabajos={trabajos} denticion={denticion} />
+      <ListaTrabajos trabajos={trabajos} denticion={denticion} estado="REALIZADO" />
       {procedimientos && <p className={styles.procedimientos}>{procedimientos}</p>}
       {!trabajos.length && !procedimientos && <p className={styles.muted}>Sin trabajos registrados.</p>}
     </div>
@@ -61,7 +65,7 @@ export default function HistorialTrabajos({ denticion, pendientes, consultas }: 
       <h3 id={tituloId} className={styles.sectionTitle}><History size={18} /> Historial de trabajos</h3>
       <div className={styles.pendienteActual}>
         <h4>Pendiente actual</h4>
-        <ListaTrabajos trabajos={pendientes} denticion={denticion} />
+        <ListaTrabajos trabajos={pendientes} denticion={denticion} estado="PENDIENTE" />
         {!pendientes.length && <p className={styles.muted}>Sin trabajos pendientes.</p>}
       </div>
       {consultas.length === 0 && <p className={styles.muted}>Primera consulta dental del paciente.</p>}

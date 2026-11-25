@@ -122,13 +122,13 @@ test('la consulta dental queda en el expediente, el historial médico y el repor
 
     await comoOdontologo.getByRole('button', { name: CARA_OCLUSAL, exact: true }).click()
     const editor = comoOdontologo.getByRole('dialog', { name: CARA_OCLUSAL })
-    await editor.getByLabel('Hallazgo').selectOption('CARIES')
+    await editor.getByRole('radio', { name: 'Caries', exact: true }).click()
     await editor.getByLabel('Estado').selectOption('PENDIENTE')
     await editor.getByRole('button', { name: 'Aplicar' }).click()
 
     await comoOdontologo.getByRole('button', { name: 'Pieza 18', exact: true }).click()
     const pieza = comoOdontologo.getByRole('dialog', { name: 'Pieza 18' })
-    await pieza.getByLabel('Hallazgo').selectOption('CORONA')
+    await pieza.getByRole('radio', { name: 'Corona', exact: true }).click()
     await pieza.getByLabel('Estado').selectOption('REALIZADO')
     await pieza.getByRole('button', { name: 'Aplicar' }).click()
     const [respuesta] = await Promise.all([

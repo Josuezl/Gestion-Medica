@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDateTimeHN } from '@/utils/datetime'
-import { denticionPorEdad, estadoVacio, type Cara, type Denticion, type EstadoOdontograma, type Region } from '@/utils/odontograma'
+import { denticionPorEdad, estadoVacio, type Cara, type Denticion, type EstadoOdontograma, type Marca, type Region } from '@/utils/odontograma'
 import { rutaNuevaConsulta } from '@/utils/rutaConsulta'
 import Odontograma, { descripcion, ubicacion } from './components/Odontograma'
+import { IconoHallazgo } from './components/iconos'
 
 export type OdontogramaGuardado = {
   id: string
@@ -16,22 +17,22 @@ export type OdontogramaGuardado = {
 }
 
 function listaDeMarcas(estado: EstadoOdontograma, denticion: Denticion) {
-  const marcas: { lugar: string; detalle: string }[] = []
+  const marcas: { lugar: string; detalle: string; marca?: Marca }[] = []
 
   for (const [numero, pieza] of Object.entries(estado.piezas)) {
     const fdi = Number(numero)
     const detalle = descripcion(pieza.pieza, pieza.nota)
-    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'pieza', fdi }), detalle })
+    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'pieza', fdi }), detalle, marca: pieza.pieza })
 
     for (const [cara, marca] of Object.entries(pieza.caras ?? {})) {
       const detalleCara = descripcion(marca)
-      if (detalleCara) marcas.push({ lugar: ubicacion({ nivel: 'cara', fdi, cara: cara as Cara }), detalle: detalleCara })
+      if (detalleCara) marcas.push({ lugar: ubicacion({ nivel: 'cara', fdi, cara: cara as Cara }), detalle: detalleCara, marca })
     }
   }
 
   for (const [region, marca] of Object.entries(estado.regiones)) {
     const detalle = descripcion(marca, marca?.nota)
-    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'region', region: region as Region }, denticion), detalle })
+    if (detalle) marcas.push({ lugar: ubicacion({ nivel: 'region', region: region as Region }, denticion), detalle, marca })
   }
   return marcas
 }
@@ -84,8 +85,11 @@ export default function OdontogramaTab({ patientId, birthDate, historial, isDent
             <h3>Hallazgos y notas</h3>
             {marcas.length > 0 ? (
               <ul style={{ paddingLeft: '1.25rem', display: 'grid', gap: '0.35rem', overflowWrap: 'anywhere' }}>
-                {marcas.map(({ lugar, detalle }) => (
-                  <li key={lugar}><strong>{lugar}</strong> · {detalle}</li>
+                {marcas.map(({ lugar, detalle, marca }) => (
+                  <li key={lugar}>
+                    {marca && <><IconoHallazgo hallazgo={marca.hallazgo} estado={marca.estado} size={18} />{' '}</>}
+                    <strong>{lugar}</strong> · {detalle}
+                  </li>
                 ))}
               </ul>
             ) : <p>Este odontograma no tiene hallazgos ni notas.</p>}

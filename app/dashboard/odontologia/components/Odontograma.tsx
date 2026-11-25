@@ -7,6 +7,7 @@ import {
   type Cara, type Denticion, type EstadoMarca, type EstadoOdontograma, type Hallazgo, type Marca, type Region,
 } from '@/utils/odontograma'
 import { siluetaDe } from './dientes'
+import { IconoHallazgo, IconoRegion, SimboloPieza } from './iconos'
 
 type Props = {
   estado: EstadoOdontograma
@@ -45,30 +46,6 @@ export function descripcion(marca?: Marca, nota?: string): string | undefined {
   return [hallazgo, marca && ESTADOS[marca.estado], nota].filter(Boolean).join(' · ') || undefined
 }
 
-function SimboloPieza({ marca, silueta }: { marca: Marca; silueta: ReturnType<typeof siluetaDe> }) {
-  const color = COLOR_ESTADO[marca.estado]
-  switch (marca.hallazgo) {
-    case 'CORONA':
-      return <path d={silueta.corona} fill="none" stroke={color} strokeWidth="3" />
-    case 'ENDODONCIA':
-      return <path d={silueta.conductos} fill="none" stroke={color} strokeWidth="3" />
-    case 'EXTRACCION_INDICADA':
-      return <path d="M8 10 L40 56 M40 10 L8 56" stroke={color} strokeWidth="3" strokeDasharray="4 4" />
-    case 'AUSENTE':
-      return <path d="M8 10 L40 56 M40 10 L8 56" stroke={color} strokeWidth="3" />
-    case 'IMPLANTE':
-      return <path d="M20 8 H28 L31 36 H17 Z M19 15 H29 M18 22 H30 M18 29 H30 M16 40 H32"
-        fill="none" stroke={color} strokeWidth="2.5" />
-    case 'PUENTE':
-      return <path d="M5 54 H43 M8 48 V59 M40 48 V59" fill="none" stroke={color} strokeWidth="3" />
-    case 'MOVILIDAD':
-      return <path d="M5 50 H43 M12 44 L5 50 L12 56 M36 44 L43 50 L36 56"
-        fill="none" stroke={color} strokeWidth="2.5" />
-    default:
-      return null
-  }
-}
-
 function Diente({ fdi, estado, seleccionar }: {
   fdi: number
   estado: EstadoOdontograma
@@ -101,7 +78,7 @@ function Diente({ fdi, estado, seleccionar }: {
         <g transform={superior ? undefined : 'translate(0 64) scale(1 -1)'} strokeLinejoin="round" strokeLinecap="round">
           <path d={silueta.contorno} fill="var(--bg-card)" stroke="var(--text-muted)" strokeWidth="1.4" />
           <path d={silueta.cuello} fill="none" stroke="var(--text-muted)" strokeWidth="1" />
-          {marca && <SimboloPieza marca={marca} silueta={silueta} />}
+          {marca && <SimboloPieza hallazgo={marca.hallazgo} color={COLOR_ESTADO[marca.estado]} silueta={silueta} />}
         </g>
         {marca?.hallazgo === 'PROTESIS_REMOVIBLE' && (
           <text x="24" y={superior ? 54 : 17} textAnchor="middle" fontWeight="800" fontSize="13"
@@ -196,13 +173,28 @@ function EditorMarca({ objetivo, estado, denticion, alGuardar, alCerrar }: {
       }}
     >
       <h3 id={tituloId} style={{ marginBottom: '1rem' }}>{ubicacion(objetivo, denticion)}</h3>
-      <label className="form-group">
-        <span className="form-label">Hallazgo</span>
-        <select className="form-input" value={hallazgo} onChange={(e) => setHallazgo(e.target.value as Hallazgo | '')}>
-          <option value="" disabled={Boolean(actual)}>Seleccionar hallazgo</option>
-          {opciones.map(({ codigo, etiqueta }) => <option key={codigo} value={codigo}>{etiqueta}</option>)}
-        </select>
-      </label>
+      <div className="form-group">
+        <span id={`${tituloId}-hallazgo`} className="form-label">Hallazgo</span>
+        <div role="radiogroup" aria-labelledby={`${tituloId}-hallazgo`}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(8.5rem, 1fr))', gap: '0.4rem' }}>
+          {opciones.map(({ codigo, etiqueta }) => {
+            const elegido = hallazgo === codigo
+            return (
+              <button key={codigo} type="button" role="radio" aria-checked={elegido}
+                onClick={() => setHallazgo(codigo)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.4rem 0.55rem', font: 'inherit',
+                  fontSize: '0.85rem', textAlign: 'left', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                  background: elegido ? 'var(--bg-input)' : 'var(--bg-card)', color: 'var(--text-main)',
+                  border: `${elegido ? 2 : 1}px solid ${elegido ? 'var(--primary)' : 'var(--border-color)'}`,
+                }}>
+                <IconoHallazgo hallazgo={codigo} estado={elegido ? estadoMarca : undefined} size={28} />
+                {etiqueta}
+              </button>
+            )
+          })}
+        </div>
+      </div>
       <label className="form-group">
         <span className="form-label">Estado</span>
         <select className="form-input" disabled={!hallazgo} value={estadoMarca} onChange={(e) => setEstadoMarca(e.target.value as EstadoMarca)}>
@@ -377,6 +369,7 @@ export default function Odontograma({ estado, denticion, onChange, onDenticionCh
                 padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)',
                 border: `1px solid ${marca ? COLOR_ESTADO[marca.estado] : 'var(--border-color)'}`,
               }}>
+              <IconoRegion region={region} estado={marca?.estado} />
               {etiqueta}
               {marca && <span>
                 · {HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)?.etiqueta}

@@ -11,6 +11,7 @@ import PrintControlBar from '../PrintControlBar'
 import PrintHeader from '../PrintHeader'
 import PrintSignature from '../PrintSignature'
 import PrintStyles from '../PrintStyles'
+import { IconoHallazgo } from '@/app/dashboard/odontologia/components/iconos'
 import PrintVerification, { generarQrVerificacion } from '../PrintVerification'
 import { cargarEstadoAnterior, cargarOdontograma } from '../cargarOdontograma'
 import styles from './reporte.module.css'
@@ -60,7 +61,12 @@ function TablaTrabajos({ realizados, trabajos, denticion }: {
                 <tr key={`${pieza}:${superficie ?? ''}`}>
                   <td>{pieza}</td>
                   <td>{superficie || '—'}</td>
-                  <td>{trabajo.etiqueta}</td>
+                  <td>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <IconoHallazgo hallazgo={trabajo.hallazgo} estado={realizados ? 'REALIZADO' : 'PENDIENTE'} size={16} />
+                      {trabajo.etiqueta}
+                    </span>
+                  </td>
                   <td>{trabajo.nota?.trim() || '—'}</td>
                 </tr>
               )
