@@ -78,8 +78,46 @@ export function estadoVacio(): EstadoOdontograma {
 }
 
 const PIEZAS_FDI = new Set(piezasDe('MIXTA').map(String))
-const CARAS: ReadonlySet<string> = new Set<Cara>(['V', 'L', 'M', 'D', 'O'])
-const REGIONES: ReadonlySet<string> = new Set<Region>(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'AS', 'AI'])
+const CARAS: readonly Cara[] = ['V', 'L', 'M', 'D', 'O']
+const ETIQUETAS_REGION: Record<Region, string> = {
+  S1: 'Sextante 1', S2: 'Sextante 2', S3: 'Sextante 3',
+  S4: 'Sextante 4', S5: 'Sextante 5', S6: 'Sextante 6',
+  AS: 'Arcada superior', AI: 'Arcada inferior',
+}
+const REGIONES = Object.keys(ETIQUETAS_REGION) as Region[]
+
+type TrabajoPendiente = { ubicacion: string; hallazgo: Hallazgo; etiqueta: string; nota?: string }
+
+export function trabajosPendientes(estado: EstadoOdontograma): TrabajoPendiente[] {
+  const trabajos: TrabajoPendiente[] = []
+
+  function agregar(ubicacion: string, marca?: Marca, nota?: string) {
+    if (marca?.estado !== 'PENDIENTE') return
+    const etiqueta = HALLAZGOS.find(({ codigo }) => codigo === marca.hallazgo)!.etiqueta
+    trabajos.push({ ubicacion, hallazgo: marca.hallazgo, etiqueta, ...(nota !== undefined ? { nota } : {}) })
+  }
+
+  for (const [fdi, pieza] of Object.entries(estado.piezas).sort(([a], [b]) => Number(a) - Number(b))) {
+    const ubicacion = `Pieza ${fdi}`
+    const superior = ['1', '2', '5', '6'].includes(fdi[0])
+    const nombres: Record<Cara, string> = {
+      V: 'Vestibular', L: superior ? 'Palatina' : 'Lingual',
+      M: 'Mesial', D: 'Distal', O: Number(fdi[1]) <= 3 ? 'Incisal' : 'Oclusal',
+    }
+
+    agregar(ubicacion, pieza.pieza, pieza.nota)
+    for (const cara of CARAS) {
+      agregar(`${ubicacion} · ${nombres[cara]}`, pieza.caras?.[cara], pieza.nota)
+    }
+  }
+
+  for (const region of REGIONES) {
+    const marca = estado.regiones[region]
+    agregar(ETIQUETAS_REGION[region], marca, marca?.nota)
+  }
+
+  return trabajos
+}
 
 function esObjeto(x: unknown): x is Record<string, unknown> {
   if (typeof x !== 'object' || x === null) return false
@@ -126,7 +164,7 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
       if (!esObjeto(pieza.caras)) return { ok: false, error: `Las caras de la pieza ${fdi} deben ser un objeto.` }
       const caras: NonNullable<Pieza['caras']> = {}
       for (const [cara, marca] of Object.entries(pieza.caras)) {
-        if (!CARAS.has(cara)) return { ok: false, error: `La pieza ${fdi} contiene una cara inválida.` }
+        if (!CARAS.includes(cara as Cara)) return { ok: false, error: `La pieza ${fdi} contiene una cara inválida.` }
         if (!marcaValida(marca, 'cara')) {
           return { ok: false, error: `La marca en la cara ${cara} de la pieza ${fdi} no es válida.` }
         }
@@ -138,7 +176,7 @@ export function validarEstado(x: unknown): { ok: true; estado: EstadoOdontograma
   }
 
   for (const [region, marca] of Object.entries(x.regiones)) {
-    if (!REGIONES.has(region)) return { ok: false, error: 'El odontograma contiene una región inválida.' }
+    if (!Object.hasOwn(ETIQUETAS_REGION, region)) return { ok: false, error: 'El odontograma contiene una región inválida.' }
     if (!marcaValida(marca, 'region')) {
       return { ok: false, error: `La marca de la región ${region} no es válida.` }
     }

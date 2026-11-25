@@ -9,6 +9,7 @@ import Odontograma, { descripcion, ubicacion } from './components/Odontograma'
 
 export type OdontogramaGuardado = {
   id: string
+  consultaId: string
   fecha: string
   denticion: Denticion
   estado: EstadoOdontograma | null
@@ -59,9 +60,16 @@ export default function OdontogramaTab({ patientId, historial, isDentist }: {
             </select>
           </label>
         )}
-        {isDentist && (
-          <Link className="btn btn-primary" href={rutaNuevaConsulta(patientId, null, true)}>Nueva consulta dental</Link>
-        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+          {seleccionado && (
+            <a className="btn btn-secondary" href={`/consultations/${seleccionado.consultaId}/print/plan-trabajo`} target="_blank" rel="noopener noreferrer">
+              Imprimir plan de trabajo
+            </a>
+          )}
+          {isDentist && (
+            <Link className="btn btn-primary" href={rutaNuevaConsulta(patientId, null, true)}>Nueva consulta dental</Link>
+          )}
+        </div>
       </div>
 
       {seleccionado?.estado ? (

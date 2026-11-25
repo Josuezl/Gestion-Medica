@@ -143,7 +143,7 @@ export default async function PatientPage({ params, searchParams }: PageProps) {
 }
 
 async function cargarOdontogramas(supabase: Awaited<ReturnType<typeof createClient>>, patientId: string) {
-  const consulta = supabase.from('odontogramas').select('id, created_at, denticion, estado')
+  const consulta = supabase.from('odontogramas').select('id, consultation_id, created_at, denticion, estado')
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -158,6 +158,7 @@ async function cargarOdontogramas(supabase: Awaited<ReturnType<typeof createClie
       const resultado = validarEstado(fila.estado)
       historial.push({
         id: fila.id,
+        consultaId: fila.consultation_id,
         fecha: fila.created_at,
         denticion: fila.denticion as Denticion,
         estado: resultado.ok ? resultado.estado : null,

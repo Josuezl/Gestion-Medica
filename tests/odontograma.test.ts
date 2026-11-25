@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { denticionPorEdad, estadoVacio, piezasDe, validarEstado } from '@/utils/odontograma'
+import { denticionPorEdad, estadoVacio, piezasDe, trabajosPendientes, validarEstado, type Marca } from '@/utils/odontograma'
 
 describe('denticionPorEdad', () => {
   it.each([
@@ -114,5 +114,45 @@ describe('validarEstado', () => {
     expect(piezasDe('MIXTA')).toContain(55)
     expect(piezasDe('PERMANENTE')).not.toContain(55)
     expect(validarEstado(estado)).toEqual({ ok: true, estado })
+  })
+})
+
+describe('trabajosPendientes', () => {
+  it('devuelve una lista vacía para un odontograma sin marcas', () => {
+    expect(trabajosPendientes(estadoVacio())).toEqual([])
+  })
+
+  it('ordena por FDI y luego por región, con etiquetas y notas de las marcas pendientes', () => {
+    const caries: Marca = { hallazgo: 'CARIES', estado: 'PENDIENTE' }
+    const corona: Marca = { hallazgo: 'CORONA', estado: 'PENDIENTE' }
+    const puente: Marca = { hallazgo: 'PUENTE', estado: 'PENDIENTE' }
+
+    expect(trabajosPendientes({
+      version: 1,
+      piezas: {
+        '85': { pieza: corona },
+        '51': { caras: { O: caries } },
+        '36': { caras: { O: caries, V: { ...caries, estado: 'REALIZADO' } }, nota: 'Revisar sensibilidad' },
+        '21': { pieza: corona },
+        '11': { pieza: { ...corona, estado: 'REALIZADO' } },
+        '12': { nota: 'Solo una nota' },
+      },
+      regiones: {
+        AI: puente,
+        AS: { ...puente, nota: 'Valorar ajuste' },
+        S6: puente,
+        S2: puente,
+        S1: { ...puente, estado: 'REALIZADO' },
+      },
+    })).toEqual([
+      { ubicacion: 'Pieza 21', hallazgo: 'CORONA', etiqueta: 'Corona' },
+      { ubicacion: 'Pieza 36 · Oclusal', hallazgo: 'CARIES', etiqueta: 'Caries', nota: 'Revisar sensibilidad' },
+      { ubicacion: 'Pieza 51 · Incisal', hallazgo: 'CARIES', etiqueta: 'Caries' },
+      { ubicacion: 'Pieza 85', hallazgo: 'CORONA', etiqueta: 'Corona' },
+      { ubicacion: 'Sextante 2', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+      { ubicacion: 'Sextante 6', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+      { ubicacion: 'Arcada superior', hallazgo: 'PUENTE', etiqueta: 'Puente', nota: 'Valorar ajuste' },
+      { ubicacion: 'Arcada inferior', hallazgo: 'PUENTE', etiqueta: 'Puente' },
+    ])
   })
 })

@@ -16,9 +16,14 @@ export default function DetalleConsultaDental({ consulta }: {
           </div>
         ))}
       </dl>
-      <a href={`/consultations/${consulta.id}/print?doc=dental#odontograma`} target="_blank" rel="noopener noreferrer">
-        Ver odontograma
-      </a>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <a href={`/consultations/${consulta.id}/print?doc=dental#odontograma`} target="_blank" rel="noopener noreferrer">
+          Ver odontograma
+        </a>
+        <a href={`/consultations/${consulta.id}/print/plan-trabajo`} target="_blank" rel="noopener noreferrer">
+          Imprimir plan de trabajo
+        </a>
+      </div>
     </div>
   )
 }
